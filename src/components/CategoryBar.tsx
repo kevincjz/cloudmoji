@@ -44,7 +44,7 @@ export function CategoryBar({ category, lang, onSelect }: CategoryBarProps) {
             }}
           >
             <span style={{ fontSize: 15 }}>{cat.icon}</span>
-            {lang === "zh" ? cat.labelZh : cat.label}
+            {lang === "zh" ? cat.labelZh : lang === "ms" ? cat.labelMs : cat.label}
           </button>
         );
       })}

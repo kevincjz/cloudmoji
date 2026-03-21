@@ -12,6 +12,16 @@ import { CategoryBar } from "./components/CategoryBar";
 import { LangToggle } from "./components/LangToggle";
 import { StatsPanel } from "./components/StatsPanel";
 
+const SPEECH_LANG: Record<Language, string> = {
+  en: "en-US",
+  zh: "zh-CN",
+  ms: "ms-MY",
+};
+
+function getWord(item: EmojiEntry, lang: Language): string {
+  return item[lang];
+}
+
 export default function App() {
   const [lang, setLang] = useLocalStorage<Language>("cm_lang", "en");
   const [muted, setMuted] = useState(false);
@@ -58,15 +68,14 @@ export default function App() {
   const handleTap = useCallback(
     (item: EmojiEntry, idx: number) => {
       initTTS();
-      const word = lang === "zh" ? item.zh : item.en;
-      const speechLang = lang === "zh" ? "zh-CN" : "en-US";
+      const word = getWord(item, lang);
 
       setTyped((prev) => [...prev, { emoji: item.emoji, word, id: Date.now() }]);
       setShowWord({ emoji: item.emoji, word, id: Date.now() });
       setBounceIdx(idx);
       if (!beamingRef.current) setMascotMood("excited");
 
-      speak(word, speechLang);
+      speak(word, SPEECH_LANG[lang]);
       logEvent("tap", item.emoji);
 
       const newCount = tapCount + 1;
@@ -95,9 +104,9 @@ export default function App() {
     (emoji: string) => {
       const found = EMOJIS.find((e) => e.emoji === emoji);
       if (!found) return;
-      const word = lang === "zh" ? found.zh : found.en;
+      const word = getWord(found, lang);
       setShowWord({ emoji, word, id: Date.now() });
-      speak(word, lang === "zh" ? "zh-CN" : "en-US");
+      speak(word, SPEECH_LANG[lang]);
       if (wordTimerRef.current) clearTimeout(wordTimerRef.current);
       wordTimerRef.current = setTimeout(() => setShowWord(null), 2200);
     },
@@ -105,9 +114,10 @@ export default function App() {
   );
 
   const handleLangToggle = useCallback(() => {
-    const newLang = lang === "en" ? "zh" : "en";
-    setLang(newLang);
-    logEvent("lang", newLang);
+    const cycle: Language[] = ["en", "zh", "ms"];
+    const next = cycle[(cycle.indexOf(lang) + 1) % cycle.length];
+    setLang(next);
+    logEvent("lang", next);
   }, [lang, setLang]);
 
   const handleCategorySelect = useCallback((cat: "all" | Category) => {
@@ -118,14 +128,13 @@ export default function App() {
   const replayAll = useCallback(() => {
     if (typed.length === 0 || muted) return;
     speechSynthesis.cancel();
-    const speechLang = lang === "zh" ? "zh-CN" : "en-US";
     logEvent("replay", String(typed.length));
     typed.forEach((item, i) => {
       setTimeout(() => {
         const found = EMOJIS.find((e) => e.emoji === item.emoji);
-        const word = found ? found[lang] : item.word;
+        const word = found ? getWord(found, lang) : item.word;
         setShowWord({ emoji: item.emoji, word, id: Date.now() });
-        speak(word, speechLang);
+        speak(word, SPEECH_LANG[lang]);
       }, i * 1200);
     });
     setTimeout(() => setShowWord(null), typed.length * 1200 + 1500);

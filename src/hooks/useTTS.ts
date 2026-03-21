@@ -39,7 +39,8 @@ export function useTTS({ muted, safeMood }: UseTTSOptions) {
       const name = v.name.toLowerCase();
       return name.includes("female") || name.includes("samantha") ||
         name.includes("karen") || name.includes("tessa") ||
-        name.includes("tingting") || name.includes("sinji");
+        name.includes("tingting") || name.includes("sinji") ||
+        name.includes("amira");
     });
 
     const voice = female ?? pool[0];

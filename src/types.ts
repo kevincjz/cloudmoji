@@ -5,6 +5,7 @@ export interface EmojiEntry {
   cat: Category;
   en: string;
   zh: string;
+  ms: string;
 }
 
 export interface CategoryTab {
@@ -12,9 +13,10 @@ export interface CategoryTab {
   icon: string;
   label: string;
   labelZh: string;
+  labelMs: string;
 }
 
-export type Language = "en" | "zh";
+export type Language = "en" | "zh" | "ms";
 
 export type MascotMood = "happy" | "excited" | "speaking" | "beaming";
 

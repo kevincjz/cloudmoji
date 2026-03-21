@@ -59,7 +59,7 @@ export function TypingRow({
               padding: "0 4px",
             }}
           >
-            {lang === "zh" ? "点击下面的表情 👇" : "Tap emojis below! 👇"}
+            {lang === "zh" ? "点击下面的表情 👇" : lang === "ms" ? "Ketik emoji di bawah! 👇" : "Tap emojis below! 👇"}
           </span>
         ) : (
           typed.map((item) => (

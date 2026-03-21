@@ -27,8 +27,8 @@ export function LangToggle({ lang, onToggle }: LangToggleProps) {
         transition: "all 0.2s",
       }}
     >
-      <span style={{ fontSize: 17 }}>{lang === "en" ? "🇬🇧" : "🇨🇳"}</span>
-      <span>{lang === "en" ? "EN" : "中文"}</span>
+      <span style={{ fontSize: 17 }}>{lang === "en" ? "🇬🇧" : lang === "zh" ? "🇨🇳" : "🇲🇾"}</span>
+      <span>{lang === "en" ? "EN" : lang === "zh" ? "中文" : "BM"}</span>
     </button>
   );
 }
