@@ -122,10 +122,18 @@ export default function App() {
     logEvent("lang", next);
   }, [lang, setLang]);
 
-  const handleCategorySelect = useCallback((cat: "all" | Category) => {
+  const handleCategorySelect = useCallback((cat: "all" | Category, label: string, icon: string) => {
     setCategory(cat);
     logEvent("cat", cat);
-  }, []);
+
+    setShowWord({ emoji: icon, word: label, id: Date.now() });
+    speak(label, SPEECH_LANG[lang]);
+    if (!beamingRef.current) setMascotMood("excited");
+
+    if (wordTimerRef.current) clearTimeout(wordTimerRef.current);
+    wordTimerRef.current = setTimeout(() => setShowWord(null), 2200);
+    setTimeout(() => safeMood("happy"), 600);
+  }, [lang, speak, safeMood]);
 
   const replayAll = useCallback(() => {
     if (typed.length === 0 || muted) return;
