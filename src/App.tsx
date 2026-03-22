@@ -11,6 +11,7 @@ import { WordBubble } from "./components/WordBubble";
 import { CategoryBar } from "./components/CategoryBar";
 import { LangToggle } from "./components/LangToggle";
 import { StatsPanel } from "./components/StatsPanel";
+import { AboutPanel } from "./components/AboutPanel";
 
 const SPEECH_LANG: Record<Language, string> = {
   en: "en-US",
@@ -36,6 +37,7 @@ export default function App() {
   const [mascotMood, setMascotMood] = useState<MascotMood>("happy");
   const [tapCount, setTapCount] = useState(0);
   const [showStats, setShowStats] = useState(false);
+  const [showAbout, setShowAbout] = useState(false);
 
   const wordTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
   const beamingRef = useRef(false);
@@ -249,29 +251,27 @@ export default function App() {
           </div>
 
           <div className="flex gap-[6px] items-center">
-            <a
-              href="https://ko-fi.com/kevincjz"
-              target="_blank"
-              rel="noopener noreferrer"
-              data-testid="kofi-btn"
+            <button
+              data-testid="about-btn"
+              onClick={() => setShowAbout(true)}
               className="active:scale-88"
               style={{
                 background: "rgba(255,255,255,0.06)",
                 border: "2px solid rgba(255,255,255,0.12)",
                 borderRadius: 14,
-                width: 40,
-                height: 40,
-                fontSize: 18,
+                padding: "6px 12px",
+                color: "#fff",
+                fontSize: 14,
+                fontWeight: 900,
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
-                justifyContent: "center",
+                fontFamily: "'Nunito', sans-serif",
                 transition: "all 0.2s",
-                textDecoration: "none",
               }}
             >
-              ☕
-            </a>
+              About
+            </button>
             <button
               data-testid="mute-btn"
               onClick={() =>
@@ -363,6 +363,9 @@ export default function App() {
 
       {/* Hidden Stats Panel */}
       {showStats && <StatsPanel onClose={() => setShowStats(false)} />}
+
+      {/* About Panel */}
+      {showAbout && <AboutPanel onClose={() => setShowAbout(false)} />}
     </div>
   );
 }
