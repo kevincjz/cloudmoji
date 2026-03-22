@@ -70,7 +70,7 @@ export function AboutPanel({ onClose }: AboutPanelProps) {
             textAlign: "center",
             margin: 0,
           }}>
-            Cloud loves tapping emojis on our phones and saying them out loud. So we thought — what if we could give him a safe space to do just that, and learn the words in multiple languages along the way?
+            One day, Cloud picked up a locked iPhone and started typing emojis — then said the words out loud, all on his own. We thought: what if we could turn that into a safe space that helps him (and every toddler) learn new words in multiple languages?
           </p>
 
           <p style={{
