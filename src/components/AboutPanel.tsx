@@ -243,6 +243,27 @@ export function AboutPanel({ onClose }: AboutPanelProps) {
             </div>
           </div>
 
+          {/* Privacy & Terms */}
+          <div>
+            <div style={{
+              fontSize: 14,
+              fontWeight: 900,
+              marginBottom: 8,
+            }}>
+              Legal
+            </div>
+            <div className="flex flex-col gap-2">
+              <FAQItem
+                q="Privacy Policy"
+                a={"Cloudmoji is designed with your child's privacy in mind.\n\n• We do not collect any personal information from children or parents.\n• We do not require accounts, logins, or registration.\n• We do not use cookies or tracking pixels.\n• Usage statistics (tap counts, favourite emojis) are stored only on your device in localStorage and are never sent to any server.\n• We use Vercel Analytics, which collects anonymous, aggregated page view data (visitor count, country, device type). No individual users are identified.\n• Cloudmoji does not contain ads, in-app purchases, or links to social media.\n• We comply with COPPA (Children's Online Privacy Protection Act) and Singapore's PDPA.\n\nFor questions, reach out to Kevin via ko-fi.com/kevincjz."}
+              />
+              <FAQItem
+                q="Terms of Use"
+                a={"By using Cloudmoji, you agree to the following:\n\n• Cloudmoji is provided free of charge, \"as is\", without warranty of any kind.\n• Cloudmoji is intended for use by children under parental supervision.\n• We recommend using Guided Access (iOS) or Screen Pinning (Android) to keep your child safely within the app.\n• Text-to-speech quality depends on your device and may vary.\n• We reserve the right to update or discontinue Cloudmoji at any time.\n• Cloudmoji is a personal project by Kevin and PQ, not a commercial product.\n\nLast updated: March 2026."}
+              />
+            </div>
+          </div>
+
           <div style={{
             fontSize: 10,
             fontWeight: 800,
