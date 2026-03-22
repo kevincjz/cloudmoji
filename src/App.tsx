@@ -249,6 +249,29 @@ export default function App() {
           </div>
 
           <div className="flex gap-[6px] items-center">
+            <a
+              href="https://ko-fi.com/kevincjz"
+              target="_blank"
+              rel="noopener noreferrer"
+              data-testid="kofi-btn"
+              className="active:scale-88"
+              style={{
+                background: "rgba(255,255,255,0.06)",
+                border: "2px solid rgba(255,255,255,0.12)",
+                borderRadius: 14,
+                width: 40,
+                height: 40,
+                fontSize: 18,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "all 0.2s",
+                textDecoration: "none",
+              }}
+            >
+              ☕
+            </a>
             <button
               data-testid="mute-btn"
               onClick={() =>
