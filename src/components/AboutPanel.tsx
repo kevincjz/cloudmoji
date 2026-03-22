@@ -47,8 +47,14 @@ export function AboutPanel({ onClose }: AboutPanelProps) {
         </div>
 
         <div className="flex flex-col gap-4">
-          <div style={{ fontSize: 36, textAlign: "center" }}>
-            ☁️
+          <div className="flex justify-center">
+            <img
+              src="/icons/icon-192.png"
+              alt="Cloudmoji"
+              width={80}
+              height={80}
+              style={{ borderRadius: 20 }}
+            />
           </div>
 
           <p style={{
