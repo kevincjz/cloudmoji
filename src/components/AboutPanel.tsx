@@ -51,8 +51,8 @@ export function AboutPanel({ onClose }: AboutPanelProps) {
             <img
               src="/icons/icon-192.png"
               alt="Cloudmoji"
-              width={80}
-              height={80}
+              width={160}
+              height={160}
               style={{ borderRadius: 20 }}
             />
           </div>
