@@ -6,28 +6,32 @@ interface AboutPanelProps {
 
 const FAQ_ITEMS = [
   {
-    q: "How do I add Cloudmoji to my home screen?",
-    a: "On iPhone: tap the Share button in Safari, then \"Add to Home Screen\". On Android: tap the three-dot menu in Chrome, then \"Add to Home Screen\". It will look and feel like a native app!",
+    q: "How do we use Cloudmoji?",
+    a: "We save Cloudmoji as an app on our home screen and run it in Guided Access mode — this locks the phone to just Cloudmoji so your little one can tap freely without accidentally switching apps or pressing buttons they shouldn't!",
   },
   {
-    q: "Does it work offline?",
-    a: "Yes! After your first visit, Cloudmoji works without an internet connection. The text-to-speech uses your device's built-in voices.",
+    q: "How do I save Cloudmoji to my home screen?",
+    a: "On iPhone/iPad: Open Cloudmoji in Safari → tap the Share button (square with arrow) → scroll down and tap \"Add to Home Screen\" → tap \"Add\". On Android: Open in Chrome → tap the three-dot menu (⋮) → tap \"Add to Home Screen\" → tap \"Add\". It will appear as an app icon!",
+  },
+  {
+    q: "How do I turn on Guided Access? (iPhone/iPad)",
+    a: "1. Go to Settings → Accessibility → Guided Access → turn it ON.\n2. Set a passcode.\n3. Open Cloudmoji, then triple-click the side button (or home button).\n4. Tap \"Start\" in the top right.\n5. To exit: triple-click the side button again and enter your passcode.",
+  },
+  {
+    q: "How do I lock the screen to one app? (Android)",
+    a: "1. Go to Settings → Security → App Pinning (or Screen Pinning) → turn it ON.\n2. Open Cloudmoji, then open Recent Apps (square button).\n3. Tap the Cloudmoji app icon at the top of its card → tap \"Pin this app\".\n4. To exit: hold Back and Overview buttons together.",
   },
   {
     q: "Which languages are supported?",
     a: "English, Mandarin Chinese, and Bahasa Melayu. Tap the language button (EN / 中文 / BM) in the top right to switch.",
   },
   {
-    q: "Why does the voice sound different on different devices?",
-    a: "Cloudmoji uses your device's built-in text-to-speech voices. The voice quality varies by device and operating system — it tends to sound best on iPhones and iPads.",
+    q: "Does it work offline?",
+    a: "Yes! After your first visit, Cloudmoji works without an internet connection. The text-to-speech uses your device's built-in voices.",
   },
   {
     q: "Is my child's data collected?",
     a: "No. Cloudmoji has no accounts, no tracking of children, and no personal data collection. Usage stats are stored only on your device and never sent anywhere.",
-  },
-  {
-    q: "How do I see usage stats?",
-    a: "Tap the \"Cloudmoji\" title 5 times quickly to open a hidden stats panel. You can see tap counts, favourite emojis, and export the data.",
   },
 ];
 
@@ -80,6 +84,7 @@ function FAQItem({ q, a }: { q: string; a: string }) {
           fontWeight: 700,
           lineHeight: 1.6,
           color: "rgba(255,255,255,0.45)",
+          whiteSpace: "pre-line",
         }}>
           {a}
         </div>
