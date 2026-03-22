@@ -154,11 +154,16 @@ export default function App() {
     <div
       className="flex flex-col relative"
       style={{
+        minHeight: "100vh",
         height: "100dvh",
         background:
           "linear-gradient(160deg, #0F0E2A 0%, #1A1145 40%, #0D2137 100%)",
         fontFamily: "'Nunito', sans-serif",
         overflow: "hidden",
+        paddingTop: "env(safe-area-inset-top)",
+        paddingBottom: "env(safe-area-inset-bottom)",
+        paddingLeft: "env(safe-area-inset-left)",
+        paddingRight: "env(safe-area-inset-right)",
       }}
     >
       {/* Background glow orbs */}
