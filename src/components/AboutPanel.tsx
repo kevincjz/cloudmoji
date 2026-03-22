@@ -1,5 +1,91 @@
+import { useState } from "react";
+
 interface AboutPanelProps {
   onClose: () => void;
+}
+
+const FAQ_ITEMS = [
+  {
+    q: "How do I add Cloudmoji to my home screen?",
+    a: "On iPhone: tap the Share button in Safari, then \"Add to Home Screen\". On Android: tap the three-dot menu in Chrome, then \"Add to Home Screen\". It will look and feel like a native app!",
+  },
+  {
+    q: "Does it work offline?",
+    a: "Yes! After your first visit, Cloudmoji works without an internet connection. The text-to-speech uses your device's built-in voices.",
+  },
+  {
+    q: "Which languages are supported?",
+    a: "English, Mandarin Chinese, and Bahasa Melayu. Tap the language button (EN / 中文 / BM) in the top right to switch.",
+  },
+  {
+    q: "Why does the voice sound different on different devices?",
+    a: "Cloudmoji uses your device's built-in text-to-speech voices. The voice quality varies by device and operating system — it tends to sound best on iPhones and iPads.",
+  },
+  {
+    q: "Is my child's data collected?",
+    a: "No. Cloudmoji has no accounts, no tracking of children, and no personal data collection. Usage stats are stored only on your device and never sent anywhere.",
+  },
+  {
+    q: "How do I see usage stats?",
+    a: "Tap the \"Cloudmoji\" title 5 times quickly to open a hidden stats panel. You can see tap counts, favourite emojis, and export the data.",
+  },
+];
+
+function FAQItem({ q, a }: { q: string; a: string }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div
+      style={{
+        background: "rgba(255,255,255,0.04)",
+        border: "1px solid rgba(255,255,255,0.06)",
+        borderRadius: 12,
+        overflow: "hidden",
+      }}
+    >
+      <button
+        onClick={() => setOpen(!open)}
+        style={{
+          width: "100%",
+          background: "none",
+          border: "none",
+          padding: "10px 12px",
+          color: "#fff",
+          fontSize: 13,
+          fontWeight: 800,
+          cursor: "pointer",
+          textAlign: "left",
+          fontFamily: "'Nunito', sans-serif",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 8,
+        }}
+      >
+        <span>{q}</span>
+        <span style={{
+          fontSize: 12,
+          color: "rgba(255,255,255,0.3)",
+          flexShrink: 0,
+          transition: "transform 0.2s",
+          transform: open ? "rotate(180deg)" : "rotate(0deg)",
+        }}>
+          ▼
+        </span>
+      </button>
+      {open && (
+        <div style={{
+          padding: "0 12px 10px",
+          fontSize: 12,
+          fontWeight: 700,
+          lineHeight: 1.6,
+          color: "rgba(255,255,255,0.45)",
+        }}>
+          {a}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function AboutPanel({ onClose }: AboutPanelProps) {
@@ -18,6 +104,8 @@ export function AboutPanel({ onClose }: AboutPanelProps) {
           padding: "24px",
           maxWidth: 340,
           width: "90%",
+          maxHeight: "85dvh",
+          overflowY: "auto",
           fontFamily: "'Nunito', sans-serif",
           color: "#fff",
         }}
@@ -132,6 +220,22 @@ export function AboutPanel({ onClose }: AboutPanelProps) {
               <span style={{ fontSize: 18 }}>☕</span>
               Buy us a coffee
             </a>
+          </div>
+
+          {/* FAQ Section */}
+          <div>
+            <div style={{
+              fontSize: 14,
+              fontWeight: 900,
+              marginBottom: 8,
+            }}>
+              FAQ
+            </div>
+            <div className="flex flex-col gap-2">
+              {FAQ_ITEMS.map((item) => (
+                <FAQItem key={item.q} q={item.q} a={item.a} />
+              ))}
+            </div>
           </div>
 
           <div style={{
