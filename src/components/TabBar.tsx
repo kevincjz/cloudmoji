@@ -16,11 +16,11 @@ export function TabBar({ activeTab, onSelect }: TabBarProps) {
       data-testid="tab-bar"
       className="shrink-0 flex"
       style={{
-        height: 64,
+        minHeight: 64,
         background: "rgba(15,14,42,0.95)",
         borderTop: "1px solid rgba(255,255,255,0.06)",
         backdropFilter: "blur(12px)",
-        paddingBottom: "env(safe-area-inset-bottom)",
+        paddingBottom: "env(safe-area-inset-bottom, 0px)",
       }}
     >
       {TABS.map((tab) => {
