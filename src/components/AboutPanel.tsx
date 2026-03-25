@@ -7,7 +7,7 @@ interface AboutPanelProps {
 const FAQ_ITEMS = [
   {
     q: "How do we use Cloudmoji?",
-    a: "We save Cloudmoji as an app on our home screen and run it in Guided Access mode — this locks the phone to just Cloudmoji so your little one can tap freely without accidentally switching apps or pressing buttons they shouldn't!",
+    a: "Cloudmoji has two modes — switch between them using the tabs at the bottom:\n\n🗣️ Words — Tap any emoji to hear the word spoken aloud. Build sentences in the typing row and replay them!\n\n🔢 Count — Tap emojis one by one to count them. The app says the number out loud and tracks your progress with dots.\n\nWe save Cloudmoji as an app on our home screen and run it in Guided Access mode — this locks the phone to just Cloudmoji so your little one can tap freely without accidentally switching apps or pressing buttons they shouldn't!",
   },
   {
     q: "How do I save Cloudmoji to my home screen?",
