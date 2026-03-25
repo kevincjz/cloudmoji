@@ -264,6 +264,27 @@ export function AboutPanel({ onClose }: AboutPanelProps) {
             </div>
           </div>
 
+          {/* Version History */}
+          <div>
+            <div style={{
+              fontSize: 14,
+              fontWeight: 900,
+              marginBottom: 8,
+            }}>
+              Version History
+            </div>
+            <div className="flex flex-col gap-2">
+              <FAQItem
+                q="v1.1 — March 2026"
+                a={"• New Cloudculator counting game mode (🔢 Count tab)\n• Bottom tab bar to switch between Words and Count modes\n• Tap categories to hear the category name spoken\n• Larger category buttons and text\n• About page with FAQ, privacy policy, and version history\n• Ko-fi support link"}
+              />
+              <FAQItem
+                q="v1.0 — March 2026"
+                a={"• 121 emojis across 8 categories\n• Text-to-speech in English, Mandarin, and Bahasa Melayu\n• Cloud mascot with 4 mood states\n• Typing row with replay, delete, and clear\n• Language toggle (EN / 中文 / BM)\n• Milestone celebrations at 10, 25, 50, 100 taps\n• PWA with offline support\n• Hidden stats panel for parents\n• Deployed at cloudmoji.app"}
+              />
+            </div>
+          </div>
+
           <div style={{
             fontSize: 10,
             fontWeight: 800,
