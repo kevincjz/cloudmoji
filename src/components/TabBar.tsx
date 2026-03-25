@@ -33,7 +33,7 @@ export function TabBar({ activeTab, onSelect }: TabBarProps) {
         borderTop: "1px solid rgba(255,255,255,0.06)",
         backdropFilter: "blur(12px)",
         paddingBottom: needsExtraPadding
-          ? "calc(env(safe-area-inset-bottom, 0px) + 44px)"
+          ? "calc(env(safe-area-inset-bottom, 0px) + 54px)"
           : "env(safe-area-inset-bottom, 0px)",
       }}
     >
