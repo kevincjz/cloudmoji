@@ -270,7 +270,7 @@ export function AboutPanel({ onClose }: AboutPanelProps) {
             color: "rgba(255,255,255,0.15)",
             textAlign: "center",
           }}>
-            Cloudmoji v1.0 — cloudmoji.app
+            Cloudmoji v1.1 — cloudmoji.app
           </div>
         </div>
       </div>
