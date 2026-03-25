@@ -11,6 +11,12 @@ const TABS: Array<{ id: TabId; icon: string; label: string }> = [
 ];
 
 export function TabBar({ activeTab, onSelect }: TabBarProps) {
+  // Detect if running as installed PWA (standalone) vs in-browser
+  const isStandalone =
+    typeof window !== "undefined" &&
+    (window.matchMedia("(display-mode: standalone)").matches ||
+      ("standalone" in window.navigator && (window.navigator as Record<string, unknown>).standalone === true));
+
   return (
     <div
       data-testid="tab-bar"
@@ -20,7 +26,10 @@ export function TabBar({ activeTab, onSelect }: TabBarProps) {
         background: "rgba(15,14,42,0.95)",
         borderTop: "1px solid rgba(255,255,255,0.06)",
         backdropFilter: "blur(12px)",
-        paddingBottom: "env(safe-area-inset-bottom, 0px)",
+        // In Safari browser, add extra padding to clear the bottom toolbar
+        paddingBottom: isStandalone
+          ? "env(safe-area-inset-bottom, 0px)"
+          : "calc(env(safe-area-inset-bottom, 0px) + 44px)",
       }}
     >
       {TABS.map((tab) => {
