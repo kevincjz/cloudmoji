@@ -74,7 +74,13 @@ export function CountMode({ lang, muted, onLangToggle, onMuteToggle, onTitleTap,
       }
       // English: pluralize
       const noun = item.en;
-      const plural = num > 1 ? (noun.endsWith("s") ? noun : noun + "s") : noun;
+      let plural = noun;
+      if (num > 1) {
+        if (noun === "fish") plural = "fish";
+        else if (noun.endsWith("y") && !/[aeiou]y$/.test(noun)) plural = noun.slice(0, -1) + "ies";
+        else if (/(?:s|sh|ch|x|z)$/.test(noun)) plural = noun + "es";
+        else plural = noun + "s";
+      }
       return `${numWord} ${plural}`;
     },
     [lang],

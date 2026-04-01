@@ -275,6 +275,10 @@ export function AboutPanel({ onClose }: AboutPanelProps) {
             </div>
             <div className="flex flex-col gap-2">
               <FAQItem
+                q="v1.2 — 2 April 2026"
+                a={"• Added 27 new countables (28 → 55 total) across animals, fruits, food, vehicles, and objects\n• Fixed Chinese counting grammar: use 两 (liǎng) instead of 二 (èr) for counting with measure words\n• Fixed English irregular plurals (fish, butterfly, strawberry, bus, cherry)\n• Added Malay classifiers (penjodoh bilangan): ekor, biji, keping, buah, kuntum, batang, pasang, tangkai"}
+              />
+              <FAQItem
                 q="v1.1 — 25 March 2026"
                 a={"• New Cloudculator counting game mode (🔢 Count tab)\n• Bottom tab bar to switch between Words and Count modes"}
               />
@@ -291,7 +295,7 @@ export function AboutPanel({ onClose }: AboutPanelProps) {
             color: "rgba(255,255,255,0.15)",
             textAlign: "center",
           }}>
-            Cloudmoji v1.1 — cloudmoji.app
+            Cloudmoji v1.2 — cloudmoji.app
           </div>
         </div>
       </div>
