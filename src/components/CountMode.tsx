@@ -227,10 +227,10 @@ export function CountMode({ lang, muted, onLangToggle, onMuteToggle, onTitleTap,
         </div>
       </div>
 
-      {/* Progress dots + phrase */}
+      {/* Progress dots + big number + phrase */}
       <div
         className="shrink-0 flex flex-col items-center justify-center"
-        style={{ padding: "4px 0 2px", minHeight: 48 }}
+        style={{ padding: "4px 0 2px", minHeight: 100 }}
       >
         <div className="flex gap-[6px]" style={{ marginBottom: 6 }}>
           {Array.from({ length: count }).map((_, i) => (
@@ -250,16 +250,25 @@ export function CountMode({ lang, muted, onLangToggle, onMuteToggle, onTitleTap,
         </div>
 
         {showNumber && (
-          <div key={showNumber.id} style={{ animation: "countPop 0.4s ease-out" }}>
+          <div key={showNumber.id} className="flex flex-col items-center" style={{ animation: "countPop 0.3s ease-out" }}>
             <span
               style={{
-                background: "linear-gradient(135deg, rgba(255,107,107,0.2), rgba(78,205,196,0.2))",
-                padding: "5px 18px",
-                borderRadius: 18,
+                fontSize: 64,
                 fontWeight: 900,
-                fontSize: 20,
+                fontFamily: "'Lilita One', sans-serif",
                 color: "#fff",
-                border: "1.5px solid rgba(255,255,255,0.1)",
+                textShadow: "0 0 30px rgba(78,205,196,0.5)",
+                lineHeight: 1,
+              }}
+            >
+              {tappedOrder.length}
+            </span>
+            <span
+              style={{
+                fontWeight: 900,
+                fontSize: 18,
+                color: "rgba(255,255,255,0.6)",
+                marginTop: 4,
               }}
             >
               {showNumber.phrase}
@@ -326,14 +335,14 @@ export function CountMode({ lang, muted, onLangToggle, onMuteToggle, onTitleTap,
                   <div
                     style={{
                       position: "absolute",
-                      top: -6,
-                      right: -6,
-                      width: 24,
-                      height: 24,
+                      top: -10,
+                      right: -10,
+                      width: 34,
+                      height: 34,
                       borderRadius: "50%",
                       background: "linear-gradient(135deg, #4ECDC4, #44B8AC)",
                       color: "#fff",
-                      fontSize: 13,
+                      fontSize: 19,
                       fontWeight: 900,
                       display: "flex",
                       alignItems: "center",
@@ -341,6 +350,7 @@ export function CountMode({ lang, muted, onLangToggle, onMuteToggle, onTitleTap,
                       fontFamily: "'Nunito', sans-serif",
                       animation: "popIn 0.3s ease-out",
                       boxShadow: "0 2px 8px rgba(78,205,196,0.4)",
+                      border: "2.5px solid rgba(255,255,255,0.3)",
                     }}
                   >
                     {tappedOrder.indexOf(i) + 1}

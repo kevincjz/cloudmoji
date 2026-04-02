@@ -36,7 +36,7 @@ export const COUNTABLES: Countable[] = [
   { emoji: "🍉", en: "watermelon", zh: "个西瓜", ms: "biji tembikai" },
   { emoji: "🍑", en: "peach", zh: "个桃子", ms: "biji pic" },
   { emoji: "🥭", en: "mango", zh: "个芒果", ms: "biji mangga" },
-  { emoji: "🍋", en: "lemon", zh: "个柠檬", ms: "biji lemon" },
+  { emoji: "🍋", en: "lemon", zh: "个柠檬", ms: "biji limau" },
   { emoji: "🍕", en: "pizza", zh: "片披萨", ms: "keping piza" },
   { emoji: "🧁", en: "cupcake", zh: "个纸杯蛋糕", ms: "biji kek cawan" },
   { emoji: "🍪", en: "cookie", zh: "块饼干", ms: "keping biskut" },

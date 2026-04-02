@@ -11,7 +11,7 @@ export const EMOJIS: EmojiEntry[] = [
   { emoji: "🍒", cat: "fruits", en: "cherries", zh: "樱桃", ms: "ceri" },
   { emoji: "🥝", cat: "fruits", en: "kiwi", zh: "猕猴桃", ms: "kiwi" },
   { emoji: "🍑", cat: "fruits", en: "peach", zh: "桃子", ms: "pic" },
-  { emoji: "🍋", cat: "fruits", en: "lemon", zh: "柠檬", ms: "lemon" },
+  { emoji: "🍋", cat: "fruits", en: "lemon", zh: "柠檬", ms: "limau" },
   { emoji: "🍍", cat: "fruits", en: "pineapple", zh: "菠萝", ms: "nanas" },
   { emoji: "🥭", cat: "fruits", en: "mango", zh: "芒果", ms: "mangga" },
   { emoji: "🫐", cat: "fruits", en: "blueberries", zh: "蓝莓", ms: "beri biru" },
