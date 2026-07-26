@@ -7,3 +7,9 @@ dist
 test-results
 playwright-report
 .playwright
+
+# Local scratch copies — not part of the app.
+# reference/prototype.jsx IS tracked; only the loose extras are ignored.
+cloudmoji-knowledge-base.zip
+cloudmoji.jsx
+reference/cloudculator.jsx
