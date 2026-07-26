@@ -88,3 +88,31 @@ export const EXPECTED_SPEECH_LANG: Record<string, string> = {
   ja: "ja-JP",
   tl: "fil-PH",
 };
+
+/**
+ * Voice-language prefixes each language may legitimately end up speaking with,
+ * mirroring voicePrefixes in src/data/languages.ts. Devices differ in which
+ * voices are installed — most have no Filipino at all — so the requirement is
+ * "a phonetically compatible voice", not one exact tag.
+ */
+export const ACCEPTED_VOICE_PREFIXES: Record<string, string[]> = {
+  en: ["en"],
+  zh: ["zh"],
+  ms: ["ms", "id"],
+  ja: ["ja"],
+  tl: ["fil", "tl", "ms", "id", "es"],
+};
+
+/** Assert the utterance went out tagged with an acceptable voice language. */
+export function expectVoiceLang(actual: string, langId: string) {
+  const accepted = ACCEPTED_VOICE_PREFIXES[langId];
+  const ok = actual === EXPECTED_SPEECH_LANG[langId] ||
+    accepted.some((p) => actual.startsWith(p));
+  if (!ok) {
+    throw new Error(
+      `${langId}: spoke with lang "${actual}", which is not the requested ` +
+        `"${EXPECTED_SPEECH_LANG[langId]}" nor any accepted fallback ` +
+        `(${accepted.join(", ")}). An English voice here means the fallback chain broke.`,
+    );
+  }
+}

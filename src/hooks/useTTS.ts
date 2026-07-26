@@ -1,5 +1,6 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import type { MascotMood } from "../types";
+import { pickVoice } from "../lib/voices";
 
 interface UseTTSOptions {
   muted: boolean;
@@ -22,32 +23,22 @@ export function useTTS({ muted, safeMood }: UseTTSOptions) {
     }
   }, []);
 
+  // getVoices() is async on iOS Safari — it returns [] on the first call and
+  // populates shortly after. Prime it on mount so the very first tap already
+  // has the right voice instead of falling back to the engine default.
+  useEffect(() => {
+    const prime = () => void speechSynthesis.getVoices();
+    prime();
+    speechSynthesis.addEventListener("voiceschanged", prime);
+    return () => speechSynthesis.removeEventListener("voiceschanged", prime);
+  }, []);
+
   const getVoice = useCallback((langCode: string): SpeechSynthesisVoice | undefined => {
     const cached = voiceCache.current.get(langCode);
     if (cached) return cached;
 
-    const voices = speechSynthesis.getVoices();
-    const prefix = langCode.split("-")[0];
-    // Filipino is tagged fil-PH on iOS but tl-PH elsewhere — accept either.
-    const prefixes = prefix === "fil" ? ["fil", "tl"] : [prefix];
-    const matching = voices.filter((v) => prefixes.some((p) => v.lang.startsWith(p)));
-    if (matching.length === 0) return undefined;
-
-    // Prefer: exact lang match > female-sounding name > first match
-    const exact = matching.filter((v) => v.lang === langCode);
-    const pool = exact.length > 0 ? exact : matching;
-
-    const female = pool.find((v) => {
-      const name = v.name.toLowerCase();
-      return name.includes("female") || name.includes("samantha") ||
-        name.includes("karen") || name.includes("tessa") ||
-        name.includes("tingting") || name.includes("sinji") ||
-        name.includes("amira") || name.includes("kyoko") ||
-        name.includes("o-ren") || name.includes("rosa");
-    });
-
-    const voice = female ?? pool[0];
-    voiceCache.current.set(langCode, voice);
+    const voice = pickVoice(speechSynthesis.getVoices(), langCode);
+    if (voice) voiceCache.current.set(langCode, voice);
     return voice;
   }, []);
 
@@ -63,7 +54,13 @@ export function useTTS({ muted, safeMood }: UseTTSOptions) {
         u.pitch = 1.1;
 
         const voice = getVoice(langCode);
-        if (voice) u.voice = voice;
+        if (voice) {
+          u.voice = voice;
+          // Keep lang consistent with the chosen voice. Leaving lang as the
+          // requested code while voice is a fallback (fil-PH + a Malay voice)
+          // makes some engines re-resolve and ignore the explicit voice.
+          u.lang = voice.lang;
+        }
 
         u.onstart = () => safeMood("speaking");
         u.onend = () => safeMood("happy");

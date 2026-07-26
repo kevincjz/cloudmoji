@@ -6,7 +6,7 @@ import {
   lastSpoken,
   selectLanguage,
   freezeAnimations,
-  EXPECTED_SPEECH_LANG,
+  expectVoiceLang,
 } from "./speech";
 
 const LANGS = ["en", "zh", "ms", "ja", "tl"] as const;
@@ -83,9 +83,7 @@ test.describe("audio on tap", () => {
 
       const first = await lastSpoken(page);
       expect(first!.text, "spoken text for the first tile").toBe(FIRST_WORDS[lang][0]);
-      expect(first!.lang, "BCP-47 lang handed to speechSynthesis").toBe(
-        EXPECTED_SPEECH_LANG[lang],
-      );
+      expectVoiceLang(first!.lang, lang);
       // Project rules: rate 0.85, pitch 1.1
       expect(first!.rate).toBeCloseTo(0.85, 2);
       expect(first!.pitch).toBeCloseTo(1.1, 2);
@@ -94,7 +92,7 @@ test.describe("audio on tap", () => {
       await expect.poll(() => spoken(page).then((s) => s.length)).toBeGreaterThan(1);
       const second = await lastSpoken(page);
       expect(second!.text).toBe(FIRST_WORDS[lang][1]);
-      expect(second!.lang).toBe(EXPECTED_SPEECH_LANG[lang]);
+      expectVoiceLang(second!.lang, lang);
     });
   }
 
@@ -124,7 +122,7 @@ test.describe("audio on tap", () => {
     await tiles.nth(0).click();
     await expect.poll(() => spoken(page).then((s) => s.length)).toBeGreaterThan(0);
     expect((await lastSpoken(page))!.text).toBe("mansanas");
-    expect((await lastSpoken(page))!.lang).toBe("fil-PH");
+    expectVoiceLang((await lastSpoken(page))!.lang, "tl");
   });
 });
 
@@ -142,7 +140,7 @@ test.describe("count mode", () => {
     await page.getByTestId("count-item-0").click();
     await expect.poll(() => spoken(page).then((s) => s.length)).toBeGreaterThan(0);
     const one = await lastSpoken(page);
-    expect(one!.lang).toBe("ja-JP");
+    expectVoiceLang(one!.lang, "ja");
     // Exactly "<noun> <number>": noun first, one space, no particle token between
     // them. Checked as a shape rather than "contains no の", because some nouns
     // legitimately contain の (やしのき = palm tree).
@@ -165,7 +163,7 @@ test.describe("count mode", () => {
     await page.getByTestId("count-item-0").click();
     await expect.poll(() => spoken(page).then((s) => s.length)).toBeGreaterThan(0);
     const one = await lastSpoken(page);
-    expect(one!.lang).toBe("fil-PH");
+    expectVoiceLang(one!.lang, "tl");
     expect(one!.text, "1 = isang + noun").toMatch(/^isang /);
 
     await page.getByTestId("count-item-1").click();
@@ -202,7 +200,7 @@ test.describe("count mode", () => {
     await page.getByTestId("count-item-0").click();
     await expect.poll(() => spoken(page).then((s) => s.length)).toBeGreaterThan(0);
     expect((await lastSpoken(page))!.text).toMatch(/^一/);
-    expect((await lastSpoken(page))!.lang).toBe("zh-CN");
+    expectVoiceLang((await lastSpoken(page))!.lang, "zh");
 
     await selectLanguage(page, "ms");
     await page.getByTestId("count-shuffle").click();
@@ -210,7 +208,7 @@ test.describe("count mode", () => {
     await page.getByTestId("count-item-0").click();
     await expect.poll(() => spoken(page).then((s) => s.length)).toBeGreaterThan(0);
     expect((await lastSpoken(page))!.text).toMatch(/^satu /);
-    expect((await lastSpoken(page))!.lang).toBe("ms-MY");
+    expectVoiceLang((await lastSpoken(page))!.lang, "ms");
   });
 });
 
@@ -339,5 +337,77 @@ test.describe("emoji data", () => {
       return out;
     });
     expect(mismatches).toEqual([]);
+  });
+});
+
+test.describe("voice selection", () => {
+  // Exercises the real pickVoice() against synthetic voice lists. Plain objects,
+  // so this works regardless of what voices the test machine actually has —
+  // headless WebKit reports zero.
+  const evalPick = (page: import("@playwright/test").Page, voices: { lang: string; name: string }[]) =>
+    page.evaluate(async (vs) => {
+      const m = await import("/src/lib/voices.ts");
+      const langs = ["en-US", "zh-CN", "ms-MY", "ja-JP", "fil-PH"];
+      return Object.fromEntries(
+        langs.map((l) => {
+          const picked = m.pickVoice(vs, l);
+          return [l, picked ? `${picked.name} / ${picked.lang}` : null];
+        }),
+      );
+    }, voices);
+
+  const APPLE_ISH = [
+    { lang: "en-US", name: "Samantha" },
+    { lang: "en-GB", name: "Daniel" },
+    { lang: "zh-CN", name: "Tingting" },
+    { lang: "ja-JP", name: "Kyoko" },
+    { lang: "ms-MY", name: "Amira" },
+    { lang: "id-ID", name: "Damayanti" },
+    { lang: "es-ES", name: "Monica" },
+  ];
+
+  test("no Filipino voice installed: Tagalog uses Malay, never English", async ({ page }) => {
+    const picked = await evalPick(page, APPLE_ISH);
+    expect(picked["fil-PH"], "Tagalog must not fall through to an English voice").toBe(
+      "Amira / ms-MY",
+    );
+    // the other four are unaffected
+    expect(picked["en-US"]).toBe("Samantha / en-US");
+    expect(picked["zh-CN"]).toBe("Tingting / zh-CN");
+    expect(picked["ja-JP"]).toBe("Kyoko / ja-JP");
+    expect(picked["ms-MY"]).toBe("Amira / ms-MY");
+  });
+
+  test("Filipino voice installed: Tagalog uses it in preference to the fallback", async ({
+    page,
+  }) => {
+    const picked = await evalPick(page, [...APPLE_ISH, { lang: "fil-PH", name: "Rosa" }]);
+    expect(picked["fil-PH"]).toBe("Rosa / fil-PH");
+  });
+
+  test("tl-PH tagging is accepted as well as fil-PH", async ({ page }) => {
+    const picked = await evalPick(page, [...APPLE_ISH, { lang: "tl-PH", name: "Angelo" }]);
+    expect(picked["fil-PH"]).toBe("Angelo / tl-PH");
+  });
+
+  test("Malay falls back to Indonesian before anything else", async ({ page }) => {
+    const noMalay = APPLE_ISH.filter((v) => !v.lang.startsWith("ms"));
+    const picked = await evalPick(page, noMalay);
+    expect(picked["ms-MY"]).toBe("Damayanti / id-ID");
+    // and Tagalog then lands on Indonesian too, still not English
+    expect(picked["fil-PH"]).toBe("Damayanti / id-ID");
+  });
+
+  test("with only English voices present, nothing is silently mislabelled", async ({ page }) => {
+    const picked = await evalPick(page, [
+      { lang: "en-US", name: "Samantha" },
+      { lang: "en-GB", name: "Daniel" },
+    ]);
+    expect(picked["en-US"]).toBe("Samantha / en-US");
+    // no match anywhere in the chain -> undefined, so speak() leaves the
+    // requested lang on the utterance and lets the engine decide
+    expect(picked["fil-PH"]).toBeNull();
+    expect(picked["ja-JP"]).toBeNull();
+    expect(picked["zh-CN"]).toBeNull();
   });
 });
