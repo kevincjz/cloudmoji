@@ -53,6 +53,10 @@ export const EMOJIS: EmojiEntry[] = [
   { emoji: "🥞", cat: "food", en: "pancake", zh: "煎饼", ms: "lempeng", ja: "ホットケーキ", tl: "pankeyk" },
   { emoji: "🧇", cat: "food", en: "waffle", zh: "华夫饼", ms: "wafel", ja: "ワッフル", tl: "waffle" },
   { emoji: "🥜", cat: "food", en: "peanut", zh: "花生", ms: "kacang", ja: "ピーナッツ", tl: "mani" },
+  { emoji: "🍲", cat: "food", en: "soup", zh: "汤", ms: "sup", ja: "スープ", tl: "sabaw" },
+  { emoji: "🥟", cat: "food", en: "dumpling", zh: "饺子", ms: "karipap", ja: "ぎょうざ", tl: "dumpling" },
+  { emoji: "🥬", cat: "food", en: "vegetable", zh: "青菜", ms: "sayur", ja: "やさい", tl: "gulay" },
+  { emoji: "🍬", cat: "food", en: "candy", zh: "糖果", ms: "gula-gula", ja: "キャンディー", tl: "kendi" },
 
   // Animals
   { emoji: "🐶", cat: "animals", en: "dog", zh: "狗", ms: "anjing", ja: "いぬ", tl: "aso" },
@@ -92,6 +96,10 @@ export const EMOJIS: EmojiEntry[] = [
   { emoji: "🦩", cat: "animals", en: "flamingo", zh: "火烈鸟", ms: "flamingo", ja: "フラミンゴ", tl: "flamingo" },
   { emoji: "🐄", cat: "animals", en: "cow", zh: "奶牛", ms: "lembu", ja: "うし", tl: "baka" },
   { emoji: "🦭", cat: "animals", en: "seal", zh: "海豹", ms: "anjing laut", ja: "あざらし", tl: "seal" },
+  { emoji: "🐦", cat: "animals", en: "bird", zh: "小鸟", ms: "burung", ja: "ことり", tl: "ibon" },
+  { emoji: "🐯", cat: "animals", en: "tiger", zh: "老虎", ms: "harimau", ja: "とら", tl: "tigre" },
+  { emoji: "🐭", cat: "animals", en: "mouse", zh: "老鼠", ms: "tikus", ja: "ねずみ", tl: "daga" },
+  { emoji: "🦓", cat: "animals", en: "zebra", zh: "斑马", ms: "kuda belang", ja: "しまうま", tl: "sebra" },
 
   // Vehicles
   { emoji: "🚗", cat: "vehicles", en: "car", zh: "汽车", ms: "kereta", ja: "くるま", tl: "kotse" },
@@ -107,6 +115,10 @@ export const EMOJIS: EmojiEntry[] = [
   { emoji: "🚜", cat: "vehicles", en: "tractor", zh: "拖拉机", ms: "traktor", ja: "トラクター", tl: "traktora" },
   { emoji: "🚓", cat: "vehicles", en: "police car", zh: "警车", ms: "kereta polis", ja: "パトカー", tl: "kotse ng pulis" },
   { emoji: "🛴", cat: "vehicles", en: "scooter", zh: "滑板车", ms: "skuter", ja: "キックボード", tl: "iskuter" },
+  { emoji: "🚚", cat: "vehicles", en: "truck", zh: "卡车", ms: "lori", ja: "トラック", tl: "trak" },
+  { emoji: "🚕", cat: "vehicles", en: "taxi", zh: "出租车", ms: "teksi", ja: "タクシー", tl: "taksi" },
+  { emoji: "🏍️", cat: "vehicles", en: "motorbike", zh: "摩托车", ms: "motor", ja: "バイク", tl: "motor" },
+  { emoji: "🚦", cat: "vehicles", en: "traffic light", zh: "红绿灯", ms: "lampu isyarat", ja: "しんごう", tl: "stoplight" },
 
   // Nature
   { emoji: "🌈", cat: "nature", en: "rainbow", zh: "彩虹", ms: "pelangi", ja: "にじ", tl: "bahaghari" },
@@ -124,6 +136,9 @@ export const EMOJIS: EmojiEntry[] = [
   { emoji: "🍂", cat: "nature", en: "leaf", zh: "落叶", ms: "daun", ja: "はっぱ", tl: "dahon" },
   { emoji: "🌧️", cat: "nature", en: "rain", zh: "下雨", ms: "hujan", ja: "あめ", tl: "ulan" },
   { emoji: "⚡", cat: "nature", en: "lightning", zh: "闪电", ms: "kilat", ja: "かみなり", tl: "kidlat" },
+  { emoji: "💧", cat: "nature", en: "water", zh: "水", ms: "air", ja: "おみず", tl: "tubig" },
+  { emoji: "🌴", cat: "nature", en: "palm tree", zh: "椰子树", ms: "pokok kelapa", ja: "やしのき", tl: "puno ng niyog" },
+  { emoji: "🐚", cat: "nature", en: "shell", zh: "贝壳", ms: "kulit siput", ja: "かいがら", tl: "shell" },
 
   // Objects
   { emoji: "⚽", cat: "objects", en: "soccer ball", zh: "足球", ms: "bola sepak", ja: "サッカーボール", tl: "bola" },
@@ -149,6 +164,22 @@ export const EMOJIS: EmojiEntry[] = [
   { emoji: "📷", cat: "objects", en: "camera", zh: "相机", ms: "kamera", ja: "カメラ", tl: "kamera" },
   { emoji: "🪥", cat: "objects", en: "toothbrush", zh: "牙刷", ms: "berus gigi", ja: "ハブラシ", tl: "sipilyo" },
   { emoji: "🛁", cat: "objects", en: "bathtub", zh: "浴缸", ms: "tab mandi", ja: "おふろ", tl: "paliguan" },
+  { emoji: "👕", cat: "objects", en: "shirt", zh: "衣服", ms: "baju", ja: "シャツ", tl: "damit" },
+  { emoji: "👖", cat: "objects", en: "pants", zh: "裤子", ms: "seluar", ja: "ズボン", tl: "pantalon" },
+  { emoji: "👗", cat: "objects", en: "dress", zh: "裙子", ms: "gaun", ja: "ワンピース", tl: "bestida" },
+  { emoji: "🧦", cat: "objects", en: "socks", zh: "袜子", ms: "stokin", ja: "おくつした", tl: "medyas" },
+  { emoji: "🛏️", cat: "objects", en: "bed", zh: "床", ms: "katil", ja: "ベッド", tl: "kama" },
+  { emoji: "🪑", cat: "objects", en: "chair", zh: "椅子", ms: "kerusi", ja: "いす", tl: "silya" },
+  { emoji: "🚪", cat: "objects", en: "door", zh: "门", ms: "pintu", ja: "ドア", tl: "pinto" },
+  { emoji: "💡", cat: "objects", en: "light", zh: "灯", ms: "lampu", ja: "でんき", tl: "ilaw" },
+  { emoji: "🚽", cat: "objects", en: "toilet", zh: "马桶", ms: "tandas", ja: "トイレ", tl: "inodoro" },
+  { emoji: "🧼", cat: "objects", en: "soap", zh: "肥皂", ms: "sabun", ja: "せっけん", tl: "sabon" },
+  { emoji: "🥄", cat: "objects", en: "spoon", zh: "勺子", ms: "sudu", ja: "スプーン", tl: "kutsara" },
+  { emoji: "🥤", cat: "objects", en: "cup", zh: "杯子", ms: "cawan", ja: "コップ", tl: "baso" },
+  { emoji: "🖍️", cat: "objects", en: "crayon", zh: "蜡笔", ms: "krayon", ja: "クレヨン", tl: "krayola" },
+  { emoji: "🧩", cat: "objects", en: "puzzle", zh: "拼图", ms: "teka-teki", ja: "パズル", tl: "puzzle" },
+  { emoji: "🥁", cat: "objects", en: "drum", zh: "鼓", ms: "gendang", ja: "たいこ", tl: "tambol" },
+  { emoji: "🎹", cat: "objects", en: "piano", zh: "钢琴", ms: "piano", ja: "ピアノ", tl: "piyano" },
 
   // People
   { emoji: "👶", cat: "people", en: "baby", zh: "宝宝", ms: "bayi", ja: "あかちゃん", tl: "sanggol" },
@@ -162,6 +193,15 @@ export const EMOJIS: EmojiEntry[] = [
   { emoji: "🦶", cat: "people", en: "foot", zh: "脚", ms: "kaki", ja: "あんよ", tl: "paa" },
   { emoji: "✌️", cat: "people", en: "peace", zh: "耶", ms: "aman", ja: "ピース", tl: "peace" },
   { emoji: "🤗", cat: "people", en: "hug", zh: "拥抱", ms: "pelukan", ja: "だっこ", tl: "yakap" },
+  { emoji: "👩", cat: "people", en: "mommy", zh: "妈妈", ms: "ibu", ja: "ママ", tl: "mommy" },
+  { emoji: "👨", cat: "people", en: "daddy", zh: "爸爸", ms: "ayah", ja: "パパ", tl: "daddy" },
+  { emoji: "👵", cat: "people", en: "grandma", zh: "奶奶", ms: "nenek", ja: "おばあちゃん", tl: "lola" },
+  { emoji: "👴", cat: "people", en: "grandpa", zh: "爷爷", ms: "atuk", ja: "おじいちゃん", tl: "lolo" },
+  { emoji: "👦", cat: "people", en: "boy", zh: "小男孩", ms: "budak lelaki", ja: "おとこのこ", tl: "batang lalaki" },
+  { emoji: "👧", cat: "people", en: "girl", zh: "小女孩", ms: "budak perempuan", ja: "おんなのこ", tl: "batang babae" },
+  { emoji: "✋", cat: "people", en: "hand", zh: "手", ms: "tangan", ja: "おてて", tl: "kamay" },
+  { emoji: "🦷", cat: "people", en: "tooth", zh: "牙齿", ms: "gigi", ja: "ハ", tl: "ngipin" },
+  { emoji: "👅", cat: "people", en: "tongue", zh: "舌头", ms: "lidah", ja: "べろ", tl: "dila" },
 
   // Faces
   { emoji: "😀", cat: "faces", en: "happy", zh: "开心", ms: "gembira", ja: "うれしい", tl: "masaya" },

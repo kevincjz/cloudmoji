@@ -143,18 +143,18 @@ test.describe("count mode", () => {
     await expect.poll(() => spoken(page).then((s) => s.length)).toBeGreaterThan(0);
     const one = await lastSpoken(page);
     expect(one!.lang).toBe("ja-JP");
-    expect(one!.text, "count 1 must end in ひとつ").toMatch(/ ひとつ$/);
-    // noun comes first, and no の / を / が particle is inserted
-    expect(one!.text).not.toMatch(/^ひとつ/);
-    expect(one!.text).not.toContain("の");
+    // Exactly "<noun> <number>": noun first, one space, no particle token between
+    // them. Checked as a shape rather than "contains no の", because some nouns
+    // legitimately contain の (やしのき = palm tree).
+    expect(one!.text, "count 1 must be '<noun> ひとつ'").toMatch(/^\S+ ひとつ$/);
 
     await page.getByTestId("count-item-1").click();
     await expect.poll(() => spoken(page).then((s) => s.length)).toBeGreaterThan(1);
-    expect((await lastSpoken(page))!.text).toMatch(/ ふたつ$/);
+    expect((await lastSpoken(page))!.text).toMatch(/^\S+ ふたつ$/);
 
     await page.getByTestId("count-item-2").click();
     await expect.poll(() => spoken(page).then((s) => s.length)).toBeGreaterThan(2);
-    expect((await lastSpoken(page))!.text).toMatch(/ みっつ$/);
+    expect((await lastSpoken(page))!.text).toMatch(/^\S+ みっつ$/);
   });
 
   test("tagalog applies the -ng / na linker correctly", async ({ page }) => {
@@ -261,11 +261,83 @@ test.describe("about panel", () => {
     expect(text, "Thai is not implemented and must not be advertised").not.toContain("Thai");
   });
 
-  test("version history leads with v1.3", async ({ page }) => {
+  test("version history leads with the current version", async ({ page }) => {
     await page.getByTestId("about-btn").click();
     const panel = page.getByTestId("about-panel");
     await expect(panel).toContainText("Version History");
+    await expect(panel).toContainText("v1.4");
     await expect(panel).toContainText("v1.3");
-    await expect(panel).toContainText("Cloudmoji v1.3");
+    await expect(panel).toContainText("Cloudmoji v1.4");
+  });
+});
+
+test.describe("emoji data", () => {
+  test("200 emojis and 84 countables, all five languages populated, no duplicates", async ({
+    page,
+  }) => {
+    const data = await page.evaluate(async () => {
+      const e = await import("/src/data/emojis.ts");
+      const c = await import("/src/data/countables.ts");
+      const LANGS = ["en", "zh", "ms", "ja", "tl"] as const;
+      const blank = (rows: Record<string, string>[]) =>
+        rows.filter((r) => LANGS.some((l) => !r[l] || !r[l].trim())).map((r) => r.emoji);
+      const dupeKeys = (rows: { emoji: string; cat?: string }[]) => {
+        const seen = new Set<string>();
+        const dupes: string[] = [];
+        for (const r of rows) {
+          const k = r.emoji + (r.cat ?? "");
+          if (seen.has(k)) dupes.push(k);
+          seen.add(k);
+        }
+        return dupes;
+      };
+      return {
+        emojiCount: e.EMOJIS.length,
+        countableCount: c.COUNTABLES.length,
+        emojiBlank: blank(e.EMOJIS),
+        countableBlank: blank(c.COUNTABLES),
+        emojiDupes: dupeKeys(e.EMOJIS),
+        countableDupes: dupeKeys(c.COUNTABLES),
+        numberWordLengths: Object.fromEntries(
+          Object.entries(c.NUMBER_WORDS).map(([k, v]) => [k, (v as string[]).length]),
+        ),
+        categoryLabelsComplete: e.CATEGORIES.every((cat: { labels: Record<string, string> }) =>
+          LANGS.every((l) => !!cat.labels[l]),
+        ),
+      };
+    });
+
+    expect(data.emojiCount).toBe(200);
+    expect(data.countableCount).toBe(84);
+    expect(data.emojiBlank, "emojis missing a translation").toEqual([]);
+    expect(data.countableBlank, "countables missing a translation").toEqual([]);
+    expect(data.emojiDupes, "duplicate emoji+cat keys").toEqual([]);
+    expect(data.countableDupes, "duplicate countables").toEqual([]);
+    expect(data.categoryLabelsComplete).toBe(true);
+    for (const [lang, n] of Object.entries(data.numberWordLengths)) {
+      expect(n, `NUMBER_WORDS.${lang}`).toBe(10);
+    }
+  });
+
+  test("Word mode and Count mode name the same thing in zh and ms", async ({ page }) => {
+    // The classifier is baked into the zh/ms countable, so the countable must END
+    // with the Word-mode noun — otherwise the app teaches two words per picture.
+    const mismatches = await page.evaluate(async () => {
+      const e = await import("/src/data/emojis.ts");
+      const c = await import("/src/data/countables.ts");
+      const byEmoji = new Map(e.EMOJIS.map((x: Record<string, string>) => [x.emoji, x]));
+      const out: string[] = [];
+      for (const item of c.COUNTABLES as Record<string, string>[]) {
+        const word = byEmoji.get(item.emoji);
+        if (!word) continue;
+        for (const lang of ["zh", "ms"]) {
+          if (!item[lang].endsWith(word[lang])) {
+            out.push(`${item.emoji} ${lang}: count="${item[lang]}" word="${word[lang]}"`);
+          }
+        }
+      }
+      return out;
+    });
+    expect(mismatches).toEqual([]);
   });
 });

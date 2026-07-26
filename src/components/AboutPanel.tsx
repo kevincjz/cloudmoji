@@ -275,6 +275,10 @@ export function AboutPanel({ onClose }: AboutPanelProps) {
             </div>
             <div className="flex flex-col gap-2">
               <FAQItem
+                q="v1.4 — 26 July 2026"
+                a={"• Added 40 new emojis (160 → 200 total), in 9 themed groups: My Family, All About Me, Getting Dressed, Around the House, Mealtime & Treats, On the Road, More Animal Friends, Outside & Water, and Playtime & Music\n• Biggest gap closed: the People category had no caregivers at all and was the smallest in the app — it goes from 11 to 20 emojis with mommy, daddy, grandma, grandpa, boy and girl\n• 30 of the new emojis also work in Count mode (54 → 84 countables), each with the correct Chinese measure word and Malay penjodoh bilangan\n• Every new word was reviewed by an independent native-speaker pass in all 5 languages"}
+              />
+              <FAQItem
                 q="v1.3 — 26 July 2026"
                 a={"• Added Japanese (日本語) and Tagalog (TL) — all 160 emojis and 54 countables, plus category names and counting phrases\n• Japanese uses hiragana and katakana only (no kanji), with the ～つ counter children learn first: りんご みっつ\n• Tagalog uses the correct number linker: tatlong aso, but apat na aso\n• Language button now opens a picker instead of cycling — one tap to any of the 5 languages\n• 🤫 is now \"quiet\" instead of \"shh\", in every language\n• Fixed landscape mode: the grid was squeezed to under 2 rows and took 14 screenfuls to scroll. It now uses the full width (11 columns instead of 6) and needs 6\n• Fixed the bottom tab bar on notched iPhones — the home-indicator inset was eating 21px out of the tap target, leaving it at 42px instead of the intended 64px\n• Count tab icon changed from 🔢 to 🧮, which renders as a proper icon rather than a grey box"}
               />
@@ -299,7 +303,7 @@ export function AboutPanel({ onClose }: AboutPanelProps) {
             color: "rgba(255,255,255,0.15)",
             textAlign: "center",
           }}>
-            Cloudmoji v1.3 — cloudmoji.app
+            Cloudmoji v1.4 — cloudmoji.app
           </div>
         </div>
       </div>
