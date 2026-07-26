@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ParentalGate } from "./ParentalGate";
 
 interface AboutPanelProps {
   onClose: () => void;
@@ -94,6 +95,8 @@ function FAQItem({ q, a }: { q: string; a: string }) {
 }
 
 export function AboutPanel({ onClose }: AboutPanelProps) {
+  const [gate, setGate] = useState(false);
+
   return (
     <div
       data-testid="about-panel"
@@ -200,15 +203,15 @@ export function AboutPanel({ onClose }: AboutPanelProps) {
             }}>
               If your little one enjoys Cloudmoji, consider supporting us so we can keep making it better!
             </p>
-            <a
-              href="https://ko-fi.com/kevincjz"
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              data-testid="kofi-btn"
+              onClick={() => setGate(true)}
               className="active:scale-95"
               style={{
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 8,
+                minHeight: 48,
                 background: "rgba(78,205,196,0.2)",
                 border: "1.5px solid rgba(78,205,196,0.3)",
                 borderRadius: 14,
@@ -217,14 +220,13 @@ export function AboutPanel({ onClose }: AboutPanelProps) {
                 fontSize: 14,
                 fontWeight: 900,
                 cursor: "pointer",
-                textDecoration: "none",
                 fontFamily: "'Nunito', sans-serif",
                 transition: "all 0.2s",
               }}
             >
               <span style={{ fontSize: 18 }}>☕</span>
               Buy us a coffee
-            </a>
+            </button>
           </div>
 
           {/* FAQ Section */}
@@ -255,7 +257,7 @@ export function AboutPanel({ onClose }: AboutPanelProps) {
             <div className="flex flex-col gap-2">
               <FAQItem
                 q="Privacy Policy"
-                a={"Cloudmoji is designed with your child's privacy in mind.\n\n• We do not collect any personal information from children or parents.\n• We do not require accounts, logins, or registration.\n• We do not use cookies or tracking pixels.\n• Usage statistics (tap counts, favourite emojis) are stored only on your device in localStorage and are never sent to any server.\n• We use Vercel Analytics, which collects anonymous, aggregated page view data (visitor count, country, device type). No individual users are identified.\n• Cloudmoji does not contain ads, in-app purchases, or links to social media.\n• We comply with COPPA (Children's Online Privacy Protection Act) and Singapore's PDPA.\n\nFor questions, reach out to Kevin via ko-fi.com/kevincjz."}
+                a={"Cloudmoji is designed with your child's privacy in mind. Here is exactly what happens.\n\nSTAYS ON YOUR DEVICE\n• Usage statistics (tap counts, favourite emojis) are stored only on your device in localStorage and are never sent to a server.\n• Your language choice is stored the same way.\n• No accounts, logins, or registration. No cookies or tracking pixels. No ads or in-app purchases.\n\nLEAVES YOUR DEVICE\n• Vercel Web Analytics receives a pageview when Cloudmoji loads, along with metadata such as referrer, approximate geography, operating system, browser and device type.\n• Vercel Speed Insights receives real-user performance measurements (how quickly pages render and respond).\n• Google Fonts is used for the app's typefaces, so your browser requests files from fonts.googleapis.com and fonts.gstatic.com on first load. Once cached, the app runs offline.\n• Neither collector is given a name, email, or any information you type. Neither is used to build a profile of your child.\n\nWHAT WE DO NOT YET OFFER\n• There is currently no in-app switch to turn analytics off. If you would prefer none of it, use the app offline after the first load, or block those domains at the network level. We are looking at adding a proper opt-out.\n\nYOUR DATA\n• Everything stored locally can be exported or deleted from the stats screen, behind the grown-ups-only gate.\n\nCloudmoji is built to be safe for children, and we have aimed at what COPPA and Singapore's PDPA ask for. We are parents, not lawyers, and this is a description of our data flows rather than a legal certification.\n\nFor questions, reach out to Kevin via ko-fi.com/kevincjz."}
               />
               <FAQItem
                 q="Terms of Use"
@@ -307,6 +309,17 @@ export function AboutPanel({ onClose }: AboutPanelProps) {
           </div>
         </div>
       </div>
+
+      {gate && (
+        <ParentalGate
+          action="This opens Ko-fi in your browser, outside Cloudmoji."
+          onCancel={() => setGate(false)}
+          onPass={() => {
+            setGate(false);
+            window.open("https://ko-fi.com/kevincjz", "_blank", "noopener,noreferrer");
+          }}
+        />
+      )}
     </div>
   );
 }

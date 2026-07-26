@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import type { MascotMood, Language } from "../types";
 import { COUNTABLES, NUMBER_WORDS } from "../data/countables";
 import type { Countable } from "../data/countables";
@@ -36,15 +36,22 @@ export function CountMode({ lang, muted, compact, onLangSelect, onMuteToggle, on
   const [showNumber, setShowNumber] = useState<{ phrase: string; id: number } | null>(null);
 
   const beamingRef = useRef(false);
+  const completionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const beamTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const safeMood = useCallback((m: MascotMood) => {
     if (beamingRef.current && m !== "beaming") return;
     setMascotMood(m);
   }, []);
 
-  const { speak, initTTS } = useTTS({ muted, safeMood });
+  const { speak, cancelAll, initTTS } = useTTS({ muted, lang, safeMood });
 
   const newRound = useCallback(() => {
+    // Shuffling mid-celebration must not let the old completion phrase play
+    // over the new round.
+    cancelAll();
+    if (completionTimerRef.current) clearTimeout(completionTimerRef.current);
+    if (beamTimerRef.current) clearTimeout(beamTimerRef.current);
     const item = COUNTABLES[Math.floor(Math.random() * COUNTABLES.length)];
     setCurrentItem(item);
     setTappedOrder([]);
@@ -53,7 +60,7 @@ export function CountMode({ lang, muted, compact, onLangSelect, onMuteToggle, on
     setShowNumber(null);
     beamingRef.current = false;
     setMascotMood("happy");
-  }, []);
+  }, [cancelAll]);
 
   const nextRound = useCallback(() => {
     setCount((prev) => {
@@ -62,6 +69,11 @@ export function CountMode({ lang, muted, compact, onLangSelect, onMuteToggle, on
     });
     newRound();
   }, [newRound]);
+
+  useEffect(() => () => {
+    if (completionTimerRef.current) clearTimeout(completionTimerRef.current);
+    if (beamTimerRef.current) clearTimeout(beamTimerRef.current);
+  }, []);
 
   const buildPhrase = useCallback(
     (item: Countable, num: number): string => {
@@ -94,7 +106,9 @@ export function CountMode({ lang, muted, compact, onLangSelect, onMuteToggle, on
       // English: pluralize
       const noun = item.en;
       let plural = noun;
-      if (num > 1) {
+      if (num > 1 && item.enPlural) {
+        plural = item.enPlural;
+      } else if (num > 1) {
         if (noun === "fish") plural = "fish";
         else if (noun.endsWith("y") && !/[aeiou]y$/.test(noun)) plural = noun.slice(0, -1) + "ies";
         else if (/(?:s|sh|ch|x|z)$/.test(noun)) plural = noun + "es";
@@ -128,12 +142,12 @@ export function CountMode({ lang, muted, compact, onLangSelect, onMuteToggle, on
 
       if (currentNumber === count) {
         setCompleted(true);
-        setTimeout(() => {
+        completionTimerRef.current = setTimeout(() => {
           beamingRef.current = true;
           setMascotMood("beaming");
           const completionPhrase = buildPhrase(currentItem, count) + "!";
           speak(completionPhrase, SPEECH_LANG[lang]);
-          setTimeout(() => {
+          beamTimerRef.current = setTimeout(() => {
             beamingRef.current = false;
             setMascotMood("happy");
           }, 3500);
@@ -340,11 +354,10 @@ export function CountMode({ lang, muted, compact, onLangSelect, onMuteToggle, on
                   justifyContent: "center",
                   transition: "all 0.25s ease",
                   animation: isJustTapped
-                    ? "bounceEmoji 0.35s ease"
+                    ? `bounceEmoji 0.35s ease 0s 1`
                     : !isTapped
-                      ? "gentleFloat 2s ease-in-out infinite"
+                      ? `gentleFloat 2s ease-in-out ${i * 0.15}s infinite`
                       : "none",
-                  animationDelay: !isTapped ? `${i * 0.15}s` : "0s",
                   opacity: isTapped ? 1 : 0.75,
                   transform: isTapped ? "scale(1)" : "scale(0.95)",
                   position: "relative",
@@ -397,7 +410,8 @@ export function CountMode({ lang, muted, compact, onLangSelect, onMuteToggle, on
             background: "rgba(255,179,71,0.15)",
             border: "2px solid rgba(255,179,71,0.25)",
             borderRadius: 18,
-            padding: "10px 20px",
+            minHeight: 64,
+            padding: "10px 22px",
             color: "#FFB347",
             fontSize: 14,
             fontWeight: 900,
@@ -421,7 +435,8 @@ export function CountMode({ lang, muted, compact, onLangSelect, onMuteToggle, on
               background: "rgba(78,205,196,0.2)",
               border: "2px solid rgba(78,205,196,0.4)",
               borderRadius: 18,
-              padding: "10px 24px",
+              minHeight: 64,
+              padding: "10px 26px",
               color: "#4ECDC4",
               fontSize: 14,
               fontWeight: 900,

@@ -17,7 +17,8 @@ export default defineConfig({
         theme_color: "#0F0E2A",
         background_color: "#0F0E2A",
         display: "standalone",
-        orientation: "portrait",
+        // "portrait" would lock installed PWAs out of the landscape layout.
+        orientation: "any",
         start_url: "/",
         icons: [
           {

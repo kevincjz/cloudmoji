@@ -11,7 +11,7 @@ export function CategoryBar({ category, lang, onSelect }: CategoryBarProps) {
   return (
     <div
       data-testid="category-bar"
-      className="no-scroll flex gap-[5px] shrink-0 overflow-x-auto"
+      className="no-scroll flex gap-2 shrink-0 overflow-x-auto items-center"
       style={{ padding: "2px 12px 6px" }}
     >
       {CATEGORIES.map((cat) => {
@@ -33,7 +33,8 @@ export function CategoryBar({ category, lang, onSelect }: CategoryBarProps) {
                 ? "1.5px solid rgba(78,205,196,0.4)"
                 : "1.5px solid rgba(255,255,255,0.06)",
               borderRadius: 16,
-              padding: "7px 14px",
+              minHeight: 64,
+              padding: "7px 16px",
               color: isActive ? "#4ECDC4" : "rgba(255,255,255,0.35)",
               fontSize: 14,
               fontWeight: 800,

@@ -12,6 +12,14 @@ interface TypingRowProps {
   onTapTyped: (emoji: string) => void;
 }
 
+const PLACEHOLDER: Record<Language, string> = {
+  en: "Tap emojis below! 👇",
+  zh: "点击下面的表情 👇",
+  ms: "Ketik emoji di bawah! 👇",
+  ja: "したの えもじを タップしてね 👇",
+  tl: "Pindutin ang emoji sa ibaba! 👇",
+};
+
 export function TypingRow({
   typed,
   lang,
@@ -59,23 +67,34 @@ export function TypingRow({
               padding: "0 4px",
             }}
           >
-            {lang === "zh" ? "点击下面的表情 👇" : lang === "ms" ? "Ketik emoji di bawah! 👇" : "Tap emojis below! 👇"}
+            {PLACEHOLDER[lang]}
           </span>
         ) : (
           typed.map((item) => (
-            <span
+            <button
               key={item.id}
+              type="button"
               data-testid="typed-emoji"
+              aria-label={item.word}
+              className="active:scale-90 shrink-0"
               style={{
+                minWidth: 64,
+                minHeight: 64,
                 fontSize: 32,
                 animation: "popIn 0.3s ease-out",
                 cursor: "pointer",
                 lineHeight: 1,
+                background: "none",
+                border: "none",
+                padding: 0,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
               }}
               onClick={() => onTapTyped(item.emoji)}
             >
               {item.emoji}
-            </span>
+            </button>
           ))
         )}
       </div>
@@ -91,9 +110,9 @@ export function TypingRow({
                 background: "rgba(78,205,196,0.2)",
                 border: "1.5px solid rgba(78,205,196,0.3)",
                 borderRadius: 12,
-                width: 34,
-                height: 34,
-                fontSize: 15,
+                width: 64,
+                height: 64,
+                fontSize: 24,
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
@@ -111,9 +130,9 @@ export function TypingRow({
               background: "rgba(255,179,71,0.2)",
               border: "1.5px solid rgba(255,179,71,0.3)",
               borderRadius: 12,
-              width: 34,
-              height: 34,
-              fontSize: 14,
+              width: 64,
+              height: 64,
+              fontSize: 22,
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
@@ -130,9 +149,9 @@ export function TypingRow({
               background: "rgba(255,107,107,0.2)",
               border: "1.5px solid rgba(255,107,107,0.3)",
               borderRadius: 12,
-              width: 34,
-              height: 34,
-              fontSize: 13,
+              width: 64,
+              height: 64,
+              fontSize: 20,
               cursor: "pointer",
               display: "flex",
               alignItems: "center",

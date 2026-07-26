@@ -52,3 +52,8 @@ export const SPEECH_LANG: Record<Language, string> = Object.fromEntries(
 export function langMeta(id: Language): LanguageMeta {
   return LANGUAGES.find((l) => l.id === id) ?? LANGUAGES[0];
 }
+
+/** Runtime guard for values coming out of localStorage or a URL. */
+export function isLanguage(v: unknown): v is Language {
+  return typeof v === "string" && LANGUAGES.some((l) => l.id === v);
+}

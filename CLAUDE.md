@@ -1,7 +1,7 @@
 # CLAUDE.md — Cloudmoji
 
 ## What This Is
-Cloudmoji is a PWA where toddlers tap emojis and hear the words spoken aloud in English or Mandarin Chinese. Named after Cloud (Kevin's 27-month-old son), who was typing emojis on a locked iPhone and saying the words aloud — unprompted.
+Cloudmoji is a PWA where toddlers tap emojis and hear the words spoken aloud in one of five languages. Named after Cloud (Kevin's 27-month-old son), who was typing emojis on a locked iPhone and saying the words aloud — unprompted.
 
 The cloud mascot ("Cloudmoji") is a fluffy white cloud character with a face who reacts to the child's taps — bouncing, showing star-eyes when excited, opening its mouth when speaking, and beaming with joy at milestones.
 
@@ -39,7 +39,11 @@ Three subtle animated glow orbs (coral, teal, gold) that drift with `bgGlow` ani
 ## Key Rules — Read Before Every Task
 
 ### Toddler UX (non-negotiable)
-1. Touch targets: **minimum 64px, prefer 72px**
+1. Touch targets: **minimum 64px, prefer 72px** — this governs anything a CHILD
+   taps: emoji tiles, typed emojis, replay/delete/clear, category chips, count
+   tiles, shuffle/next, the tab bar. Parent-only chrome (About, mute, language)
+   follows the iOS HIG 44px minimum instead; forcing 64px there swallows the
+   header on a 375px screen. `tests/review-fixes.spec.ts` asserts the child list.
 2. Gap between targets: **minimum 8px**
 3. One tap = one action = one reward
 4. **No failure states** — every tap is a success

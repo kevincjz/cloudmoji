@@ -101,3 +101,17 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* The design docs promise reduced-motion support; this delivers it. Keeps the
+   word bubble and count badges readable (they rely on ending at opacity 1)
+   while removing the looping float/bounce that can trigger motion sensitivity. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

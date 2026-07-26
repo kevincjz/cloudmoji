@@ -11,6 +11,9 @@ import { WordBubble } from "./WordBubble";
 import { CategoryBar } from "./CategoryBar";
 import { LangToggle } from "./LangToggle";
 
+/** PRD: at most 50 emojis in the typing row, oldest dropped first. */
+const MAX_TYPED = 50;
+
 function getWord(item: EmojiEntry, lang: Language): string {
   return item[lang];
 }
@@ -45,14 +48,16 @@ export function WordsMode({ lang, muted, compact, onLangSelect, onMuteToggle, on
     setMascotMood(m);
   }, []);
 
-  const { speak, initTTS } = useTTS({ muted, safeMood });
+  const { speak, speakSequence, cancelAll, initTTS } = useTTS({ muted, lang, safeMood });
 
   const handleTap = useCallback(
     (item: EmojiEntry, idx: number) => {
       initTTS();
       const word = getWord(item, lang);
 
-      setTyped((prev) => [...prev, { emoji: item.emoji, word, id: Date.now() }]);
+      setTyped((prev) =>
+        [...prev, { emoji: item.emoji, word, id: Date.now() }].slice(-MAX_TYPED),
+      );
       setShowWord({ emoji: item.emoji, word, id: Date.now() });
       setBounceIdx(idx);
       if (!beamingRef.current) setMascotMood("excited");
@@ -110,23 +115,26 @@ export function WordsMode({ lang, muted, compact, onLangSelect, onMuteToggle, on
 
   const replayAll = useCallback(() => {
     if (typed.length === 0 || muted) return;
-    speechSynthesis.cancel();
     logEvent("replay", String(typed.length));
-    typed.forEach((item, i) => {
-      setTimeout(() => {
+    speakSequence(
+      typed.map((item) => {
         const found = EMOJIS.find((e) => e.emoji === item.emoji);
         const word = found ? getWord(found, lang) : item.word;
-        setShowWord({ emoji: item.emoji, word, id: Date.now() });
-        speak(word, SPEECH_LANG[lang]);
-      }, i * 1200);
-    });
-    setTimeout(() => setShowWord(null), typed.length * 1200 + 1500);
-  }, [typed, lang, speak, muted]);
+        return {
+          text: word,
+          langCode: SPEECH_LANG[lang],
+          onSpeak: () => setShowWord({ emoji: item.emoji, word, id: Date.now() }),
+        };
+      }),
+    );
+  }, [typed, lang, speakSequence, muted]);
 
   const handleClear = useCallback(() => {
+    cancelAll();
+    setShowWord(null);
     setTyped([]);
     logEvent("clear");
-  }, []);
+  }, [cancelAll]);
 
   const filtered =
     category === "all"
@@ -231,7 +239,10 @@ export function WordsMode({ lang, muted, compact, onLangSelect, onMuteToggle, on
         lang={lang}
         muted={muted}
         onReplayAll={replayAll}
-        onDeleteLast={() => setTyped((p) => p.slice(0, -1))}
+        onDeleteLast={() => {
+          cancelAll();
+          setTyped((p) => p.slice(0, -1));
+        }}
         onClear={handleClear}
         onTapTyped={handleTapTyped}
       />

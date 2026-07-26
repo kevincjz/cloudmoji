@@ -32,8 +32,15 @@ export function StatsPanel({ onClose }: StatsPanelProps) {
     URL.revokeObjectURL(url);
   };
 
+  const [confirmClear, setConfirmClear] = useState(false);
+
   const handleClear = () => {
+    if (!confirmClear) {
+      setConfirmClear(true);
+      return;
+    }
     clearEvents();
+    setConfirmClear(false);
     setStats(null);
   };
 
@@ -84,7 +91,7 @@ export function StatsPanel({ onClose }: StatsPanelProps) {
           <div className="flex flex-col gap-3">
             <div>
               <div style={{ fontSize: 11, fontWeight: 800, color: "rgba(255,255,255,0.4)", marginBottom: 6, textTransform: "uppercase", letterSpacing: 1 }}>
-                All Time
+                Recent activity (last 500 events)
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <StatBox label="Sessions" value={String(stats.totalSessions)} />
@@ -160,13 +167,13 @@ export function StatsPanel({ onClose }: StatsPanelProps) {
                   borderRadius: 12,
                   padding: "8px 0",
                   color: "#FF6B6B",
-                  fontSize: 12,
+                  fontSize: confirmClear ? 11 : 12,
                   fontWeight: 900,
                   cursor: "pointer",
                   fontFamily: "'Nunito', sans-serif",
                 }}
               >
-                Clear Data
+                {confirmClear ? "Tap again to delete" : "Clear Data"}
               </button>
             </div>
           </div>

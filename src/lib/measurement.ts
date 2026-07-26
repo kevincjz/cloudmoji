@@ -56,17 +56,27 @@ export function getSessionStats(): SessionStats | null {
   const events = getEvents();
   if (events.length === 0) return null;
 
-  const taps = events.filter((e) => e.e === "tap");
-  const uniqueEmojis = new Set(taps.map((e) => e.d));
+  // Count mode taps are taps too — excluding them made "Total Taps" wrong for
+  // anyone who mostly uses Count.
+  const wordTaps = events.filter((e) => e.e === "tap");
+  const countTaps = events.filter((e) => e.e === "count_tap");
+  const taps = [...wordTaps, ...countTaps];
+  const uniqueEmojis = new Set(wordTaps.map((e) => e.d));
   const langSwitches = events.filter((e) => e.e === "lang");
   const categories = events.filter((e) => e.e === "cat");
   const sessions = events.filter((e) => e.e === "session_start");
-  const sessionStart = events[0].t;
-  const sessionEnd = events[events.length - 1].t;
+  // Summing first-to-last spans the days between sessions. Sum only the gaps
+  // that plausibly sit inside one sitting instead.
+  const ACTIVE_GAP_MS = 5 * 60 * 1000;
+  let activeMs = 0;
+  for (let i = 1; i < events.length; i++) {
+    const gap = events[i].t - events[i - 1].t;
+    if (gap > 0 && gap <= ACTIVE_GAP_MS) activeMs += gap;
+  }
 
   // Count emoji taps
   const counts: Record<string, number> = {};
-  for (const tap of taps) {
+  for (const tap of wordTaps) {
     if (tap.d) counts[tap.d] = (counts[tap.d] || 0) + 1;
   }
   const topEmojis = Object.entries(counts)
@@ -77,7 +87,7 @@ export function getSessionStats(): SessionStats | null {
   return {
     totalTaps: taps.length,
     uniqueEmojis: uniqueEmojis.size,
-    sessionDurationSec: Math.round((sessionEnd - sessionStart) / 1000),
+    sessionDurationSec: Math.round(activeMs / 1000),
     langSwitches: langSwitches.length,
     categoryChanges: categories.length,
     topEmojis,

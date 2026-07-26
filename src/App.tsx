@@ -2,18 +2,21 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import type { Language } from "./types";
 import { useLocalStorage } from "./hooks/useLocalStorage";
 import { useCompactLayout } from "./hooks/useMediaQuery";
+import { isLanguage } from "./data/languages";
 import { logEvent } from "./lib/measurement";
 import { WordsMode } from "./components/WordsMode";
 import { CountMode } from "./components/CountMode";
 import { TabBar, type TabId } from "./components/TabBar";
 import { StatsPanel } from "./components/StatsPanel";
 import { AboutPanel } from "./components/AboutPanel";
+import { ParentalGate } from "./components/ParentalGate";
 
 export default function App() {
-  const [lang, setLang] = useLocalStorage<Language>("cm_lang", "en");
+  const [lang, setLang] = useLocalStorage<Language>("cm_lang", "en", isLanguage);
   const [muted, setMuted] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>("words");
   const [showStats, setShowStats] = useState(false);
+  const [statsGate, setStatsGate] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
 
   // Phone held sideways: the 500px column wastes most of the width while the
@@ -51,7 +54,9 @@ export default function App() {
     titleTapRef.current = titleTapRef.current.filter((t) => now - t < 2000);
     if (titleTapRef.current.length >= 5) {
       titleTapRef.current = [];
-      setShowStats(true);
+      // Five taps only opens the gate — a toddler can produce the gesture, but
+      // not the answer behind it.
+      setStatsGate(true);
     }
   }, []);
 
@@ -147,6 +152,16 @@ export default function App() {
       <TabBar activeTab={activeTab} onSelect={handleTabSelect} maxWidth={contentMaxWidth} />
 
       {/* Hidden Stats Panel */}
+      {statsGate && (
+        <ParentalGate
+          action="Cloudmoji's usage stats include options to export and delete your data."
+          onCancel={() => setStatsGate(false)}
+          onPass={() => {
+            setStatsGate(false);
+            setShowStats(true);
+          }}
+        />
+      )}
       {showStats && <StatsPanel onClose={() => setShowStats(false)} />}
 
       {/* About Panel */}
