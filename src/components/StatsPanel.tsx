@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   getSessionStats,
   exportEventsJSON,
@@ -17,11 +17,9 @@ function formatDuration(seconds: number): string {
 }
 
 export function StatsPanel({ onClose }: StatsPanelProps) {
-  const [stats, setStats] = useState<SessionStats | null>(null);
-
-  useEffect(() => {
-    setStats(getSessionStats());
-  }, []);
+  // Read once on mount. Lazy initialiser rather than an effect — the stats are a
+  // snapshot of localStorage, not something that changes while the panel is open.
+  const [stats, setStats] = useState<SessionStats | null>(() => getSessionStats());
 
   const handleExport = () => {
     const json = exportEventsJSON();

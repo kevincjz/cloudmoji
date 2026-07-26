@@ -7,7 +7,7 @@ interface AboutPanelProps {
 const FAQ_ITEMS = [
   {
     q: "How do we use Cloudmoji?",
-    a: "Cloudmoji has two modes — switch between them using the tabs at the bottom:\n\n🗣️ Words — Tap any emoji to hear the word spoken aloud. Build sentences in the typing row and replay them!\n\n🔢 Count — Tap emojis one by one to count them. The app says the number out loud and tracks your progress with dots.\n\nWe save Cloudmoji as an app on our home screen and run it in Guided Access mode — this locks the phone to just Cloudmoji so your little one can tap freely without accidentally switching apps or pressing buttons they shouldn't!",
+    a: "Cloudmoji has two modes — switch between them using the tabs at the bottom:\n\n🗣️ Words — Tap any emoji to hear the word spoken aloud. Build sentences in the typing row and replay them!\n\n🧮 Count — Tap emojis one by one to count them. The app says the number out loud and tracks your progress with dots.\n\nWe save Cloudmoji as an app on our home screen and run it in Guided Access mode — this locks the phone to just Cloudmoji so your little one can tap freely without accidentally switching apps or pressing buttons they shouldn't!",
   },
   {
     q: "How do I save Cloudmoji to my home screen?",
@@ -23,7 +23,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "Which languages are supported?",
-    a: "English, Mandarin Chinese, and Bahasa Melayu. Tap the language button (EN / 中文 / BM) in the top right to switch.",
+    a: "Five languages: English, Mandarin Chinese (中文), Bahasa Melayu (BM), Japanese (日本語), and Tagalog (TL).\n\nTap the language button in the top right to open the picker, then tap the language you want.\n\nJapanese uses hiragana and katakana — no kanji — so it matches what Japanese children learn first. Counting uses the ～つ counter (ひとつ, ふたつ, みっつ), the first counting system Japanese kids are taught.",
   },
   {
     q: "Does it work offline?",
@@ -180,7 +180,7 @@ export function AboutPanel({ onClose }: AboutPanelProps) {
             textAlign: "center",
             margin: 0,
           }}>
-            That's how Cloudmoji was born. Tap an emoji, hear the word — in English, Mandarin, or Malay.
+            That's how Cloudmoji was born. Tap an emoji, hear the word — in English, Mandarin, Malay, Japanese, or Tagalog.
           </p>
 
           <div
@@ -259,7 +259,7 @@ export function AboutPanel({ onClose }: AboutPanelProps) {
               />
               <FAQItem
                 q="Terms of Use"
-                a={"By using Cloudmoji, you agree to the following:\n\n• Cloudmoji is provided free of charge, \"as is\", without warranty of any kind.\n• Cloudmoji is intended for use by children under parental supervision.\n• We recommend using Guided Access (iOS) or Screen Pinning (Android) to keep your child safely within the app.\n• Text-to-speech quality depends on your device and may vary.\n• We reserve the right to update or discontinue Cloudmoji at any time.\n• Cloudmoji is a personal project by Kevin and PQ, not a commercial product.\n\nLast updated: March 2026."}
+                a={"By using Cloudmoji, you agree to the following:\n\n• Cloudmoji is provided free of charge, \"as is\", without warranty of any kind.\n• Cloudmoji is intended for use by children under parental supervision.\n• We recommend using Guided Access (iOS) or Screen Pinning (Android) to keep your child safely within the app.\n• Text-to-speech quality depends on your device and may vary.\n• We reserve the right to update or discontinue Cloudmoji at any time.\n• Cloudmoji is a personal project by Kevin and PQ, not a commercial product.\n\nLast updated: July 2026."}
               />
             </div>
           </div>
@@ -275,8 +275,12 @@ export function AboutPanel({ onClose }: AboutPanelProps) {
             </div>
             <div className="flex flex-col gap-2">
               <FAQItem
+                q="v1.3 — 26 July 2026"
+                a={"• Added Japanese (日本語) and Tagalog (TL) — all 160 emojis and 54 countables, plus category names and counting phrases\n• Japanese uses hiragana and katakana only (no kanji), with the ～つ counter children learn first: りんご みっつ\n• Tagalog uses the correct number linker: tatlong aso, but apat na aso\n• Language button now opens a picker instead of cycling — one tap to any of the 5 languages\n• 🤫 is now \"quiet\" instead of \"shh\", in every language\n• Fixed landscape mode: the grid was squeezed to under 2 rows and took 14 screenfuls to scroll. It now uses the full width (11 columns instead of 6) and needs 6\n• Fixed the bottom tab bar on notched iPhones — the home-indicator inset was eating 21px out of the tap target, leaving it at 42px instead of the intended 64px\n• Count tab icon changed from 🔢 to 🧮, which renders as a proper icon rather than a grey box"}
+              />
+              <FAQItem
                 q="v1.2 — 2 April 2026"
-                a={"• Added 27 new emojis to Words mode (133 → 160 total)\n• Added 27 new countables to Count mode (28 → 55 total)\n• Fixed Chinese counting grammar: use 两 (liǎng) instead of 二 (èr) for counting with measure words\n• Fixed English irregular plurals (fish, butterfly, strawberry, bus, cherry)\n• Added Malay classifiers (penjodoh bilangan): ekor, biji, keping, buah, kuntum, batang, pasang, tangkai"}
+                a={"• Added 27 new emojis to Words mode (133 → 160 total)\n• Added 27 new countables to Count mode (27 → 54 total)\n• Fixed Chinese counting grammar: use 两 (liǎng) instead of 二 (èr) for counting with measure words\n• Fixed English irregular plurals (fish, butterfly, strawberry, bus, cherry)\n• Added Malay classifiers (penjodoh bilangan): ekor, biji, keping, buah, kuntum, batang, pasang, tangkai"}
               />
               <FAQItem
                 q="v1.1 — 25 March 2026"
@@ -295,7 +299,7 @@ export function AboutPanel({ onClose }: AboutPanelProps) {
             color: "rgba(255,255,255,0.15)",
             textAlign: "center",
           }}>
-            Cloudmoji v1.2 — cloudmoji.app
+            Cloudmoji v1.3 — cloudmoji.app
           </div>
         </div>
       </div>

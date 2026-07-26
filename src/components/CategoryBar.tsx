@@ -21,7 +21,7 @@ export function CategoryBar({ category, lang, onSelect }: CategoryBarProps) {
             key={cat.id}
             data-testid={`cat-${cat.id}`}
             onClick={() => {
-              const label = lang === "zh" ? cat.labelZh : lang === "ms" ? cat.labelMs : cat.label;
+              const label = cat.labels[lang];
               onSelect(cat.id, label, cat.icon);
             }}
             className="active:scale-90 shrink-0"
@@ -47,7 +47,7 @@ export function CategoryBar({ category, lang, onSelect }: CategoryBarProps) {
             }}
           >
             <span style={{ fontSize: 18 }}>{cat.icon}</span>
-            {lang === "zh" ? cat.labelZh : lang === "ms" ? cat.labelMs : cat.label}
+            {cat.labels[lang]}
           </button>
         );
       })}

@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import type { Language } from "./types";
 import { useLocalStorage } from "./hooks/useLocalStorage";
+import { useCompactLayout } from "./hooks/useMediaQuery";
 import { logEvent } from "./lib/measurement";
 import { WordsMode } from "./components/WordsMode";
 import { CountMode } from "./components/CountMode";
@@ -15,6 +16,11 @@ export default function App() {
   const [showStats, setShowStats] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
 
+  // Phone held sideways: the 500px column wastes most of the width while the
+  // grid starves vertically, so let the content span the full viewport.
+  const compact = useCompactLayout();
+  const contentMaxWidth = compact ? 1024 : 500;
+
   const titleTapRef = useRef<number[]>([]);
 
   // Log session start
@@ -22,12 +28,14 @@ export default function App() {
     logEvent("session_start");
   }, []);
 
-  const handleLangToggle = useCallback(() => {
-    const cycle: Language[] = ["en", "zh", "ms"];
-    const next = cycle[(cycle.indexOf(lang) + 1) % cycle.length];
-    setLang(next);
-    logEvent("lang", next);
-  }, [lang, setLang]);
+  const handleLangSelect = useCallback(
+    (next: Language) => {
+      speechSynthesis.cancel();
+      setLang(next);
+      logEvent("lang", next);
+    },
+    [setLang],
+  );
 
   const handleMuteToggle = useCallback(() => {
     setMuted((m) => {
@@ -110,13 +118,14 @@ export default function App() {
       {/* Main content */}
       <div
         className="relative z-1 flex flex-col w-full mx-auto"
-        style={{ flex: 1, maxWidth: 500, overflow: "hidden" }}
+        style={{ flex: 1, minHeight: 0, maxWidth: contentMaxWidth, overflow: "hidden" }}
       >
         {activeTab === "words" ? (
           <WordsMode
             lang={lang}
             muted={muted}
-            onLangToggle={handleLangToggle}
+            compact={compact}
+            onLangSelect={handleLangSelect}
             onMuteToggle={handleMuteToggle}
             onTitleTap={handleTitleTap}
             onAbout={() => setShowAbout(true)}
@@ -125,7 +134,8 @@ export default function App() {
           <CountMode
             lang={lang}
             muted={muted}
-            onLangToggle={handleLangToggle}
+            compact={compact}
+            onLangSelect={handleLangSelect}
             onMuteToggle={handleMuteToggle}
             onTitleTap={handleTitleTap}
             onAbout={() => setShowAbout(true)}
@@ -134,7 +144,7 @@ export default function App() {
       </div>
 
       {/* Tab Bar */}
-      <TabBar activeTab={activeTab} onSelect={handleTabSelect} />
+      <TabBar activeTab={activeTab} onSelect={handleTabSelect} maxWidth={contentMaxWidth} />
 
       {/* Hidden Stats Panel */}
       {showStats && <StatsPanel onClose={() => setShowStats(false)} />}

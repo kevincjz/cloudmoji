@@ -1,30 +1,34 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useRef } from "react";
 import type { MascotMood, Language } from "../types";
 import { COUNTABLES, NUMBER_WORDS } from "../data/countables";
 import type { Countable } from "../data/countables";
+import { SPEECH_LANG } from "../data/languages";
 import { useTTS } from "../hooks/useTTS";
 import { logEvent } from "../lib/measurement";
 import { CloudMascot } from "./CloudMascot";
 import { LangToggle } from "./LangToggle";
 
-const SPEECH_LANG: Record<Language, string> = {
-  en: "en-US",
-  zh: "zh-CN",
-  ms: "ms-MY",
+const UI_TEXT: Record<"subtitle" | "shuffle" | "next", Record<Language, string>> = {
+  subtitle: { en: "Let's count!", zh: "数一数!", ms: "Jom kira!", ja: "かぞえよう!", tl: "Magbilang tayo!" },
+  shuffle: { en: "Shuffle", zh: "换一换", ms: "Tukar", ja: "つぎ", tl: "Palitan" },
+  next: { en: "Next!", zh: "下一个!", ms: "Seterusnya!", ja: "つぎへ!", tl: "Susunod!" },
 };
 
 interface CountModeProps {
   lang: Language;
   muted: boolean;
-  onLangToggle: () => void;
+  compact: boolean;
+  onLangSelect: (lang: Language) => void;
   onMuteToggle: () => void;
   onTitleTap: () => void;
   onAbout: () => void;
 }
 
-export function CountMode({ lang, muted, onLangToggle, onMuteToggle, onTitleTap, onAbout }: CountModeProps) {
+export function CountMode({ lang, muted, compact, onLangSelect, onMuteToggle, onTitleTap, onAbout }: CountModeProps) {
   const [count, setCount] = useState(3);
-  const [currentItem, setCurrentItem] = useState<Countable | null>(null);
+  const [currentItem, setCurrentItem] = useState<Countable | null>(
+    () => COUNTABLES[Math.floor(Math.random() * COUNTABLES.length)],
+  );
   const [tappedOrder, setTappedOrder] = useState<number[]>([]);
   const [lastTapped, setLastTapped] = useState<number | null>(null);
   const [mascotMood, setMascotMood] = useState<MascotMood>("happy");
@@ -59,10 +63,6 @@ export function CountMode({ lang, muted, onLangToggle, onMuteToggle, onTitleTap,
     newRound();
   }, [newRound]);
 
-  useEffect(() => {
-    newRound();
-  }, [newRound]);
-
   const buildPhrase = useCallback(
     (item: Countable, num: number): string => {
       const numWord = NUMBER_WORDS[lang][num - 1];
@@ -71,6 +71,25 @@ export function CountMode({ lang, muted, onLangToggle, onMuteToggle, onTitleTap,
       }
       if (lang === "ms") {
         return `${numWord} ${item.ms}`;
+      }
+      if (lang === "ja") {
+        // Noun first, count last — "りんご みっつ" is what a Japanese parent says out
+        // loud; "みっつのりんご" is bookish. The ～つ counter is already fused into the
+        // number word, so the noun never changes form. No particle between them.
+        return `${item.ja} ${numWord}`;
+      }
+      if (lang === "tl") {
+        // Tagalog links the numeral to the noun, and the linker attaches to the
+        // NUMBER: vowel-final takes "-ng" (tatlo -> tatlong), "n"-final takes "-g",
+        // any other consonant takes a separate "na" (apat -> apat na). Nouns are
+        // never pluralised after a numeral.
+        const last = numWord.slice(-1).toLowerCase();
+        const linked = "aeiou".includes(last)
+          ? `${numWord}ng`
+          : last === "n"
+            ? `${numWord}g`
+            : `${numWord} na`;
+        return `${linked} ${item.tl}`;
       }
       // English: pluralize
       const noun = item.en;
@@ -135,24 +154,24 @@ export function CountMode({ lang, muted, onLangToggle, onMuteToggle, onTitleTap,
   const emojiSize = count <= 3 ? 64 : count <= 6 ? 54 : 46;
   const btnSize = count <= 3 ? 96 : count <= 6 ? 82 : 72;
 
-  const subtitleText = lang === "zh" ? "数一数!" : lang === "ms" ? "Jom kira!" : "Let's count!";
-  const shuffleText = lang === "zh" ? "换一换" : lang === "ms" ? "Tukar" : "Shuffle";
-  const nextText = lang === "zh" ? "下一个!" : lang === "ms" ? "Seterusnya!" : "Next!";
+  const subtitleText = UI_TEXT.subtitle[lang];
+  const shuffleText = UI_TEXT.shuffle[lang];
+  const nextText = UI_TEXT.next[lang];
 
   return (
     <>
       {/* Header */}
       <div
         className="flex items-center justify-between shrink-0"
-        style={{ padding: "10px 14px 6px" }}
+        style={{ padding: compact ? "4px 12px 2px" : "10px 14px 6px" }}
       >
         <div className="flex items-center gap-2">
-          <CloudMascot mood={mascotMood} size={64} />
+          <CloudMascot mood={mascotMood} size={compact ? 42 : 64} />
           <div onClick={onTitleTap} style={{ cursor: "default" }}>
             <div
               style={{
                 fontFamily: "'Lilita One', sans-serif",
-                fontSize: 21,
+                fontSize: compact ? 17 : 21,
                 background:
                   "linear-gradient(135deg, #4ECDC4, #56B4D3, #7B93DB)",
                 WebkitBackgroundClip: "text",
@@ -163,17 +182,19 @@ export function CountMode({ lang, muted, onLangToggle, onMuteToggle, onTitleTap,
             >
               Cloudculator
             </div>
-            <div
-              style={{
-                fontSize: 10,
-                fontWeight: 800,
-                color: "rgba(255,255,255,0.3)",
-                letterSpacing: 0.5,
-                marginTop: 1,
-              }}
-            >
-              🔢 {subtitleText}
-            </div>
+            {!compact && (
+              <div
+                style={{
+                  fontSize: 10,
+                  fontWeight: 800,
+                  color: "rgba(255,255,255,0.3)",
+                  letterSpacing: 0.5,
+                  marginTop: 1,
+                }}
+              >
+                🧮 {subtitleText}
+              </div>
+            )}
           </div>
         </div>
 
@@ -223,14 +244,14 @@ export function CountMode({ lang, muted, onLangToggle, onMuteToggle, onTitleTap,
           >
             {muted ? "🔇" : "🔊"}
           </button>
-          <LangToggle lang={lang} onToggle={onLangToggle} />
+          <LangToggle lang={lang} onSelect={onLangSelect} />
         </div>
       </div>
 
       {/* Progress dots + big number + phrase */}
       <div
         className="shrink-0 flex flex-col items-center justify-center"
-        style={{ padding: "4px 0 2px", minHeight: 100 }}
+        style={{ padding: "4px 0 2px", minHeight: compact ? 62 : 100 }}
       >
         <div className="flex gap-[6px]" style={{ marginBottom: 6 }}>
           {Array.from({ length: count }).map((_, i) => (
@@ -299,6 +320,7 @@ export function CountMode({ lang, muted, onLangToggle, onMuteToggle, onTitleTap,
               <button
                 key={i}
                 className="active:scale-85"
+                data-testid={`count-item-${i}`}
                 onClick={() => handleTap(i)}
                 style={{
                   width: btnSize,
@@ -369,6 +391,7 @@ export function CountMode({ lang, muted, onLangToggle, onMuteToggle, onTitleTap,
       >
         <button
           className="active:scale-88"
+          data-testid="count-shuffle"
           onClick={newRound}
           style={{
             background: "rgba(255,179,71,0.15)",
@@ -392,6 +415,7 @@ export function CountMode({ lang, muted, onLangToggle, onMuteToggle, onTitleTap,
         {completed && (
           <button
             className="active:scale-88"
+            data-testid="count-next"
             onClick={nextRound}
             style={{
               background: "rgba(78,205,196,0.2)",

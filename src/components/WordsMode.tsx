@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from "react";
 import type { EmojiEntry, MascotMood, TypedEmoji, Language, Category } from "../types";
 import { EMOJIS } from "../data/emojis";
+import { SPEECH_LANG } from "../data/languages";
 import { useTTS } from "../hooks/useTTS";
 import { logEvent } from "../lib/measurement";
 import { CloudMascot } from "./CloudMascot";
@@ -10,12 +11,6 @@ import { WordBubble } from "./WordBubble";
 import { CategoryBar } from "./CategoryBar";
 import { LangToggle } from "./LangToggle";
 
-const SPEECH_LANG: Record<Language, string> = {
-  en: "en-US",
-  zh: "zh-CN",
-  ms: "ms-MY",
-};
-
 function getWord(item: EmojiEntry, lang: Language): string {
   return item[lang];
 }
@@ -23,13 +18,14 @@ function getWord(item: EmojiEntry, lang: Language): string {
 interface WordsModeProps {
   lang: Language;
   muted: boolean;
-  onLangToggle: () => void;
+  compact: boolean;
+  onLangSelect: (lang: Language) => void;
   onMuteToggle: () => void;
   onTitleTap: () => void;
   onAbout: () => void;
 }
 
-export function WordsMode({ lang, muted, onLangToggle, onMuteToggle, onTitleTap, onAbout }: WordsModeProps) {
+export function WordsMode({ lang, muted, compact, onLangSelect, onMuteToggle, onTitleTap, onAbout }: WordsModeProps) {
   const [category, setCategory] = useState<"all" | Category>("all");
   const [typed, setTyped] = useState<TypedEmoji[]>([]);
   const [showWord, setShowWord] = useState<{
@@ -142,16 +138,16 @@ export function WordsMode({ lang, muted, onLangToggle, onMuteToggle, onTitleTap,
       {/* Header */}
       <div
         className="flex items-center justify-between shrink-0"
-        style={{ padding: "10px 14px 6px" }}
+        style={{ padding: compact ? "4px 12px 2px" : "10px 14px 6px" }}
       >
         <div className="flex items-center gap-2">
-          <CloudMascot mood={mascotMood} size={64} />
+          <CloudMascot mood={mascotMood} size={compact ? 42 : 64} />
           <div onClick={onTitleTap} style={{ cursor: "default" }}>
             <div
               data-testid="app-title"
               style={{
                 fontFamily: "'Lilita One', sans-serif",
-                fontSize: 21,
+                fontSize: compact ? 17 : 21,
                 background:
                   "linear-gradient(135deg, #4ECDC4, #56B4D3, #7B93DB)",
                 WebkitBackgroundClip: "text",
@@ -162,17 +158,19 @@ export function WordsMode({ lang, muted, onLangToggle, onMuteToggle, onTitleTap,
             >
               Cloudmoji
             </div>
-            <div
-              style={{
-                fontSize: 10,
-                fontWeight: 800,
-                color: "rgba(255,255,255,0.3)",
-                letterSpacing: 0.5,
-                marginTop: 1,
-              }}
-            >
-              Tap. Listen. Learn!
-            </div>
+            {!compact && (
+              <div
+                style={{
+                  fontSize: 10,
+                  fontWeight: 800,
+                  color: "rgba(255,255,255,0.3)",
+                  letterSpacing: 0.5,
+                  marginTop: 1,
+                }}
+              >
+                Tap. Listen. Learn!
+              </div>
+            )}
           </div>
         </div>
 
@@ -223,7 +221,7 @@ export function WordsMode({ lang, muted, onLangToggle, onMuteToggle, onTitleTap,
             {muted ? "🔇" : "🔊"}
           </button>
 
-          <LangToggle lang={lang} onToggle={onLangToggle} />
+          <LangToggle lang={lang} onSelect={onLangSelect} />
         </div>
       </div>
 
@@ -238,10 +236,23 @@ export function WordsMode({ lang, muted, onLangToggle, onMuteToggle, onTitleTap,
         onTapTyped={handleTapTyped}
       />
 
-      {/* Word Bubble */}
+      {/* Word Bubble — in compact (landscape) it floats over the grid instead of
+          reserving a row, which is 38px the grid badly needs when the phone is sideways. */}
       <div
         className="flex items-center justify-center shrink-0"
-        style={{ height: 38 }}
+        style={
+          compact
+            ? {
+                position: "absolute",
+                left: 0,
+                right: 0,
+                bottom: 6,
+                height: 38,
+                zIndex: 20,
+                pointerEvents: "none",
+              }
+            : { height: 38 }
+        }
       >
         {showWord && (
           <WordBubble

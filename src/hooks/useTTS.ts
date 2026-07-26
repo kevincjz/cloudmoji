@@ -28,7 +28,9 @@ export function useTTS({ muted, safeMood }: UseTTSOptions) {
 
     const voices = speechSynthesis.getVoices();
     const prefix = langCode.split("-")[0];
-    const matching = voices.filter((v) => v.lang.startsWith(prefix));
+    // Filipino is tagged fil-PH on iOS but tl-PH elsewhere — accept either.
+    const prefixes = prefix === "fil" ? ["fil", "tl"] : [prefix];
+    const matching = voices.filter((v) => prefixes.some((p) => v.lang.startsWith(p)));
     if (matching.length === 0) return undefined;
 
     // Prefer: exact lang match > female-sounding name > first match
@@ -40,7 +42,8 @@ export function useTTS({ muted, safeMood }: UseTTSOptions) {
       return name.includes("female") || name.includes("samantha") ||
         name.includes("karen") || name.includes("tessa") ||
         name.includes("tingting") || name.includes("sinji") ||
-        name.includes("amira");
+        name.includes("amira") || name.includes("kyoko") ||
+        name.includes("o-ren") || name.includes("rosa");
     });
 
     const voice = female ?? pool[0];

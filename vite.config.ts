@@ -13,7 +13,7 @@ export default defineConfig({
       manifest: {
         name: "Cloudmoji",
         short_name: "Cloudmoji",
-        description: "Tap emojis, learn words in English, Mandarin and Malay",
+        description: "Tap emojis, learn words in English, Mandarin, Malay, Japanese and Tagalog",
         theme_color: "#0F0E2A",
         background_color: "#0F0E2A",
         display: "standalone",
