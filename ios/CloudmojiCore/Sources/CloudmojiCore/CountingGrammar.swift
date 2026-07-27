@@ -29,8 +29,15 @@ public struct CountingGrammar: Sendable {
         case .ms:
             // Likewise the penjodoh bilangan (ekor anjing), space-separated.
             return "\(number) \(item.ms)"
-        default:
-            return item.noun(language)
+        case .ja:
+            // Noun first, counter last: "りんご みっつ". The number-の-noun order
+            // is grammatical but bookish, and the ～つ counter is already fused
+            // into the number word, so the noun never changes form.
+            return "\(item.ja) \(number)"
+        case .tl:
+            // The linker attaches to the NUMERAL, not the noun, and the noun is
+            // never pluralised after a numeral.
+            return "\(Self.tagalogLinked(number)) \(item.tl)"
         }
     }
 
@@ -52,5 +59,17 @@ public struct CountingGrammar: Sendable {
             return noun + "es"
         }
         return noun + "s"
+    }
+
+    // MARK: - Tagalog
+
+    /// Attaches the Tagalog linker to a numeral.
+    /// Vowel-final takes -ng (tatlo → tatlong); n-final takes -g;
+    /// any other consonant takes a separate "na" (apat → apat na).
+    static func tagalogLinked(_ number: String) -> String {
+        guard let last = number.lowercased().last else { return number }
+        if "aeiou".contains(last) { return number + "ng" }
+        if last == "n" { return number + "g" }
+        return number + " na"
     }
 }
