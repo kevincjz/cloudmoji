@@ -100,13 +100,25 @@ Three fixed-position radial gradients that animate with `bgGlow`:
 ```
 
 ## Touch Targets (Non-negotiable)
-| Element | Size | Border Radius |
-|---------|------|---------------|
-| Emoji button | 72 × 72px | 18px |
-| Category tab | auto × ~30px | 14px |
-| Control button (replay/delete/clear) | 34 × 34px | 12px |
-| Language toggle | auto × ~34px | 16px |
-| Typed emoji (re-speak) | 32px font | — (inline text) |
+
+Two different rules apply, and which one applies depends on **who taps it**:
+
+- **A child taps it** → 64px minimum, 72px preferred. A toddler's aim is poor and
+  every miss is a small failure in a product whose whole premise is that there are
+  none.
+- **Only a parent taps it** → 44px, the iOS HIG minimum. Forcing 64px on parent
+  chrome swallows the header on a 375px screen.
+
+Either way, minimum 8px between adjacent targets.
+
+| Element | Who taps | Size | Border Radius |
+|---------|----------|------|---------------|
+| Emoji button | child | 72 × 72px | 18px |
+| Category tab | child | auto × 64px | 14px |
+| Control button (replay/delete/clear) | child | 64 × 64px | 12px |
+| Typed emoji (re-speak) | child | 64 × 64px | — (inline text) |
+| Language toggle | parent | auto × 44px | 16px |
+| About / mute | parent | 44 × 44px | — |
 
 ## Border Radius
 Everything is rounded. No sharp corners anywhere.
