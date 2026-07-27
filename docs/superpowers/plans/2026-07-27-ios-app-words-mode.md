@@ -1479,6 +1479,20 @@ Verified safe: Task 10 queries tiles by `accessibilityIdentifier`
 label. The `buttons["apple"]` query in Task 10 targets the typing row, which
 already uses the localised `item.word`. Nothing in the UI tests breaks.
 
+
+#### Also in this task: actually enforce the 50-emoji cap
+
+`TypingRow.maxTyped` is declared (50) but **nothing enforces it** — Task 7 only
+published the constant, and the row does not own the array. This screen owns
+`typed`, so the cap belongs here. A 27-month-old mashing tiles is exactly the
+input that finds an unbounded array, and the PRD sets the limit at 50 with the
+oldest dropped first.
+
+On append: if `typed.count > TypingRow.maxTyped`, drop from the front. Test it by
+appending 60 and asserting the count is 50 AND that the FIRST element is the 11th
+appended, not the 1st — a count-only assertion passes against an implementation
+that drops the newest, which is the opposite of what is wanted.
+
 - [ ] **Step 1: Write Words mode**
 
 Create `ios/Cloudmoji/Cloudmoji/Views/WordsView.swift`:
