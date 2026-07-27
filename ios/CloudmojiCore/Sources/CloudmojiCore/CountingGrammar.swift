@@ -22,6 +22,13 @@ public struct CountingGrammar: Sendable {
         switch language {
         case .en:
             return "\(number) \(englishPlural(item, count: count))"
+        case .zh:
+            // The measure word is already part of the noun (只狗), and Chinese
+            // takes no space between numeral and classifier.
+            return "\(number)\(item.zh)"
+        case .ms:
+            // Likewise the penjodoh bilangan (ekor anjing), space-separated.
+            return "\(number) \(item.ms)"
         default:
             return item.noun(language)
         }
