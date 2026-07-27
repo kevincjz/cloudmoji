@@ -40,8 +40,14 @@ export function ParentalGate({ action, onPass, onCancel }: ParentalGateProps) {
   return (
     <div
       data-testid="parental-gate"
-      className="fixed inset-0 z-[70] flex items-center justify-center"
-      style={{ background: "rgba(0,0,0,0.82)", padding: 20 }}
+      className="fixed inset-0 z-[70] flex justify-center overflow-y-auto"
+      style={{
+        background: "rgba(0,0,0,0.82)",
+        paddingTop: "calc(20px + var(--sai-top))",
+        paddingRight: "calc(20px + var(--sai-right))",
+        paddingBottom: "calc(20px + var(--sai-bottom))",
+        paddingLeft: "calc(20px + var(--sai-left))",
+      }}
       onClick={onCancel}
     >
       <div
@@ -52,6 +58,9 @@ export function ParentalGate({ action, onPass, onCancel }: ParentalGateProps) {
           padding: 24,
           maxWidth: 340,
           width: "100%",
+          // auto margins centre it when it fits and let the overlay scroll
+          // when the numeric keyboard leaves it taller than the viewport.
+          margin: "auto",
           fontFamily: "'Nunito', sans-serif",
           color: "#fff",
         }}

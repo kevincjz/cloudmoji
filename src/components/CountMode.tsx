@@ -169,8 +169,16 @@ export function CountMode({ lang, muted, compact, activeTab, onSelectTab, onLang
     return Math.min(4, Math.ceil(Math.sqrt(n)));
   };
 
-  const emojiSize = count <= 3 ? 64 : count <= 6 ? 54 : 46;
-  const btnSize = count <= 3 ? 96 : count <= 6 ? 82 : 72;
+  // Landscape is wide and short, so the countables lay out in a wide row
+  // rather than the near-square portrait grid — that way a whole tile fits
+  // in the available height instead of always needing to be scrolled.
+  const emojiSize = compact
+    ? (count <= 5 ? 44 : 36)
+    : count <= 3 ? 64 : count <= 6 ? 54 : 46;
+  // Stays at or above the 64px child-facing minimum in both layouts.
+  const btnSize = compact
+    ? (count <= 5 ? 72 : 64)
+    : count <= 3 ? 96 : count <= 6 ? 82 : 72;
 
   const subtitleText = UI_TEXT.subtitle[lang];
   const shuffleText = UI_TEXT.shuffle[lang];
@@ -189,7 +197,12 @@ export function CountMode({ lang, muted, compact, activeTab, onSelectTab, onLang
           onSelectTab={onSelectTab}
           showCategories={false}
         />
-        <div className="flex flex-col flex-1" style={{ minWidth: 0, minHeight: 0 }}>
+        <div
+          className="flex flex-col flex-1"
+          // The rail covers the left inset; this side must clear the opposite
+          // rounded corner itself now that the root runs full-bleed.
+          style={{ minWidth: 0, minHeight: 0, paddingRight: "var(--sai-right)" }}
+        >
         {/* Header */}
         <div
           className="flex items-center justify-between shrink-0"
@@ -281,7 +294,7 @@ export function CountMode({ lang, muted, compact, activeTab, onSelectTab, onLang
         {/* Progress dots + big number + phrase */}
         <div
           className="shrink-0 flex flex-col items-center justify-center"
-          style={{ padding: "4px 0 2px", minHeight: compact ? 62 : 100 }}
+          style={{ padding: "4px 0 2px", minHeight: compact ? 56 : 100, overflow: "hidden" }}
         >
           <div className="flex gap-[6px]" style={{ marginBottom: 6 }}>
             {Array.from({ length: count }).map((_, i) => (
@@ -304,7 +317,7 @@ export function CountMode({ lang, muted, compact, activeTab, onSelectTab, onLang
             <div key={showNumber.id} className="flex flex-col items-center" style={{ animation: "countPop 0.3s ease-out" }}>
               <span
                 style={{
-                  fontSize: 64,
+                  fontSize: compact ? 34 : 64,
                   fontWeight: 900,
                   fontFamily: "'Lilita One', sans-serif",
                   color: "#fff",
@@ -317,7 +330,7 @@ export function CountMode({ lang, muted, compact, activeTab, onSelectTab, onLang
               <span
                 style={{
                   fontWeight: 900,
-                  fontSize: 18,
+                  fontSize: compact ? 13 : 18,
                   color: "rgba(255,255,255,0.6)",
                   marginTop: 4,
                 }}
@@ -331,14 +344,19 @@ export function CountMode({ lang, muted, compact, activeTab, onSelectTab, onLang
         {/* Emoji Counting Area */}
         <div
           className="flex-1 flex items-center justify-center"
-          style={{ padding: "16px 20px" }}
+          // minHeight:0 lets this shrink. The flex default of min-height:auto
+          // floored it at content height, which pushed Shuffle and Next off
+          // the bottom of a landscape screen from the second round onward.
+          style={{ padding: compact ? "6px 12px" : "16px 20px", minHeight: 0, overflowY: "auto" }}
         >
           <div
             className="grid w-full"
             style={{
-              gridTemplateColumns: `repeat(${getGridCols(count)}, 1fr)`,
-              gap: count <= 4 ? 16 : 12,
-              maxWidth: 360,
+              gridTemplateColumns: `repeat(${
+                compact ? Math.min(count, 5) : getGridCols(count)
+              }, 1fr)`,
+              gap: compact ? 10 : count <= 4 ? 16 : 12,
+              maxWidth: compact ? 520 : 360,
               animation: "fadeIn 0.4s ease-out",
             }}
           >
@@ -416,7 +434,7 @@ export function CountMode({ lang, muted, compact, activeTab, onSelectTab, onLang
         {/* Bottom Controls */}
         <div
           className="shrink-0 flex justify-center gap-3"
-          style={{ padding: "12px 20px 8px" }}
+          style={{ padding: "12px 20px calc(8px + var(--sai-bottom))" }}
         >
           <button
             className="active:scale-88"
@@ -631,7 +649,10 @@ export function CountMode({ lang, muted, compact, activeTab, onSelectTab, onLang
       {/* Emoji Counting Area */}
       <div
         className="flex-1 flex items-center justify-center"
-        style={{ padding: "16px 20px" }}
+        // minHeight:0 lets this shrink. Without it the flex default of
+        // min-height:auto floors it at content height, which shoved the
+        // Shuffle and Next buttons off the bottom of a landscape screen.
+        style={{ padding: compact ? "6px 12px" : "16px 20px", minHeight: 0, overflowY: "auto" }}
       >
         <div
           className="grid w-full"
@@ -773,8 +794,11 @@ export function CountMode({ lang, muted, compact, activeTab, onSelectTab, onLang
       <div
         className="fixed z-10"
         style={{
-          bottom: 72,
-          right: 12,
+          // position:fixed resolves against the viewport, so this has to
+          // carry the insets itself. 72px was sized for a 64px tab bar,
+          // but that bar is 64px + inset on a notched phone.
+          bottom: "calc(72px + var(--sai-bottom))",
+          right: "calc(12px + var(--sai-right))",
           fontSize: 10,
           fontWeight: 800,
           color: "rgba(255,255,255,0.12)",

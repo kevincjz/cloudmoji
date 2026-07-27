@@ -75,9 +75,10 @@ export default function App() {
           "linear-gradient(160deg, #0F0E2A 0%, #1A1145 40%, #0D2137 100%)",
         fontFamily: "'Nunito', sans-serif",
         overflow: "hidden",
-        paddingTop: "env(safe-area-inset-top)",
-        paddingLeft: "env(safe-area-inset-left)",
-        paddingRight: "env(safe-area-inset-right)",
+        // No horizontal padding here. This element paints the page gradient, so
+        // insetting it left a bare strip down each edge and pushed the landscape
+        // rail off the screen edge. Children inset their own content instead.
+        paddingTop: "var(--sai-top)",
       }}
     >
       {/* Background glow orbs */}
@@ -123,7 +124,14 @@ export default function App() {
       {/* Main content */}
       <div
         className="relative z-1 flex flex-col w-full mx-auto"
-        style={{ flex: 1, minHeight: 0, maxWidth: contentMaxWidth, overflow: "hidden" }}
+        style={{
+          flex: 1,
+          minHeight: 0,
+          maxWidth: contentMaxWidth,
+          overflow: "hidden",
+          // Landscape insets are handled by the rail and the column beside it.
+          ...(compact ? null : { paddingLeft: "var(--sai-left)", paddingRight: "var(--sai-right)" }),
+        }}
       >
         {activeTab === "words" ? (
           <WordsMode

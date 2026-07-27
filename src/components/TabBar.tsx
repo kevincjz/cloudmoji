@@ -20,8 +20,8 @@ export function TabBar({ activeTab, onSelect, maxWidth }: TabBarProps) {
         // The safe-area inset must ADD to the 64px tap area, not eat into it.
         // box-sizing is border-box, so folding the inset into minHeight is what
         // kept the real tap target at 42.5px on notched phones.
-        minHeight: "calc(64px + env(safe-area-inset-bottom, 0px))",
-        paddingBottom: "env(safe-area-inset-bottom, 0px)",
+        minHeight: "calc(64px + var(--sai-bottom))",
+        paddingBottom: "var(--sai-bottom)",
         background: "rgba(15,14,42,0.95)",
         borderTop: "1px solid rgba(255,255,255,0.06)",
         backdropFilter: "blur(12px)",

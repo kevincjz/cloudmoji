@@ -59,6 +59,11 @@ export function StatsPanel({ onClose }: StatsPanelProps) {
           padding: "20px 24px",
           maxWidth: 340,
           width: "90%",
+          // Unclamped, this 489px card overflowed a 390px landscape viewport in
+          // both directions — the close button off the top, export and delete
+          // off the bottom, with nothing scrollable to reach them.
+          maxHeight: "calc(100svh - var(--sai-top) - var(--sai-bottom) - 32px)",
+          overflowY: "auto",
           fontFamily: "'Nunito', sans-serif",
           color: "#fff",
         }}

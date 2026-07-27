@@ -112,7 +112,7 @@ export function AboutPanel({ onClose }: AboutPanelProps) {
           padding: "24px",
           maxWidth: 340,
           width: "90%",
-          maxHeight: "85dvh",
+          maxHeight: "calc(100svh - var(--sai-top) - var(--sai-bottom) - 32px)",
           overflowY: "auto",
           fontFamily: "'Nunito', sans-serif",
           color: "#fff",

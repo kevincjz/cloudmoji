@@ -48,10 +48,12 @@ export function SideRail({
       data-testid="side-rail"
       className="shrink-0 flex flex-col"
       style={{
-        width: RAIL_WIDTH,
+        // Grow by the inset instead of padding into it, so the icons keep
+        // their full width while the background still reaches the edge.
+        width: `calc(${RAIL_WIDTH}px + var(--sai-left))`,
         borderRight: "1px solid rgba(255,255,255,0.06)",
         background: "rgba(15,14,42,0.5)",
-        paddingLeft: "env(safe-area-inset-left, 0px)",
+        paddingLeft: "var(--sai-left)",
       }}
     >
       <div className="flex-1 relative" style={{ minHeight: 0 }}>
@@ -106,7 +108,7 @@ export function SideRail({
           paddingTop: 8,
           paddingLeft: 4,
           paddingRight: 4,
-          paddingBottom: "calc(8px + env(safe-area-inset-bottom, 0px))",
+          paddingBottom: "calc(8px + var(--sai-bottom))",
         }}
       >
         {TABS.map((tab) => {

@@ -157,7 +157,20 @@ export function WordsMode({ lang, muted, compact, activeTab, onSelectTab, onLang
           onSelectCategory={handleCategorySelect}
           onSelectTab={onSelectTab}
         />
-        <div className="flex flex-col flex-1" style={{ minWidth: 0, minHeight: 0 }}>
+        <div
+          className="flex flex-col flex-1"
+          // The rail covers the left inset; this side must clear the opposite
+          // rounded corner itself now that the root runs full-bleed.
+          style={{
+            minWidth: 0,
+            minHeight: 0,
+            // Containing block for the word bubble. Without this the bubble
+            // resolves against the app root and centres over the rail too,
+            // landing half a rail-width left of the grid it belongs to.
+            position: "relative",
+            paddingRight: "var(--sai-right)",
+          }}
+        >
         {/* Header */}
         <div
           className="flex items-center justify-between shrink-0"
@@ -271,8 +284,11 @@ export function WordsMode({ lang, muted, compact, activeTab, onSelectTab, onLang
               ? {
                   position: "absolute",
                   left: 0,
-                  right: 0,
-                  bottom: 6,
+                  // Absolute offsets resolve against the padding box, which
+                  // includes the right inset — right:0 put the bubble half an
+                  // inset off the grid centre.
+                  right: "var(--sai-right)",
+                  bottom: "calc(6px + var(--sai-bottom))",
                   height: 38,
                   zIndex: 20,
                   pointerEvents: "none",
@@ -301,8 +317,11 @@ export function WordsMode({ lang, muted, compact, activeTab, onSelectTab, onLang
       <div
         className="fixed z-10"
         style={{
-          bottom: 72,
-          right: 12,
+          // position:fixed resolves against the viewport, so this has to
+          // carry the insets itself. 72px was sized for a 64px tab bar,
+          // but that bar is 64px + inset on a notched phone.
+          bottom: "calc(72px + var(--sai-bottom))",
+          right: "calc(12px + var(--sai-right))",
           fontSize: 10,
           fontWeight: 800,
           color: "rgba(255,255,255,0.12)",
@@ -425,19 +444,7 @@ export function WordsMode({ lang, muted, compact, activeTab, onSelectTab, onLang
           reserving a row, which is 38px the grid badly needs when the phone is sideways. */}
       <div
         className="flex items-center justify-center shrink-0"
-        style={
-          compact
-            ? {
-                position: "absolute",
-                left: 0,
-                right: 0,
-                bottom: 6,
-                height: 38,
-                zIndex: 20,
-                pointerEvents: "none",
-              }
-            : { height: 38 }
-        }
+        style={{ height: 38 }}
       >
         {showWord && (
           <WordBubble
@@ -466,8 +473,11 @@ export function WordsMode({ lang, muted, compact, activeTab, onSelectTab, onLang
       <div
         className="fixed z-10"
         style={{
-          bottom: 72,
-          right: 12,
+          // position:fixed resolves against the viewport, so this has to
+          // carry the insets itself. 72px was sized for a 64px tab bar,
+          // but that bar is 64px + inset on a notched phone.
+          bottom: "calc(72px + var(--sai-bottom))",
+          right: "calc(12px + var(--sai-right))",
           fontSize: 10,
           fontWeight: 800,
           color: "rgba(255,255,255,0.12)",

@@ -87,11 +87,30 @@ body {
   -webkit-tap-highlight-color: transparent;
   user-select: none;
   overflow: hidden;
-  background: #0F0E2A;
+  /* Matches the app gradient's BOTTOM stop. Using the top colour showed a
+     seam under the tab bar whenever the visible viewport exceeded 100svh. */
+  background: #0D2137;
 }
 
 #root {
   min-height: 100svh;
+}
+
+/*
+ * Safe-area insets go through variables rather than env() at each use site.
+ * Two reasons: env() cannot be overridden, so notch behaviour was impossible to
+ * test — and reading it in two places led to it being applied twice, once on an
+ * ancestor with a background and once on the child, which floated the landscape
+ * rail ~118px off the screen edge.
+ *
+ * Rule: elements that PAINT A BACKGROUND run full-bleed to the physical edge.
+ * The inset is padding on the CONTENT inside them.
+ */
+:root {
+  --sai-top: env(safe-area-inset-top, 0px);
+  --sai-right: env(safe-area-inset-right, 0px);
+  --sai-bottom: env(safe-area-inset-bottom, 0px);
+  --sai-left: env(safe-area-inset-left, 0px);
 }
 
 .no-scroll::-webkit-scrollbar {
