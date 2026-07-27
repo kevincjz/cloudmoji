@@ -28,18 +28,12 @@ public final class SettingsStore {
             guard enabledLanguages.contains(language) else {
                 // Recover rather than silently persist an inconsistent state --
                 // the same principle enabledLanguages's own didSet applies in
-                // the opposite direction. Prefer .en because that's what
-                // `init` falls back to for an invalid stored language, which
-                // keeps runtime and launch behaviour identical; but only when
-                // English is actually enabled, since enabledLanguages can be
-                // customized to exclude it. Otherwise fall back to the same
-                // alphabetically-first choice enabledLanguages's didSet uses,
-                // so the recovery value can never itself land outside the
-                // enabled set. Assigning to `language` here does not
-                // re-trigger this didSet, so this cannot recurse.
-                language = enabledLanguages.contains(.en)
-                    ? .en
-                    : enabledLanguages.sorted { $0.rawValue < $1.rawValue }.first!
+                // the opposite direction. `resolveLanguage` is the single
+                // place that rule lives (see its doc comment); `init` uses
+                // the same helper so the two can never disagree again.
+                // Assigning to `language` here does not re-trigger this
+                // didSet, so this cannot recurse.
+                language = Self.resolveLanguage(preferring: language, enabled: enabledLanguages)
                 return
             }
             defaults.set(language.rawValue, forKey: Key.language)
@@ -84,23 +78,52 @@ public final class SettingsStore {
         let cleanedCategories = categories.isEmpty ? Set(Category.allCases) : categories
 
         // didSet does not run during init, so the "active language must be
-        // enabled" rule is applied explicitly here as well. This is computed
-        // with locals (rather than reading self.enabledLanguages) because,
-        // under @Observable, self cannot be used until every stored property
-        // has an initial value.
+        // enabled" rule is applied explicitly here as well, via the same
+        // `resolveLanguage` helper `language`'s didSet uses -- that is the
+        // single place the rule lives, so the two paths can't disagree.
+        // This is computed with locals (rather than reading
+        // self.enabledLanguages) because, under @Observable, self cannot be
+        // used until every stored property has an initial value.
         let stored = defaults.string(forKey: Key.language).flatMap(Language.init(rawValue:))
-        let resolvedLanguage: Language
-        if let stored, cleanedLanguages.contains(stored) {
-            resolvedLanguage = stored
-        } else {
-            resolvedLanguage = .en
-        }
+        let resolvedLanguage = Self.resolveLanguage(preferring: stored, enabled: cleanedLanguages)
 
         self.enabledLanguages = cleanedLanguages
         self.enabledCategories = cleanedCategories
         self.language = resolvedLanguage
         self.countRange = Self.readRange(defaults)
         self.muted = defaults.bool(forKey: Key.muted)
+    }
+
+    /// The single place the "active language must be enabled" invariant is
+    /// decided. Both `init` (reading a possibly-stale stored value) and
+    /// `language`'s didSet (reacting to a runtime assignment that turned out
+    /// to be disabled) call this rather than each encoding their own
+    /// recovery -- that duplication is exactly what let them drift apart:
+    /// `init` used to recover to `.en` unconditionally, which is wrong when
+    /// a parent has disabled English.
+    ///
+    /// Resolution order: `candidate` if it's enabled, else `.en` if *it's*
+    /// enabled, else the alphabetically-first enabled language. The last
+    /// tier only matters once English has been disabled -- there's always
+    /// some enabled language to fall back to, so this never needs to
+    /// express "no valid answer".
+    ///
+    /// `enabled` must be non-empty. Both call sites already guarantee this
+    /// -- `init` passes the cleaned set (empty is replaced with
+    /// `Language.allCases` before it ever reaches here) and the didSet
+    /// passes `enabledLanguages`, which its own didSet keeps non-empty the
+    /// same way. That's asserted below via `precondition` rather than
+    /// trusted implicitly, so a future call site that breaks the guarantee
+    /// fails loudly at the point of the mistake instead of via a bare `!`
+    /// somewhere downstream.
+    private static func resolveLanguage(preferring candidate: Language?, enabled: Set<Language>) -> Language {
+        precondition(!enabled.isEmpty, "resolveLanguage requires a non-empty enabled set; callers must guarantee this")
+        if let candidate, enabled.contains(candidate) { return candidate }
+        if enabled.contains(.en) { return .en }
+        // `enabled` is non-empty per the precondition above, so `min` here
+        // always finds a value -- the `?? .en` is unreachable, not a real
+        // fallback, and exists only so this stays force-unwrap-free.
+        return enabled.min { $0.rawValue < $1.rawValue } ?? .en
     }
 
     private static func readSet<T: Hashable>(

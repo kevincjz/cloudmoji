@@ -94,6 +94,42 @@ struct SettingsStoreTests {
         #expect(defaults.string(forKey: "cm_lang") == "zh")
     }
 
+    @Test("with English disabled, an invalid stored language still recovers into the enabled set")
+    func recoversWithinEnabledSetWhenEnglishIsDisabled() {
+        let defaults = makeDefaults()
+        defaults.set(["ja", "zh"], forKey: "cm_enabled_langs")
+        // "es" was never a Cloudmoji language -- same corrupt value as
+        // `recoversFromCorruptLanguage` above, but here English itself is
+        // disabled. Recovering to `.en` unconditionally (the bug `init` used
+        // to have) would land outside enabledLanguages, exactly the
+        // inconsistent state this invariant exists to prevent.
+        defaults.set("es", forKey: "cm_lang")
+        let store = SettingsStore(defaults: defaults)
+        #expect(store.enabledLanguages.contains(store.language))
+        #expect(store.language == .ja)
+    }
+
+    @Test("with English disabled, a valid stored language is kept")
+    func keepsValidStoredLanguageWhenEnglishIsDisabled() {
+        let defaults = makeDefaults()
+        defaults.set(["ja", "zh"], forKey: "cm_enabled_langs")
+        defaults.set("zh", forKey: "cm_lang")
+        #expect(SettingsStore(defaults: defaults).language == .zh)
+    }
+
+    @Test("with English disabled, the persisted language matches the recovered value")
+    func persistsRecoveredLanguageWhenEnglishIsDisabled() {
+        let defaults = makeDefaults()
+        let store = SettingsStore(defaults: defaults)
+        store.enabledLanguages = [.ja, .zh]
+        // .tl is not enabled, and neither is .en -- recovery must land on
+        // the alphabetically-first enabled language (`ja`) and that must be
+        // what's written to disk, not a hardcoded "en".
+        store.language = .tl
+        #expect(store.language == .ja)
+        #expect(defaults.string(forKey: "cm_lang") == "ja")
+    }
+
     @Test("an inverted or out-of-bounds count range is clamped")
     func clampsCountRange() {
         let defaults = makeDefaults()
