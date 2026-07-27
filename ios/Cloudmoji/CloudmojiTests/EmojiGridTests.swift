@@ -29,95 +29,34 @@ struct EmojiGridTests {
 
     // MARK: Photographing the real grid
 
-    /// A run of horizontally adjacent lit pixels — one tile, as drawn.
-    struct Run {
-        var start: Int
-        var end: Int // exclusive
-        var width: Int { end - start }
-    }
-
-    /// Lays the grid out at `width`, snapshots it on black, and reports the
-    /// tiles it finds along a scanline through the middle of the first row.
+    /// Lays the grid out at `width` and reports the tiles along a scanline
+    /// through the middle of the first row.
+    ///
+    /// Goes through `Bitmap.of` rather than building its own window. This suite
+    /// invented the technique and kept a private copy, which made a `UIWindow`
+    /// key on every call and never released it — a dozen key windows piled up
+    /// across the suite, and each one could steal key status from a `Bitmap.of`
+    /// capture suspended in its settling sleep, handing that capture back a
+    /// black rectangle that reads as "the view drew nothing". `CaptureGate`
+    /// serialises captures, but a window built outside `Bitmap.of` never takes
+    /// the gate, so migrating this was the other half of that fix.
     ///
     /// The tile fill is white at 4% and its border white at 6%, so on black
-    /// every tile pixel is comfortably above zero and every gap is exactly
-    /// zero. The scanline is taken at the tiles' vertical mid-point, where
-    /// their left and right edges are straight and unantialiased.
+    /// every tile pixel is above zero and every gap is exactly zero.
     func firstRowTiles(
         _ entries: [EmojiEntry],
         bouncingID: String? = nil,
         width: CGFloat = 375,
         height: CGFloat = 600
-    ) -> [Run] {
-        let host = UIHostingController(
-            rootView: EmojiGrid(entries: entries, bouncingID: bouncingID) { _ in }
-                .background(Color.black)
+    ) async -> [Bitmap.Run] {
+        let bitmap = await Bitmap.of(
+            EmojiGrid(entries: entries, bouncingID: bouncingID) { _ in },
+            width: width,
+            height: height,
+            fillsWindow: true
         )
-        // The host would otherwise inherit the simulator's safe-area insets and
-        // push the first row 60-odd points down the image, under a scanline
-        // aimed by arithmetic. The real screen's insets are Task 9's problem;
-        // here they only obscure the measurement.
-        host.safeAreaRegions = []
-        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: width, height: height))
-        // Without a scene the window never becomes visible, and
-        // `drawHierarchy(afterScreenUpdates:)` hands back a black rectangle —
-        // which reads here as a grid with no tiles in it.
-        if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
-            window.windowScene = scene
-        }
-        window.rootViewController = host
-        window.makeKeyAndVisible()
-        window.layoutIfNeeded()
-        host.view.layoutIfNeeded()
-
-        let bounds = CGRect(x: 0, y: 0, width: width, height: height)
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = 1
-        format.opaque = true
-        let image = UIGraphicsImageRenderer(bounds: bounds, format: format).image { _ in
-            host.view.drawHierarchy(in: bounds, afterScreenUpdates: true)
-        }
-
-        guard let cgImage = image.cgImage else { return [] }
-        let pixelWidth = cgImage.width
-        let pixelHeight = cgImage.height
-        var pixels = [UInt8](repeating: 0, count: pixelWidth * pixelHeight * 4)
-        pixels.withUnsafeMutableBytes { raw in
-            guard let context = CGContext(
-                data: raw.baseAddress,
-                width: pixelWidth,
-                height: pixelHeight,
-                bitsPerComponent: 8,
-                bytesPerRow: pixelWidth * 4,
-                space: CGColorSpaceCreateDeviceRGB(),
-                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-            ) else { return }
-            context.draw(cgImage, in: CGRect(x: 0, y: 0, width: pixelWidth, height: pixelHeight))
-        }
-
         let scanline = Int(EmojiGridMetrics.topPadding + EmojiTileMetrics.side / 2)
-        guard scanline < pixelHeight else { return [] }
-
-        var runs: [Run] = []
-        var current: Run?
-        for x in 0..<pixelWidth {
-            let offset = (scanline * pixelWidth + x) * 4
-            let lit = Int(pixels[offset]) + Int(pixels[offset + 1]) + Int(pixels[offset + 2]) > 8
-            switch (lit, current) {
-            case (true, nil):
-                current = Run(start: x, end: x + 1)
-            case (true, .some(var run)):
-                run.end = x + 1
-                current = run
-            case (false, .some(let run)):
-                runs.append(run)
-                current = nil
-            case (false, nil):
-                break
-            }
-        }
-        if let run = current { runs.append(run) }
-        return runs
+        return bitmap.runs(y: scanline, threshold: 8)
     }
 
     // MARK: Identity
@@ -165,9 +104,9 @@ struct EmojiGridTests {
     /// The cheapest guard against a grid that builds and draws nothing — which
     /// is exactly what the first two versions of this suite did while passing.
     @Test("the grid draws a row of tiles, and nothing when it has no entries")
-    func gridDrawsItsEntries() {
-        #expect(firstRowTiles([]).isEmpty)
-        #expect(firstRowTiles(entries(24)).count >= 4)
+    func gridDrawsItsEntries() async {
+        #expect(await firstRowTiles([]).isEmpty)
+        #expect(await firstRowTiles(entries(24)).count >= 4)
     }
 
     /// The tile border sits on a fractional column boundary, so it antialiases
@@ -181,9 +120,9 @@ struct EmojiGridTests {
     /// narrowest phone we support, not on one tile rendered alone with nothing
     /// competing for the width.
     @Test("every tile drawn in a 375pt grid is at least 64pt wide, 8pt apart, and on screen")
-    func tilesObeyTheTouchTargetRuleInSitu() {
+    func tilesObeyTheTouchTargetRuleInSitu() async {
         let width = 375
-        let tiles = firstRowTiles(entries(24), width: CGFloat(width))
+        let tiles = await firstRowTiles(entries(24), width: CGFloat(width))
         #expect(tiles.count >= 4, "only \(tiles.count) tiles in the first row")
 
         for tile in tiles {
@@ -211,11 +150,11 @@ struct EmojiGridTests {
     /// tap. The bounce scales the tile, so the named row draws wider than it
     /// otherwise would and nothing else changes.
     @Test("naming a row in bouncingID grows that row")
-    func bouncingIDReachesTheRightTile() throws {
+    func bouncingIDReachesTheRightTile() async throws {
         let rows = entries(24)
         let target = try #require(rows.first)
-        let resting = firstRowTiles(rows)
-        let bouncing = firstRowTiles(rows, bouncingID: target.id)
+        let resting = await firstRowTiles(rows)
+        let bouncing = await firstRowTiles(rows, bouncingID: target.id)
 
         let restingFirst = try #require(resting.first)
         let bouncingFirst = try #require(bouncing.first)
@@ -229,9 +168,9 @@ struct EmojiGridTests {
     /// which is the whole reason the columns are adaptive rather than a fixed
     /// count. A hard-coded column count passes every other test in this suite.
     @Test("the grid fits more tiles per row on a wider screen")
-    func gridReflowsWithWidth() {
-        let phone = firstRowTiles(entries(60), width: 375).count
-        let pad = firstRowTiles(entries(60), width: 1024).count
+    func gridReflowsWithWidth() async {
+        let phone = await firstRowTiles(entries(60), width: 375).count
+        let pad = await firstRowTiles(entries(60), width: 1024).count
         #expect(phone >= 4, "only \(phone) columns at 375pt")
         #expect(pad > phone, "1024pt fits \(pad) per row, 375pt fits \(phone)")
     }

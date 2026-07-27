@@ -36,9 +36,28 @@ struct CloudmojiApp: App {
         try? AVAudioSession.sharedInstance().setActive(true)
     }
 
+    @Environment(\.scenePhase) private var scenePhase
+
     var body: some Scene {
         WindowGroup {
             ContentView().environment(model)
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            // The session is activated once in `init` and an interruption — a
+            // phone call, Siri, a route change — deactivates it. Nothing brought
+            // it back, so the app returned from a call silent, with no mute
+            // control to make that legible and force-quit as the only recovery.
+            // Audio is the whole product here, so re-activating on every
+            // foreground is the cheap side of the trade.
+            try? AVAudioSession.sharedInstance().setActive(true)
+
+            // Voices are cached on first use, and iOS installs new ones while
+            // the app is backgrounded — a parent going to Settings to fetch the
+            // Japanese voice, coming back, and finding nothing changed was the
+            // motivating case. `invalidateVoiceCache` shipped implemented,
+            // tested, and called by nothing at all.
+            model.invalidateVoiceCache()
         }
     }
 }

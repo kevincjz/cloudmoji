@@ -41,16 +41,17 @@ struct AdaptiveShellTests {
     /// Whether the shell told its content the screen is compact, measured off
     /// the width of the bar the content then drew.
     ///
-    /// Read twice when the first reading is not one of the two bars. Every suite
-    /// in this target photographs through the same shared key window, and once
-    /// in roughly twenty full-target runs this measurement has come back as a
-    /// width belonging to neither layout — a capture taken while another suite's
-    /// window was on screen. A *wrong* layout is never retried: 100 and 220 are
-    /// 120pt apart, so a mistaken reading is a failure, not a retry.
+    /// Reads once.
+    ///
+    /// This used to read twice, because captures across suites raced for the key
+    /// window and roughly one full-target run in twenty came back as a width
+    /// belonging to neither layout. That race is fixed at the source now —
+    /// `Bitmap.of` serialises through `CaptureGate` and `EmojiGridTests` no
+    /// longer builds windows of its own — so a retry here would only hide a
+    /// regression of that fix.
     func isCompact(width: CGFloat, height: CGFloat) async throws -> Bool {
-        if let answer = await readProbe(width: width, height: height) { return answer }
-        let second = await readProbe(width: width, height: height)
-        return try #require(second, "the probe drew neither layout twice at \(width)×\(height)")
+        let answer = await readProbe(width: width, height: height)
+        return try #require(answer, "the probe drew neither layout at \(width)×\(height)")
     }
 
     /// `nil` when the render is not legible as either layout.

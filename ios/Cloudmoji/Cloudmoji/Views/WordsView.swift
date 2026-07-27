@@ -30,6 +30,8 @@ struct WordsView: View {
     @State private var bounceTask: Task<Void, Never>?
     @State private var moodTask: Task<Void, Never>?
     @State private var celebrationTask: Task<Void, Never>?
+    /// Safety net for a `didFinish` that never arrives — see `speak`.
+    @State private var speechFallback: Task<Void, Never>?
 
     // MARK: - Rules
     //
@@ -73,6 +75,11 @@ struct WordsView: View {
 
     /// Star eyes on tap, "for ~600ms" (rule 8). After that the mascot moves to
     /// the speaking face if the word is still being said.
+    /// Longest a single word may hold the mouth open. Generously past any real
+    /// utterance at rate 0.85 — this is an escape from a stuck state, not a
+    /// timing mechanism, so it must never fire while a word is still being said.
+    static let speechCeiling = Duration.seconds(8)
+
     private static let excitedHold = Duration.milliseconds(600)
     /// `setTimeout(() => setBounceIdx(null), 400)`, and the spring the tile
     /// animates the return leg with.
@@ -96,11 +103,25 @@ struct WordsView: View {
         // A language or mute change must silence what is already queued — the
         // same `useEffect(cancelAll, [muted, lang])` the web has. Without it the
         // phone finishes the previous language's word after the switch.
-        .onChange(of: model.settings.language) { silence() }
+        .onChange(of: model.settings.language) {
+            silence()
+            // `TypedEmoji` froze its word at tap time, so without this the row
+            // keeps speaking whatever language it was typed in: tap 🍎 in
+            // English, switch to 中文, tap the apple already in the row, and a
+            // zh-CN voice is handed the string "apple" and reads it with Chinese
+            // phonetics. Replay does it to the whole row, and the VoiceOver
+            // label goes stale too. `WordsMode.tsx` avoids this by looking the
+            // entry up again at speak time; re-reading the row on the change is
+            // the same result and keeps the child's emojis on screen.
+            typed = typed.map { item in
+                guard let fresh = model.word(forEmoji: item.emoji) else { return item }
+                return TypedEmoji(emoji: item.emoji, word: fresh)
+            }
+        }
         .onChange(of: model.settings.muted) { silence() }
         .onDisappear {
             model.speech.cancelAll()
-            for task in [bubbleTask, bounceTask, moodTask, celebrationTask] { task?.cancel() }
+            for task in [bubbleTask, bounceTask, moodTask, celebrationTask, speechFallback] { task?.cancel() }
         }
     }
 
@@ -295,8 +316,22 @@ struct WordsView: View {
         // specifies for the excited face rather than a guess.
         moodTask = after(Self.excitedHold) { setMood(.speaking) }
 
+        // The mouth must close even if nothing ever reports finishing.
+        //
+        // `.speaking` was the one mood whose only exit was the engine's
+        // `didFinish`, and `SpeechController.speak` — unlike `speakSequence` —
+        // arms no watchdog. Pull the headphones out, take a call, get
+        // interrupted by Siri, and the callback never arrives: the cloud is left
+        // bouncing with a round open mouth, silent, until the next tap. A child
+        // who taps once and looks up sees a broken mascot, and there is no mute
+        // button to make that silence legible. The web never had this hole — it
+        // returns to happy on a timer regardless of TTS.
+        speechFallback?.cancel()
+        speechFallback = after(Self.speechCeiling) { setMood(.happy) }
+
         model.speech.speak(word, in: model.settings.language) {
             moodTask?.cancel()
+            speechFallback?.cancel()
             setMood(.happy)
         }
     }
@@ -357,6 +392,7 @@ struct WordsView: View {
 
     /// A language or mute change stops the audio and puts the face back.
     private func silence() {
+        speechFallback?.cancel()
         model.speech.cancelAll()
         moodTask?.cancel()
         setMood(.happy)

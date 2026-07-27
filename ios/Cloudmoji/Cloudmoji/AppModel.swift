@@ -24,6 +24,9 @@ final class AppModel {
 
     private let repository: EmojiRepository
     private let allEmojis: [EmojiEntry]
+    /// Retained so the voice cache can be dropped on foreground. `SpeechController`
+    /// deliberately knows the engine only as a protocol, so it cannot forward this.
+    private let engine: SystemSpeechEngine
 
     init(settings: SettingsStore = SettingsStore()) {
         self.settings = settings
@@ -34,9 +37,11 @@ final class AppModel {
         self.repository = repo
         self.allEmojis = repo.emojis
         self.grammar = CountingGrammar(repository: repo)
+        let engine = SystemSpeechEngine()
+        self.engine = engine
         self.speech = SpeechController(
             resolver: VoiceResolver(languages: repo.languages),
-            engine: SystemSpeechEngine()
+            engine: engine
         )
     }
 
@@ -68,6 +73,22 @@ final class AppModel {
 
     func word(for entry: EmojiEntry) -> String {
         entry.word(settings.language)
+    }
+
+    /// Drops the cached voice list, so the next utterance re-reads what iOS has
+    /// installed. Called when the app returns to the foreground.
+    func invalidateVoiceCache() {
+        engine.invalidateVoiceCache()
+    }
+
+    /// The current-language word for a glyph the child tapped earlier.
+    ///
+    /// The typing row stores glyphs, not entries, and has to be re-read when the
+    /// language changes. Glyphs are unique across the catalogue — the generator's
+    /// parity check enforces it — so the first match is the only match.
+    func word(forEmoji glyph: String) -> String? {
+        guard let entry = allEmojis.first(where: { $0.emoji == glyph }) else { return nil }
+        return word(for: entry)
     }
 
     func label(for tab: CategoryTab) -> String {
