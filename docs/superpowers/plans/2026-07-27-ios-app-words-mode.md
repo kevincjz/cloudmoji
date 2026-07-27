@@ -805,6 +805,16 @@ the SettingsStore isolation question Stage 1 left open."
 
 ---
 
+> **Mutation-test the tests in this plan before trusting them.** Task 3's fourth
+> test was found to be vacuous: it passed with every line of the protection it
+> claimed to cover deleted, because the fixture was too small for the bug to be
+> observable. Two independent agents confirmed this by hand-tracing the mutation.
+> The tests below were written the same way and by the same hand, so treat them as
+> a starting point, not as verified. For each one, ask what single line you would
+> delete to break the behaviour, mentally run the test against that mutation, and
+> if it still passes, fix the test and say so in your report.
+
+
 ### Task 5: Theme and mascot
 
 **Files:**
