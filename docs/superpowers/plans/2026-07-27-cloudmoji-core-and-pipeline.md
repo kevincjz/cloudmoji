@@ -164,7 +164,8 @@ seconds. The Xcode project arrives in stage 2 when there is a UI to host."
 
 **Files:**
 - Create: `tools/generate-ios-data/schema.ts`
-- Create: `tools/generate-ios-data/index.ts`
+- Create: `tools/generate-ios-data/index.ts` (pure — no side effects on import)
+- Create: `tools/generate-ios-data/cli.ts` (writes the file)
 - Modify: `package.json` (add `tsx` devDependency and a `generate:ios` script)
 - Create: `ios/CloudmojiCore/Sources/CloudmojiCore/Resources/EmojiData.json` (generated)
 
@@ -223,17 +224,10 @@ export interface IosEmojiData {
 Create `tools/generate-ios-data/index.ts`:
 
 ```typescript
-import { writeFileSync, mkdirSync } from "node:fs";
-import { dirname, resolve } from "node:path";
 import { EMOJIS, CATEGORIES } from "../../src/data/emojis";
 import { COUNTABLES, NUMBER_WORDS } from "../../src/data/countables";
 import { LANGUAGES } from "../../src/data/languages";
 import type { IosEmojiData } from "./schema";
-
-const OUT = resolve(
-  import.meta.dirname,
-  "../../ios/CloudmojiCore/Sources/CloudmojiCore/Resources/EmojiData.json",
-);
 
 export function build(): IosEmojiData {
   return {
@@ -277,16 +271,33 @@ export function serialise(data: IosEmojiData): string {
   return JSON.stringify(data, null, 2) + "\n";
 }
 
-if (import.meta.filename === process.argv[1]) {
-  const json = serialise(build());
-  mkdirSync(dirname(OUT), { recursive: true });
-  writeFileSync(OUT, json, "utf8");
-  const d = build();
-  console.log(
-    `wrote ${OUT}\n  ${d.emojis.length} emojis, ${d.countables.length} countables, ` +
-      `${d.languages.length} languages, ${d.categories.length} categories`,
-  );
-}
+```
+
+This module has **no side effects on import**. The parity test in Task 10 imports
+`build` and `serialise`; if importing it also rewrote the JSON, the test would
+regenerate the file before comparing and could never fail.
+
+- [ ] **Step 2b: Write the CLI entry point**
+
+Create `tools/generate-ios-data/cli.ts`:
+
+```typescript
+import { writeFileSync, mkdirSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { build, serialise } from "./index";
+
+const OUT = resolve(
+  import.meta.dirname,
+  "../../ios/CloudmojiCore/Sources/CloudmojiCore/Resources/EmojiData.json",
+);
+
+const data = build();
+mkdirSync(dirname(OUT), { recursive: true });
+writeFileSync(OUT, serialise(data), "utf8");
+console.log(
+  `wrote ${OUT}\n  ${data.emojis.length} emojis, ${data.countables.length} countables, ` +
+    `${data.languages.length} languages, ${data.categories.length} categories`,
+);
 ```
 
 - [ ] **Step 3: Add the tooling**
@@ -300,7 +311,7 @@ npm i -D tsx
 Then add to `package.json` scripts:
 
 ```json
-"generate:ios": "tsx tools/generate-ios-data/index.ts"
+"generate:ios": "tsx tools/generate-ios-data/cli.ts"
 ```
 
 - [ ] **Step 4: Run the generator**
