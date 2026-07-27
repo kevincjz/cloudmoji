@@ -82,7 +82,13 @@ steps, then run the verification command. Everything after this is automatable.
 
 - [ ] **Step 1: Create the project**
 
-Open Xcode → **File → New → Project** → **iOS → App**. Then:
+Open Xcode → **File → New → Project**. Choose the **iOS** tab, then **App** —
+**not** the Multiplatform tab. Multiplatform pre-ticks Mac as a destination and
+still would not cover watchOS (that is a separate target either way), so it buys
+nothing here and drags in Mac decisions this design does not want yet. Mac can be
+added later as a checkbox under Supported Destinations if it is ever wanted.
+
+Then:
 
 | Field | Value |
 |---|---|
@@ -140,7 +146,7 @@ Run from the repo root:
 
 ```bash
 xcodebuild -project ios/Cloudmoji.xcodeproj -scheme Cloudmoji \
-  -destination 'platform=iOS Simulator,name=iPhone 16 Pro Max' \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' \
   build 2>&1 | tail -5
 ```
 
@@ -280,7 +286,7 @@ Run:
 
 ```bash
 xcodebuild -project ios/Cloudmoji.xcodeproj -scheme Cloudmoji \
-  -destination 'platform=iOS Simulator,name=iPhone 16 Pro Max' \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' \
   test 2>&1 | grep -E "error:|Testing failed" | head -5
 ```
 
@@ -1660,7 +1666,7 @@ Run:
 
 ```bash
 xcodebuild -project ios/Cloudmoji.xcodeproj -scheme Cloudmoji \
-  -destination 'platform=iOS Simulator,name=iPhone 16 Pro Max' \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' \
   test 2>&1 | tail -8
 ```
 
