@@ -315,6 +315,7 @@ Run:
 ```bash
 xcodebuild -project ios/Cloudmoji/Cloudmoji.xcodeproj -scheme Cloudmoji \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' \
+  -only-testing:CloudmojiTests -parallel-testing-enabled NO \
   test 2>&1 | grep -E "error:|Testing failed" | head -5
 ```
 
@@ -690,7 +691,7 @@ struct AppModelTests {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run the `xcodebuild … test` command from Task 2 Step 2.
+Run the `xcodebuild … test` command from Task 2 Step 2 (unit tests only, one simulator).
 Expected: `cannot find 'AppModel' in scope`
 
 - [ ] **Step 4: Write the implementation**
@@ -765,7 +766,7 @@ final class AppModel {
 
 - [ ] **Step 5: Run test to verify it passes**
 
-Run the `xcodebuild … test` command.
+Run the `xcodebuild … test` command (unit tests only, one simulator).
 Expected: `** TEST SUCCEEDED **`, 9 tests.
 
 - [ ] **Step 6: Commit**
@@ -1720,8 +1721,13 @@ Run:
 ```bash
 xcodebuild -project ios/Cloudmoji/Cloudmoji.xcodeproj -scheme Cloudmoji \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' \
+  -parallel-testing-enabled NO \
   test 2>&1 | tail -8
 ```
+
+> `-parallel-testing-enabled NO` matters on a memory-constrained machine. Without it
+> Xcode clones the simulator once per test target and leaves the clones running if the
+> run is interrupted — four booted iPhones is easy to reach and slow to notice.
 
 Expected: `** TEST SUCCEEDED **` — the unit tests from Tasks 2 and 4 plus these 5.
 

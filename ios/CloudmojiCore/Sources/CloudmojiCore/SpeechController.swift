@@ -5,6 +5,18 @@ public struct SpeechUtterance {
     public let languageTag: String
     public let voice: (any VoiceDescribing)?
     public let onFinish: () -> Void
+
+    public init(
+        text: String,
+        languageTag: String,
+        voice: (any VoiceDescribing)?,
+        onFinish: @escaping () -> Void
+    ) {
+        self.text = text
+        self.languageTag = languageTag
+        self.voice = voice
+        self.onFinish = onFinish
+    }
 }
 
 /// Seam over AVSpeechSynthesizer so queue behaviour is testable without audio.
