@@ -15,7 +15,8 @@ Settings and About. **Stage 3** is watchOS.
 ## Global Constraints
 
 - Minimum iOS 17.0. Universal — iPhone and iPad.
-- Bundle identifier `app.cloudmoji.ios`.
+- Bundle identifier `app.cloudmoji.Cloudmoji`. Permanent once submitted; Stage 3's
+  watch target must be prefixed by it.
 - Speech rate `0.85`, pitch `1.1`.
 - Five languages exactly: `en`, `zh`, `ms`, `ja`, `tl`.
 - **Touch targets: 64pt minimum, 72pt preferred, for anything a CHILD taps** — emoji
@@ -95,11 +96,11 @@ Then:
 | Product Name | `Cloudmoji` |
 | Team | your Apple ID (Personal Team is fine) |
 | Organization Identifier | `app.cloudmoji` |
-| Bundle Identifier | should read `app.cloudmoji.Cloudmoji` — change it below |
+| Bundle Identifier | should read `app.cloudmoji.Cloudmoji` — leave it |
 | Interface | SwiftUI |
 | Language | Swift |
+| Testing System | **Swift Testing with XCTest UI Tests** |
 | Storage | None |
-| Include Tests | **ticked** |
 
 Save it into the existing `ios/` directory — **not** a new subfolder. When the save
 sheet appears, navigate to `/Users/kevincjz/Programming/cloudmoji/ios` and untick
@@ -111,7 +112,9 @@ Select the project in the navigator → **Cloudmoji** target → **General**:
 - Minimum Deployments → iOS **17.0**
 - iPhone and iPad both ticked, Mac unticked
 
-Then **Signing & Capabilities** → Bundle Identifier → `app.cloudmoji.ios`
+Leave the bundle identifier as `app.cloudmoji.Cloudmoji`. It is the reverse-DNS of
+the domain you own, and it is permanent once an App Store Connect record exists —
+so it is worth being right now rather than later.
 
 - [ ] **Step 3: Add the local package**
 
@@ -230,32 +233,36 @@ into the target, which the spec's setup steps had wrong."
 Create `ios/CloudmojiTests/SystemSpeechEngineTests.swift`:
 
 ```swift
-import XCTest
+import Testing
 import AVFoundation
 @testable import Cloudmoji
 import CloudmojiCore
 
 @MainActor
-final class SystemSpeechEngineTests: XCTestCase {
-    func testVoicesAreCachedBetweenCalls() {
+@Suite("SystemSpeechEngine")
+struct SystemSpeechEngineTests {
+    @Test("installed voices are enumerated once and cached")
+    func voicesAreCached() {
         let engine = SystemSpeechEngine()
         let first = engine.voices()
         let second = engine.voices()
-        // Enumerating installed voices is not free, and this is called on the
+        // Enumerating installed voices is not free, and this sits on the
         // tap-to-speech path with a sub-200ms budget.
-        XCTAssertEqual(engine.voiceLookupCount, 1)
-        XCTAssertEqual(first.count, second.count)
+        #expect(engine.voiceLookupCount == 1)
+        #expect(first.count == second.count)
     }
 
-    func testInvalidatingCacheForcesAFreshLookup() {
+    @Test("invalidating the cache forces a fresh lookup")
+    func invalidateForcesLookup() {
         let engine = SystemSpeechEngine()
         _ = engine.voices()
         engine.invalidateVoiceCache()
         _ = engine.voices()
-        XCTAssertEqual(engine.voiceLookupCount, 2)
+        #expect(engine.voiceLookupCount == 2)
     }
 
-    func testStopClearsThePendingFinishCallback() {
+    @Test("stop drops the pending finish callback")
+    func stopDropsCallback() {
         let engine = SystemSpeechEngine()
         var finished = false
         engine.speak(
@@ -264,10 +271,11 @@ final class SystemSpeechEngineTests: XCTestCase {
         engine.stop()
         // A late delegate callback after stop must not resume a cancelled queue.
         engine.simulateFinish()
-        XCTAssertFalse(finished)
+        #expect(finished == false)
     }
 
-    func testFinishInvokesTheCallbackExactlyOnce() {
+    @Test("finishing invokes the callback exactly once")
+    func finishInvokesOnce() {
         let engine = SystemSpeechEngine()
         var count = 0
         engine.speak(
@@ -275,7 +283,7 @@ final class SystemSpeechEngineTests: XCTestCase {
         )
         engine.simulateFinish()
         engine.simulateFinish()
-        XCTAssertEqual(count, 1)
+        #expect(count == 1)
     }
 }
 ```
@@ -598,55 +606,64 @@ model in Step 5.
 Create `ios/CloudmojiTests/AppModelTests.swift`:
 
 ```swift
-import XCTest
+import Foundation
+import Testing
 @testable import Cloudmoji
 import CloudmojiCore
 
 @MainActor
-final class AppModelTests: XCTestCase {
-    func makeModel(suite: String = UUID().uuidString) -> AppModel {
+@Suite("AppModel")
+struct AppModelTests {
+    /// Isolated defaults per test, so cases cannot leak into each other.
+    func makeModel() -> AppModel {
+        let suite = UUID().uuidString
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
         return AppModel(settings: SettingsStore(defaults: defaults))
     }
 
-    func testExposesAllContentByDefault() {
+    @Test("exposes all content by default")
+    func allContentByDefault() {
         let model = makeModel()
-        XCTAssertEqual(model.emojis(in: nil).count, 200)
-        XCTAssertEqual(model.availableLanguages.count, 5)
-        XCTAssertEqual(model.categories.count, 9)
+        #expect(model.emojis(in: nil).count == 200)
+        #expect(model.availableLanguages.count == 5)
+        #expect(model.categories.count == 9)
     }
 
-    func testDisablingACategoryNarrowsBothTheGridAndTheTabs() {
+    @Test("disabling a category narrows both the grid and the tabs")
+    func disablingACategory() {
         let model = makeModel()
-        let withFruit = model.emojis(in: nil).count
+        let before = model.emojis(in: nil).count
         model.settings.enabledCategories.remove(.fruits)
-        XCTAssertLessThan(model.emojis(in: nil).count, withFruit)
-        XCTAssertFalse(model.categories.contains { $0.id == "fruits" })
+        #expect(model.emojis(in: nil).count < before)
+        #expect(!model.categories.contains { $0.id == "fruits" })
         // Views must never have to filter for themselves.
-        XCTAssertTrue(model.emojis(in: nil).allSatisfy { $0.cat != .fruits })
+        #expect(model.emojis(in: nil).allSatisfy { $0.cat != .fruits })
     }
 
-    func testDisablingALanguageNarrowsThePicker() {
+    @Test("disabling a language narrows the picker")
+    func disablingALanguage() {
         let model = makeModel()
         model.settings.enabledLanguages = [.en, .zh]
-        XCTAssertEqual(model.availableLanguages.map(\.id), [.en, .zh])
+        #expect(model.availableLanguages.map(\.id) == [.en, .zh])
     }
 
-    func testWordFollowsTheSelectedLanguage() {
+    @Test("the word follows the selected language")
+    func wordFollowsLanguage() throws {
         let model = makeModel()
-        let apple = model.emojis(in: .fruits).first { $0.emoji == "🍎" }!
+        let apple = try #require(model.emojis(in: .fruits).first { $0.emoji == "🍎" })
         model.settings.language = .en
-        XCTAssertEqual(model.word(for: apple), "apple")
+        #expect(model.word(for: apple) == "apple")
         model.settings.language = .ja
-        XCTAssertEqual(model.word(for: apple), "りんご")
+        #expect(model.word(for: apple) == "りんご")
     }
 
-    func testFilteringByCategoryReturnsOnlyThatCategory() {
+    @Test("filtering by category returns only that category")
+    func filterByCategory() {
         let model = makeModel()
         let fruits = model.emojis(in: .fruits)
-        XCTAssertFalse(fruits.isEmpty)
-        XCTAssertTrue(fruits.allSatisfy { $0.cat == .fruits })
+        #expect(!fruits.isEmpty)
+        #expect(fruits.allSatisfy { $0.cat == .fruits })
     }
 }
 ```
