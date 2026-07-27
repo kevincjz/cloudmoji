@@ -1461,6 +1461,24 @@ The web app kept two copies and three edits landed on the dead one."
 - Consumes: everything from Tasks 4–8
 - Produces: `WordsView()`, reading `AppModel` from the environment
 
+
+#### Also in this task: localise the tile's VoiceOver label
+
+`EmojiTile` currently hardcodes `.accessibilityLabel(entry.en)`, so VoiceOver
+announces "apple" while the child is hearing 苹果, りんご or mansanas. Task 6
+flagged it rather than changing it, because changing a shipped interface is not a
+thing to do unasked mid-plan.
+
+Fix it here: add an optional word parameter to `EmojiTile` defaulting to
+`entry.en`, and pass `model.word(for: entry)` from this screen — the same value
+already computed on line 139 for speech. Defaulting preserves the produced
+interface, so Task 6's tests and call sites keep compiling.
+
+Verified safe: Task 10 queries tiles by `accessibilityIdentifier`
+("emoji-<glyph>"), which is glyph-based and language-independent, NOT by the
+label. The `buttons["apple"]` query in Task 10 targets the typing row, which
+already uses the localised `item.word`. Nothing in the UI tests breaks.
+
 - [ ] **Step 1: Write Words mode**
 
 Create `ios/Cloudmoji/Cloudmoji/Views/WordsView.swift`:
