@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1A1145"/>
+      <stop offset="55%" stop-color="#0F0E2A"/>
+      <stop offset="100%" stop-color="#0D2137"/>
+    </linearGradient>
+    <radialGradient id="warm" cx="50%" cy="42%" r="55%">
+      <stop offset="0%" stop-color="#4ECDC4" stop-opacity="0.20"/>
+      <stop offset="100%" stop-color="#4ECDC4" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Full bleed. iOS applies its own corner mask, so no rounding here and no alpha. -->
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <rect width="1024" height="1024" fill="url(#warm)"/>
+
+  <!-- Mascot: native viewBox is 120x78. Scaled 6.4x and centred. -->
+  <g transform="translate(128, 262) scale(6.4)">
+    <!-- Body -->
+    <circle cx="30" cy="46" r="20" fill="#FFFFFF"/>
+    <circle cx="52" cy="36" r="23" fill="#FFFFFF"/>
+    <circle cx="72" cy="30" r="26" fill="#FFFFFF"/>
+    <circle cx="94" cy="42" r="19" fill="#FFFFFF"/>
+    <circle cx="42" cy="44" r="16" fill="#FFFFFF"/>
+    <rect x="12" y="48" width="96" height="24" rx="12" fill="#FFFFFF"/>
+
+    <!-- Highlights -->
+    <circle cx="72" cy="22" r="12" fill="#F8FCFF"/>
+    <circle cx="50" cy="30" r="8" fill="#F8FCFF" opacity="0.7"/>
+
+    <!-- Underside shadow -->
+    <ellipse cx="60" cy="65" rx="43" ry="5" fill="#E8EEF4" opacity="0.4"/>
+
+    <!-- Blush -->
+    <ellipse cx="34" cy="58" rx="8" ry="4.5" fill="#FFB5B5" opacity="0.55"/>
+    <ellipse cx="86" cy="58" rx="8" ry="4.5" fill="#FFB5B5" opacity="0.55"/>
+
+    <!-- Happy eyes. Drawn as arcs rather than the web build's text glyphs, so
+         the icon cannot shift with font availability at render time. -->
+    <path d="M39 53 Q46 46 53 53" fill="none" stroke="#2D3436" stroke-width="3" stroke-linecap="round"/>
+    <path d="M67 53 Q74 46 81 53" fill="none" stroke="#2D3436" stroke-width="3" stroke-linecap="round"/>
+
+    <!-- Gentle smile -->
+    <path d="M53 61 Q60 67 67 61" fill="none" stroke="#2D3436" stroke-width="2.2" stroke-linecap="round"/>
+  </g>
+
+  <!-- Sparkles, as paths rather than emoji. Gold, the celebration accent. -->
+  <g fill="#FFE66D">
+    <path d="M792 246 l14 40 40 14 -40 14 -14 40 -14 -40 -40 -14 40 -14 z" opacity="0.9"/>
+    <path d="M214 300 l9 26 26 9 -26 9 -9 26 -9 -26 -26 -9 26 -9 z" opacity="0.65"/>
+    <path d="M846 740 l7 20 20 7 -20 7 -7 20 -7 -20 -20 -7 20 -7 z" opacity="0.5"/>
+  </g>
+</svg>
