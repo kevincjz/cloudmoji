@@ -84,7 +84,7 @@ test.describe("scroll affordances", () => {
       .toBe(true);
 
     const fade = (side: string) =>
-      page.getByTestId(`scroll-fade-${side}`).evaluate((el) => +getComputedStyle(el).opacity);
+      page.getByTestId(`scroll-hint-${side}`).evaluate((el) => +getComputedStyle(el).opacity);
 
     // at the top: nothing hidden above, more below
     await expect.poll(() => fade("bottom")).toBe(1);
@@ -103,7 +103,7 @@ test.describe("scroll affordances", () => {
     await page.getByTestId("side-rail").waitFor();
     for (const side of ["top", "bottom"]) {
       const pe = await page
-        .getByTestId(`scroll-fade-${side}`)
+        .getByTestId(`scroll-hint-${side}`)
         .evaluate((el) => getComputedStyle(el).pointerEvents);
       expect(pe, `${side} fade must not intercept taps`).toBe("none");
     }

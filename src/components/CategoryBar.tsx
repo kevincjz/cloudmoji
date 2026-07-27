@@ -1,6 +1,6 @@
 import { CATEGORIES } from "../data/emojis";
 import { useScrollEdges } from "../hooks/useScrollEdges";
-import { ScrollFade } from "./ScrollFade";
+import { ScrollHint } from "./ScrollHint";
 import type { Language, Category } from "../types";
 
 interface CategoryBarProps {
@@ -14,8 +14,8 @@ export function CategoryBar({ category, lang, onSelect }: CategoryBarProps) {
 
   return (
     <div data-testid="category-bar" className="shrink-0 relative">
-      <ScrollFade side="left" visible={bar.overflows && !bar.atStart} />
-      <ScrollFade side="right" visible={bar.overflows && !bar.atEnd} />
+      <ScrollHint side="left" visible={bar.overflows && !bar.atStart} />
+      <ScrollHint side="right" visible={bar.overflows && !bar.atEnd} />
       <div
         ref={barRef}
         className="no-scroll flex gap-2 overflow-x-auto items-center"

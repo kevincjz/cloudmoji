@@ -214,7 +214,7 @@ test.describe("scroll affordances (portrait)", () => {
       .toBe(true);
 
     const fade = (side: string) =>
-      page.getByTestId(`scroll-fade-${side}`).evaluate((el) => +getComputedStyle(el).opacity);
+      page.getByTestId(`scroll-hint-${side}`).evaluate((el) => +getComputedStyle(el).opacity);
 
     await expect.poll(() => fade("right")).toBe(1);
     expect(await fade("left"), "nothing hidden to the left yet").toBe(0);

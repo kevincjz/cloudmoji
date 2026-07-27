@@ -1,6 +1,6 @@
 import { CATEGORIES } from "../data/emojis";
 import { useScrollEdges } from "../hooks/useScrollEdges";
-import { ScrollFade } from "./ScrollFade";
+import { ScrollHint } from "./ScrollHint";
 import type { Language, Category } from "../types";
 import type { TabId } from "./TabBar";
 
@@ -55,8 +55,8 @@ export function SideRail({
       }}
     >
       <div className="flex-1 relative" style={{ minHeight: 0 }}>
-        <ScrollFade side="top" visible={cats.overflows && !cats.atStart} />
-        <ScrollFade side="bottom" visible={cats.overflows && !cats.atEnd} />
+        <ScrollHint side="top" visible={cats.overflows && !cats.atStart} />
+        <ScrollHint side="bottom" visible={cats.overflows && !cats.atEnd} />
         <div
           ref={catsRef}
           className="no-scroll h-full flex flex-wrap content-start justify-center gap-2 overflow-y-auto"

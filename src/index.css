@@ -105,6 +105,11 @@ body {
 /* The design docs promise reduced-motion support; this delivers it. Keeps the
    word bubble and count badges readable (they rely on ending at opacity 1)
    while removing the looping float/bounce that can trigger motion sensitivity. */
+@keyframes scrollHintNudge {
+  0%, 100% { transform: translate(0, 0) rotate(var(--hint-rot, 0deg)); }
+  50% { transform: translate(var(--hint-dx, 0), var(--hint-dy, 0)) rotate(var(--hint-rot, 0deg)); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
