@@ -130,6 +130,37 @@ struct SettingsStoreTests {
         #expect(defaults.string(forKey: "cm_lang") == "ja")
     }
 
+    @Test("recovery from an invalid language assignment always lands inside the enabled set")
+    func recoveredLanguageIsAlwaysEnabled() {
+        let defaults = makeDefaults()
+        let store = SettingsStore(defaults: defaults)
+        store.enabledLanguages = [.ja, .zh]
+        // If `resolveLanguage` could ever hand back a value outside
+        // `enabled`, this assignment would fail the guard on re-entry and
+        // recurse without end rather than settling -- checking membership
+        // (not just a specific expected value) is what actually exercises
+        // that termination guarantee.
+        store.language = .en
+        #expect(store.enabledLanguages.contains(store.language))
+        #expect(defaults.string(forKey: "cm_lang") == store.language.rawValue)
+    }
+
+    @Test("disabling the active language settles it into the enabled set and persists that value")
+    func disablingActiveLanguageSettlesAndPersists() {
+        let defaults = makeDefaults()
+        let store = SettingsStore(defaults: defaults)
+        store.language = .ja
+        // Disabling the language that is currently active forces
+        // enabledLanguages's didSet to recover `language` itself. That
+        // recovery reassigns `language`, re-entering *its* didSet in turn --
+        // if either recovery could land outside the newly enabled set, this
+        // line would hang instead of returning.
+        store.enabledLanguages = [.en, .zh]
+        #expect(store.enabledLanguages.contains(store.language))
+        #expect(store.language == .en)
+        #expect(defaults.string(forKey: "cm_lang") == "en")
+    }
+
     @Test("an inverted or out-of-bounds count range is clamped")
     func clampsCountRange() {
         let defaults = makeDefaults()

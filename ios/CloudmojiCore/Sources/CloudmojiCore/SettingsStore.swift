@@ -28,11 +28,22 @@ public final class SettingsStore {
             guard enabledLanguages.contains(language) else {
                 // Recover rather than silently persist an inconsistent state --
                 // the same principle enabledLanguages's own didSet applies in
-                // the opposite direction. `resolveLanguage` is the single
-                // place that rule lives (see its doc comment); `init` uses
-                // the same helper so the two can never disagree again.
-                // Assigning to `language` here does not re-trigger this
-                // didSet, so this cannot recurse.
+                // the opposite direction, and for the same reason: both
+                // funnel through `resolveLanguage`, the single place that
+                // rule lives (see its doc comment), so the two paths can
+                // never disagree.
+                //
+                // Under @Observable this stored property is rewritten into a
+                // computed one whose didSet body lives in a real setter, so
+                // assigning to `language` here *does* re-trigger this
+                // didSet -- it does not no-op. This outer call returns right
+                // after, before ever reaching `defaults.set` below, so it is
+                // the nested (re-triggered) call that actually performs the
+                // persist. That nesting is exactly two levels deep, not
+                // open-ended recursion: `resolveLanguage`'s result is always
+                // a member of `enabled`, so the guard above passes on
+                // re-entry and the nested call falls through to the persist
+                // instead of recovering again.
                 language = Self.resolveLanguage(preferring: language, enabled: enabledLanguages)
                 return
             }
@@ -45,7 +56,7 @@ public final class SettingsStore {
             let cleaned = enabledLanguages.isEmpty ? Set(Language.allCases) : enabledLanguages
             if cleaned != enabledLanguages { enabledLanguages = cleaned; return }
             defaults.set(cleaned.map(\.rawValue).sorted(), forKey: Key.enabledLanguages)
-            if !cleaned.contains(language) { language = cleaned.sorted { $0.rawValue < $1.rawValue }.first! }
+            if !cleaned.contains(language) { language = Self.resolveLanguage(preferring: language, enabled: cleaned) }
         }
     }
 
