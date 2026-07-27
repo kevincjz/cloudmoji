@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		840D92703017B1F20027A8B1 /* CloudmojiCore in Frameworks */ = {isa = PBXBuildFile; productRef = 840D926F3017B1F20027A8B1 /* CloudmojiCore */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		840D92453017AFE40027A8B1 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +56,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				840D92703017B1F20027A8B1 /* CloudmojiCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -78,6 +83,7 @@
 				840D92393017AFE40027A8B1 /* Cloudmoji */,
 				840D92473017AFE40027A8B1 /* CloudmojiTests */,
 				840D92513017AFE40027A8B1 /* CloudmojiUITests */,
+				840D926E3017B1F20027A8B1 /* Frameworks */,
 				840D92383017AFE40027A8B1 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -90,6 +96,13 @@
 				840D924E3017AFE40027A8B1 /* CloudmojiUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		840D926E3017B1F20027A8B1 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -112,6 +125,7 @@
 			);
 			name = Cloudmoji;
 			packageProductDependencies = (
+				840D926F3017B1F20027A8B1 /* CloudmojiCore */,
 			);
 			productName = Cloudmoji;
 			productReference = 840D92373017AFE40027A8B1 /* Cloudmoji.app */;
@@ -195,6 +209,9 @@
 			);
 			mainGroup = 840D922E3017AFE40027A8B1;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				840D926D3017B0EC0027A8B1 /* XCLocalSwiftPackageReference "../CloudmojiCore" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 840D92383017AFE40027A8B1 /* Products */;
 			projectDirPath = "";
@@ -578,6 +595,21 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		840D926D3017B0EC0027A8B1 /* XCLocalSwiftPackageReference "../CloudmojiCore" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../CloudmojiCore;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		840D926F3017B1F20027A8B1 /* CloudmojiCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 840D926D3017B0EC0027A8B1 /* XCLocalSwiftPackageReference "../CloudmojiCore" */;
+			productName = CloudmojiCore;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 840D922F3017AFE40027A8B1 /* Project object */;
 }
