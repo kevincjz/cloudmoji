@@ -1387,7 +1387,11 @@ struct CategorySource: View {
             )
             .foregroundStyle(isActive ? Theme.teal : Theme.textSecondary)
         }
-        .buttonStyle(.plain)
+        // NOT .buttonStyle(.plain) — that gives no press feedback, and
+        // DESIGN_SYSTEM.md's active-states rule requires scale(0.9) on category
+        // tabs (emoji tiles use 0.85). Reuse the shared press-feedback
+        // ButtonStyle that already exists in Views/, parameterised to 0.9;
+        // do not write a second one.
         .accessibilityLabel(label(tab))
         .accessibilityIdentifier("cat-\(tab.id)")
     }
