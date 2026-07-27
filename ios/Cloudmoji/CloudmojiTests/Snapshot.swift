@@ -32,16 +32,26 @@ struct Bitmap {
     ///
     /// - Parameter settling: how long to let animations and `.task` run before
     ///   the shutter. Zero for static views.
+    /// - Parameter fillsWindow: pass `true` for a view that is *meant* to take
+    ///   the whole window. The default pins the view to the top with a `Spacer`
+    ///   below it, which is right for a row or a card — but a greedy view and a
+    ///   `Spacer` are both fully flexible, so a `GeometryReader` under the
+    ///   default would be handed half the window and report half the height it
+    ///   will really be given. `AdaptiveShell` decides the whole app's layout
+    ///   from that number.
     static func of(
         _ view: some View,
         width: CGFloat,
         height: CGFloat,
-        settling: Duration = .zero
+        settling: Duration = .zero,
+        fillsWindow: Bool = false
     ) async -> Bitmap {
         let host = UIHostingController(
             rootView: VStack(spacing: 0) {
                 view
-                Spacer(minLength: 0)
+                if !fillsWindow {
+                    Spacer(minLength: 0)
+                }
             }
         )
         // The host would otherwise inherit the simulator's safe-area insets and
