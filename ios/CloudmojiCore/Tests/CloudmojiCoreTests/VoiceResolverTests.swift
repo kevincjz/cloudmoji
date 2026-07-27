@@ -1,7 +1,12 @@
 import Testing
 @testable import CloudmojiCore
 
-struct FakeVoice: VoiceDescribing, Equatable {
+// `private` keeps this file-scoped so another test file in this target can
+// declare its own `FakeVoice` without a redeclaration collision. `appleish`
+// below is marked `private` too: a member's access level must not be wider
+// than its inferred type's, and a plain `internal` (the struct's default)
+// property of type `[FakeVoice]` would be exactly that.
+private struct FakeVoice: VoiceDescribing, Equatable {
     let lang: String
     let name: String
 }
@@ -11,7 +16,7 @@ struct VoiceResolverTests {
     let resolver = VoiceResolver(languages: try! EmojiRepository().languages)
 
     /// A plausible notched-iPhone voice set: no Filipino, which is the norm.
-    let appleish = [
+    private let appleish = [
         FakeVoice(lang: "en-US", name: "Samantha"),
         FakeVoice(lang: "en-GB", name: "Daniel"),
         FakeVoice(lang: "zh-CN", name: "Tingting"),
@@ -72,5 +77,17 @@ struct VoiceResolverTests {
             FakeVoice(lang: "en-US", name: "Alex"),
         ]
         #expect(try #require(resolver.pick(from: voices, for: .en)).lang == "en-US")
+    }
+
+    @Test("a voice tagged tlh (Klingon) does not steal the tl (Tagalog) tier")
+    func klingonDoesNotMatchTagalogPrefix() throws {
+        // "tlh" is Klingon's real IANA-registered language subtag. A bare
+        // `hasPrefix("tl")` would match it — "tlh" starts with "tl" — and wrongly
+        // seat it in Tagalog's tier before Malay/Indonesian ever get a look in.
+        // The chain must require an exact tag or a "tl-"-prefixed subtag, so a
+        // same-lettered but unrelated language never steals the tier.
+        let voices = appleish + [FakeVoice(lang: "tlh", name: "Worf")]
+        let picked = try #require(resolver.pick(from: voices, for: .tl))
+        #expect(picked.lang == "ms-MY")
     }
 }

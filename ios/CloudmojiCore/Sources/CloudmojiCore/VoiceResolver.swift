@@ -52,7 +52,7 @@ public struct VoiceResolver: Sendable {
 
         var tier: [any VoiceDescribing] = []
         for prefix in chain {
-            tier = voices.filter { $0.lang.hasPrefix(prefix) }
+            tier = voices.filter { $0.lang == prefix || $0.lang.hasPrefix(prefix + "-") }
             if !tier.isEmpty { break }
         }
         guard !tier.isEmpty else { return nil }
