@@ -86,7 +86,12 @@ struct EmojiTile: View {
                 // but is not. A toddler aims at the square, not the apple.
                 .contentShape(Rectangle())
         }
-        .buttonStyle(PressScale())
+        .buttonStyle(
+            PressScale(
+                scale: EmojiTileMetrics.pressedScale,
+                duration: EmojiTileMetrics.pressDuration
+            )
+        )
         .scaleEffect(isBouncing ? EmojiTileMetrics.bounceScale : 1)
         // A tile at 1.3× overlaps its neighbours, and the grid paints in order,
         // so without this the tile the child just touched is partly covered by
@@ -101,21 +106,9 @@ struct EmojiTile: View {
     }
 }
 
-/// The `:active` transform. `.plain` — SwiftUI's usual answer for "no chrome" —
-/// also removes the press feedback, and the design system requires it on every
-/// tappable element.
-private struct PressScale: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? EmojiTileMetrics.pressedScale : 1)
-            .animation(
-                // CSS `ease` is cubic-bezier(0.25, 0.1, 0.25, 1); SwiftUI has no
-                // named equivalent.
-                .timingCurve(0.25, 0.1, 0.25, 1, duration: EmojiTileMetrics.pressDuration),
-                value: configuration.isPressed
-            )
-    }
-}
+// The `:active` transform now lives in `PressScale.swift` — the typing row's
+// controls need the same style at a different scale, and the design system says
+// there is one press behaviour, not one per component.
 
 #Preview("Resting and bouncing") {
     let entries = Array((try? EmojiRepository())?.emojis.prefix(4) ?? [])

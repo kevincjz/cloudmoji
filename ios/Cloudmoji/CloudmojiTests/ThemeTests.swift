@@ -29,6 +29,7 @@ struct ThemeTests {
             ("coral", Theme.coral, "#FF6B6B"),
             ("teal", Theme.teal, "#4ECDC4"),
             ("gold", Theme.gold, "#FFE66D"),
+            ("amber", Theme.amber, "#FFB347"),
             ("textPrimary", Theme.textPrimary, "#FFFFFF"),
             ("cloudWhite", Theme.cloudWhite, "#FFFFFF"),
             ("cloudHighlight", Theme.cloudHighlight, "#F8FCFF"),
@@ -40,7 +41,7 @@ struct ThemeTests {
             ("blushBeaming", Theme.blushBeaming, "#FF9E9E"),
         ]
         // Guards the table itself: dropping a row would quietly shrink coverage.
-        #expect(palette.count == 15)
+        #expect(palette.count == 16)
 
         for (name, color, expected) in palette {
             #expect(hex(color) == expected, "\(name) is off palette")
@@ -84,8 +85,12 @@ struct ThemeTests {
     @Test("translucent tokens carry the right alpha")
     func alphaTokens() {
         #expect(abs(components(Theme.textSecondary).a - 0.4) < 0.001)
+        #expect(abs(components(Theme.textMuted).a - 0.2) < 0.001)
         #expect(abs(components(Theme.surface).a - 0.04) < 0.001)
         #expect(abs(components(Theme.surfaceBorder).a - 0.06) < 0.001)
+        // Muted is quieter than secondary, or the placeholder competes with the
+        // labels a parent actually needs to read.
+        #expect(components(Theme.textMuted).a < components(Theme.textSecondary).a)
     }
 
     // MARK: Type

@@ -37,6 +37,12 @@ enum Theme {
     static let teal = Color(red: 0.306, green: 0.804, blue: 0.769)  // #4ECDC4
     static let gold = Color(red: 1.0, green: 0.902, blue: 0.427)    // #FFE66D
 
+    /// `--btn-delete`, the only colour in the system that is not one of the three
+    /// brand hues. It is a *warmer* orange than ``gold`` on purpose: delete sits
+    /// between replay (teal, safe) and clear (coral, destructive), and reusing
+    /// gold there would put a celebration colour on a destructive control.
+    static let amber = Color(red: 1.0, green: 0.702, blue: 0.278)   // #FFB347
+
     // MARK: - Surface
 
     static let surface = Color.white.opacity(0.04)
@@ -46,6 +52,10 @@ enum Theme {
 
     static let textPrimary = Color.white                     // #FFFFFF
     static let textSecondary = Color.white.opacity(0.4)
+
+    /// `--text-muted`. Quieter than ``textSecondary`` — for copy the parent may
+    /// read once and the child never will, such as the typing row's placeholder.
+    static let textMuted = Color.white.opacity(0.2)
 
     // MARK: - Mascot
 
