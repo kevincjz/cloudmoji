@@ -1387,20 +1387,27 @@ public final class SettingsStore {
         self.defaults = defaults
 
         let languages = Self.readSet(defaults, Key.enabledLanguages, Language.init(rawValue:))
-        self.enabledLanguages = languages.isEmpty ? Set(Language.allCases) : languages
+        let cleanedLanguages = languages.isEmpty ? Set(Language.allCases) : languages
 
         let categories = Self.readSet(defaults, Key.enabledCategories, Category.init(rawValue:))
-        self.enabledCategories = categories.isEmpty ? Set(Category.allCases) : categories
+        let cleanedCategories = categories.isEmpty ? Set(Category.allCases) : categories
 
         // didSet does not run during init, so the "active language must be
-        // enabled" rule is applied explicitly here as well.
+        // enabled" rule is applied explicitly here as well. This is computed
+        // with locals (rather than reading self.enabledLanguages) because,
+        // under @Observable, self cannot be used until every stored property
+        // has an initial value.
         let stored = defaults.string(forKey: Key.language).flatMap(Language.init(rawValue:))
-        if let stored, self.enabledLanguages.contains(stored) {
-            self.language = stored
+        let resolvedLanguage: Language
+        if let stored, cleanedLanguages.contains(stored) {
+            resolvedLanguage = stored
         } else {
-            self.language = .en
+            resolvedLanguage = .en
         }
 
+        self.enabledLanguages = cleanedLanguages
+        self.enabledCategories = cleanedCategories
+        self.language = resolvedLanguage
         self.countRange = Self.readRange(defaults)
         self.muted = defaults.bool(forKey: Key.muted)
     }
