@@ -1596,7 +1596,6 @@ Create `ios/CloudmojiCore/Sources/CloudmojiCore/SpeechController.swift`:
 
 ```swift
 import Foundation
-import AVFoundation
 
 public struct SpeechUtterance {
     public let text: String
@@ -1650,14 +1649,16 @@ public final class SpeechController {
     }
 
     public func speak(_ text: String, in language: Language) {
-        guard !text.isEmpty else { return }
+        // An empty request is itself a cancellation. Cancel before the early
+        // return, or whatever is already playing keeps going.
         cancelAll()
+        guard !text.isEmpty else { return }
         emit(text, in: language, onFinish: {})
     }
 
     public func speakSequence(_ items: [SpeechItem], in language: Language) {
-        guard !items.isEmpty else { return }
         cancelAll()
+        guard !items.isEmpty else { return }
         let token = generation
         var index = 0
 
@@ -1666,6 +1667,9 @@ public final class SpeechController {
             let item = items[index]
             index += 1
             item.onSpeak?()
+            // onSpeak can reentrantly cancel; re-check before emitting, or the
+            // superseded item still reaches the engine.
+            guard token == generation else { return }
             emit(item.text, in: language) {
                 guard token == self.generation else { return }
                 step()
