@@ -47,4 +47,20 @@ struct EmojiRepositoryTests {
             }
         }
     }
+
+    /// The degraded case the app falls back to when the bundled resource cannot
+    /// be loaded. It must be genuinely inert: every accessor still answers, so
+    /// the child sees an empty grid instead of a crash.
+    @Test("the empty repository answers rather than traps")
+    func emptyRepositoryIsInert() {
+        let empty = EmojiRepository.empty
+        #expect(empty.emojis.isEmpty)
+        #expect(empty.countables.isEmpty)
+        #expect(empty.languages.isEmpty)
+        #expect(empty.categories.isEmpty)
+        for language in Language.allCases {
+            #expect(empty.numberWord(language, count: 3) == nil)
+            #expect(empty.meta(for: language) == nil)
+        }
+    }
 }

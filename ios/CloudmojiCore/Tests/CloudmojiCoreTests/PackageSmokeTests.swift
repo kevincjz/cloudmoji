@@ -3,5 +3,5 @@ import Testing
 
 @Test("package exposes its version")
 func packageVersion() {
-    #expect(CloudmojiCore.version == "1.0.0")
+    #expect(CloudmojiCoreInfo.version == "1.0.0")
 }

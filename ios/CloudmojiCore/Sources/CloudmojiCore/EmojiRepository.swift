@@ -64,3 +64,20 @@ public struct EmojiRepository: Sendable {
         languages.first { $0.id == language }
     }
 }
+
+extension EmojiRepository {
+    /// A repository with no content. The degraded case when the bundled resource
+    /// cannot be loaded — the app shows an empty grid rather than crashing in
+    /// front of a child. Reaching this in production means the build is broken.
+    ///
+    /// Exists as a named value because `EmojiData`'s memberwise initialiser is
+    /// internal — Swift does not synthesise a public one — so the app target
+    /// cannot build an empty `EmojiData` for itself, and exposing the whole
+    /// memberwise surface just for this fallback would be worse.
+    public static let empty = EmojiRepository(
+        data: EmojiData(
+            version: 0, languages: [], categories: [],
+            emojis: [], countables: [], numberWords: [:]
+        )
+    )
+}
