@@ -132,7 +132,7 @@ Confirm it worked: the project navigator should show a `CloudmojiCore` package, 
 > `EmojiData.json` lives inside the package and reaches the app through `Bundle.module`.
 > Do **not** add it to the app target — that would bundle it twice.
 
-- [ ] **Step 4: Add the fonts**
+- [ ] **Step 4: Add the fonts** — *deferrable; see the note below*
 
 Download Lilita One and Nunito from Google Fonts as `.ttf`. Create a group
 `Resources/Fonts` in the app target and drag both in, with **Copy items if needed**
@@ -144,6 +144,24 @@ Then in **Info** (the target's Info tab), add a row:
 - Item 1: `Nunito-VariableFont_wght.ttf`
 
 Use whatever the files are actually named — the names must match exactly.
+
+> **This step can be deferred to any point before Task 5.** `Font.custom` falls back to
+> the system font when a name is not registered: no error, no warning, just the wrong
+> typeface. So the app builds and runs without fonts — you simply cannot tell by looking
+> whether they are working, which is why Task 5 adds an explicit check.
+>
+> **The name that matters is the PostScript name, not the filename.** `Nunito-VariableFont_wght.ttf`
+> does not mean `Font.custom("Nunito-VariableFont_wght")` works. After adding the files,
+> find the real names:
+>
+> ```swift
+> // Drop into any #Preview or the app's init, temporarily.
+> for family in UIFont.familyNames.sorted() where family.contains("Nunito") || family.contains("Lilita") {
+>     print(family, UIFont.fontNames(forFamilyName: family))
+> }
+> ```
+>
+> Whatever that prints is what `Theme` must use.
 
 - [ ] **Step 5: Verify it builds from the command line**
 
@@ -933,7 +951,23 @@ struct CloudMascot: View {
 }
 ```
 
-- [ ] **Step 3: Verify it renders**
+- [ ] **Step 3: Confirm whether the custom fonts are registered**
+
+`Font.custom` fails silently, so check explicitly rather than by eye. Add this temporarily
+to `CloudmojiApp.init()`, run once, then remove it:
+
+```swift
+let wanted = ["LilitaOne-Regular", "Nunito"]
+for name in wanted {
+    let registered = UIFont(name: name, size: 12) != nil
+    print("font \(name): \(registered ? "registered" : "MISSING — falling back to system")")
+}
+```
+
+If either says MISSING, the app still works — it just uses the system font. Either finish
+Task 1 Step 4 now, or carry on and come back to it; nothing else depends on fonts.
+
+- [ ] **Step 4: Verify it renders**
 
 Open `ios/Cloudmoji/Cloudmoji/Views/CloudMascot.swift` in Xcode and resume the preview
 (**Cmd+Option+P**). All four moods should render as recognisable cloud faces: round eyes
@@ -942,12 +976,12 @@ squinting eyes with a golden glow for beaming.
 
 This is a visual check — there is no assertion that can substitute for looking at it.
 
-- [ ] **Step 4: Build**
+- [ ] **Step 5: Build**
 
 Run the `xcodebuild … build` command from Task 1 Step 5.
 Expected: `** BUILD SUCCEEDED **`
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
 git add ios/Cloudmoji
