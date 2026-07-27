@@ -64,6 +64,36 @@ struct SettingsStoreTests {
         #expect(SettingsStore(defaults: defaults).language == .en)
     }
 
+    @Test("setting language to a disabled language recovers rather than persisting it")
+    func rejectsSettingLanguageOutsideEnabledSet() {
+        let defaults = makeDefaults()
+        let store = SettingsStore(defaults: defaults)
+        store.enabledLanguages = [.en, .zh]
+        // .tl is not enabled -- this must recover, not stick.
+        store.language = .tl
+        #expect(store.language == .en)
+    }
+
+    @Test("the persisted language matches the recovered value, not the rejected one")
+    func persistsRecoveredLanguageNotRejectedOne() {
+        let defaults = makeDefaults()
+        let store = SettingsStore(defaults: defaults)
+        store.enabledLanguages = [.en, .zh]
+        store.language = .tl
+        #expect(defaults.string(forKey: "cm_lang") == "en")
+        #expect(defaults.string(forKey: "cm_lang") != "tl")
+    }
+
+    @Test("setting language to an enabled language still works normally")
+    func acceptsLanguageInsideEnabledSet() {
+        let defaults = makeDefaults()
+        let store = SettingsStore(defaults: defaults)
+        store.enabledLanguages = [.en, .zh]
+        store.language = .zh
+        #expect(store.language == .zh)
+        #expect(defaults.string(forKey: "cm_lang") == "zh")
+    }
+
     @Test("an inverted or out-of-bounds count range is clamped")
     func clampsCountRange() {
         let defaults = makeDefaults()

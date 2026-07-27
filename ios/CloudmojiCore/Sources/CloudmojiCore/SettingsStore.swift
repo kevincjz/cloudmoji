@@ -24,7 +24,26 @@ public final class SettingsStore {
     public static let countBounds = 2...10
 
     public var language: Language {
-        didSet { defaults.set(language.rawValue, forKey: Key.language) }
+        didSet {
+            guard enabledLanguages.contains(language) else {
+                // Recover rather than silently persist an inconsistent state --
+                // the same principle enabledLanguages's own didSet applies in
+                // the opposite direction. Prefer .en because that's what
+                // `init` falls back to for an invalid stored language, which
+                // keeps runtime and launch behaviour identical; but only when
+                // English is actually enabled, since enabledLanguages can be
+                // customized to exclude it. Otherwise fall back to the same
+                // alphabetically-first choice enabledLanguages's didSet uses,
+                // so the recovery value can never itself land outside the
+                // enabled set. Assigning to `language` here does not
+                // re-trigger this didSet, so this cannot recurse.
+                language = enabledLanguages.contains(.en)
+                    ? .en
+                    : enabledLanguages.sorted { $0.rawValue < $1.rawValue }.first!
+                return
+            }
+            defaults.set(language.rawValue, forKey: Key.language)
+        }
     }
 
     public var enabledLanguages: Set<Language> {
