@@ -40,4 +40,17 @@ struct BundledFontsTests {
         let font = UIFont(name: BundledFonts.logoPostScriptName, size: 24)
         #expect(font?.familyName == "Lilita One")
     }
+
+    /// Every test above calls `register()` first, which is what made them blind
+    /// to the actual defect: the app never called it. `Font.custom` falls back to
+    /// the system face without complaint, so the wordmark shipped in SF Rounded
+    /// while all four tests stayed green.
+    ///
+    /// Asserted through a flag the app records during `init()`. Checking
+    /// `logoFontIsAvailable` here instead would prove nothing — the tests above
+    /// may have registered it already, and test order is not guaranteed.
+    @Test("the app registers the face at launch, not just under test")
+    func registrationHappensAtLaunch() {
+        #expect(CloudmojiApp.didRegisterFontsAtLaunch)
+    }
 }
