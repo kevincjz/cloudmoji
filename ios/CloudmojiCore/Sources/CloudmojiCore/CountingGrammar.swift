@@ -1,0 +1,49 @@
+import Foundation
+
+/// Builds the spoken phrase for "N of this thing", per language.
+///
+/// The rules differ structurally, not just lexically:
+/// zh and ms bake the classifier into the noun, ja fuses the counter into the
+/// number and puts the noun first, tl attaches a linker to the numeral.
+public struct CountingGrammar: Sendable {
+    private let repository: EmojiRepository
+
+    public init(repository: EmojiRepository) {
+        self.repository = repository
+    }
+
+    public func phrase(_ item: Countable, count: Int, in language: Language) -> String {
+        guard let number = repository.numberWord(language, count: count) else {
+            // No number word for this count — speak the bare noun rather than
+            // fabricate a counter.
+            return item.noun(language)
+        }
+
+        switch language {
+        case .en:
+            return "\(number) \(englishPlural(item, count: count))"
+        default:
+            return item.noun(language)
+        }
+    }
+
+    // MARK: - English
+
+    func englishPlural(_ item: Countable, count: Int) -> String {
+        guard count > 1 else { return item.en }
+        if let irregular = item.enPlural { return irregular }
+        return Self.regularPlural(item.en)
+    }
+
+    static func regularPlural(_ noun: String) -> String {
+        if noun == "fish" { return "fish" }
+        if noun.hasSuffix("y"), let beforeY = noun.dropLast().last,
+           !"aeiou".contains(beforeY) {
+            return noun.dropLast() + "ies"
+        }
+        for suffix in ["s", "sh", "ch", "x", "z"] where noun.hasSuffix(suffix) {
+            return noun + "es"
+        }
+        return noun + "s"
+    }
+}
