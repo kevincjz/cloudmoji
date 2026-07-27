@@ -7,6 +7,8 @@ import { useTTS } from "../hooks/useTTS";
 import { logEvent } from "../lib/measurement";
 import { CloudMascot } from "./CloudMascot";
 import { LangToggle } from "./LangToggle";
+import { SideRail } from "./SideRail";
+import type { TabId } from "./TabBar";
 
 const UI_TEXT: Record<"subtitle" | "shuffle" | "next", Record<Language, string>> = {
   subtitle: { en: "Let's count!", zh: "数一数!", ms: "Jom kira!", ja: "かぞえよう!", tl: "Magbilang tayo!" },
@@ -18,13 +20,15 @@ interface CountModeProps {
   lang: Language;
   muted: boolean;
   compact: boolean;
+  activeTab: TabId;
+  onSelectTab: (tab: TabId) => void;
   onLangSelect: (lang: Language) => void;
   onMuteToggle: () => void;
   onTitleTap: () => void;
   onAbout: () => void;
 }
 
-export function CountMode({ lang, muted, compact, onLangSelect, onMuteToggle, onTitleTap, onAbout }: CountModeProps) {
+export function CountMode({ lang, muted, compact, activeTab, onSelectTab, onLangSelect, onMuteToggle, onTitleTap, onAbout }: CountModeProps) {
   const [count, setCount] = useState(3);
   const [currentItem, setCurrentItem] = useState<Countable | null>(
     () => COUNTABLES[Math.floor(Math.random() * COUNTABLES.length)],
@@ -171,6 +175,318 @@ export function CountMode({ lang, muted, compact, onLangSelect, onMuteToggle, on
   const subtitleText = UI_TEXT.subtitle[lang];
   const shuffleText = UI_TEXT.shuffle[lang];
   const nextText = UI_TEXT.next[lang];
+
+  if (compact) {
+    // Landscape: the tab switcher moves into the rail so it stops eating the
+    // scarce vertical axis. Count mode has no categories to show there.
+    return (
+      <div className="flex" style={{ flex: 1, minHeight: 0 }}>
+        <SideRail
+          category="all"
+          lang={lang}
+          activeTab={activeTab}
+          onSelectCategory={() => {}}
+          onSelectTab={onSelectTab}
+          showCategories={false}
+        />
+        <div className="flex flex-col flex-1" style={{ minWidth: 0, minHeight: 0 }}>
+        {/* Header */}
+        <div
+          className="flex items-center justify-between shrink-0"
+          style={{ padding: compact ? "4px 12px 2px" : "10px 14px 6px" }}
+        >
+          <div className="flex items-center gap-2">
+            <CloudMascot mood={mascotMood} size={compact ? 42 : 64} />
+            <div onClick={onTitleTap} style={{ cursor: "default" }}>
+              <div
+                style={{
+                  fontFamily: "'Lilita One', sans-serif",
+                  fontSize: compact ? 17 : 21,
+                  background:
+                    "linear-gradient(135deg, #4ECDC4, #56B4D3, #7B93DB)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  lineHeight: 1.1,
+                  letterSpacing: 0.5,
+                }}
+              >
+                Cloudculator
+              </div>
+              {!compact && (
+                <div
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 800,
+                    color: "rgba(255,255,255,0.3)",
+                    letterSpacing: 0.5,
+                    marginTop: 1,
+                  }}
+                >
+                  🧮 {subtitleText}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex gap-[6px] items-center">
+            <button
+              data-testid="about-btn"
+              onClick={onAbout}
+              className="active:scale-88"
+              style={{
+                background: "rgba(255,255,255,0.06)",
+                border: "2px solid rgba(255,255,255,0.12)",
+                borderRadius: 14,
+                padding: "6px 12px",
+                color: "#fff",
+                fontSize: 14,
+                fontWeight: 900,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                fontFamily: "'Nunito', sans-serif",
+                transition: "all 0.2s",
+              }}
+            >
+              About
+            </button>
+            <button
+              data-testid="mute-btn"
+              onClick={onMuteToggle}
+              className="active:scale-88"
+              style={{
+                background: muted
+                  ? "rgba(255,107,107,0.2)"
+                  : "rgba(255,255,255,0.06)",
+                border: muted
+                  ? "2px solid rgba(255,107,107,0.3)"
+                  : "2px solid rgba(255,255,255,0.12)",
+                borderRadius: 14,
+                width: 40,
+                height: 40,
+                fontSize: 18,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "all 0.2s",
+              }}
+            >
+              {muted ? "🔇" : "🔊"}
+            </button>
+            <LangToggle lang={lang} onSelect={onLangSelect} />
+          </div>
+        </div>
+
+        {/* Progress dots + big number + phrase */}
+        <div
+          className="shrink-0 flex flex-col items-center justify-center"
+          style={{ padding: "4px 0 2px", minHeight: compact ? 62 : 100 }}
+        >
+          <div className="flex gap-[6px]" style={{ marginBottom: 6 }}>
+            {Array.from({ length: count }).map((_, i) => (
+              <div
+                key={i}
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: "50%",
+                  background: i < tappedOrder.length ? "#4ECDC4" : "rgba(255,255,255,0.1)",
+                  border: i < tappedOrder.length ? "1.5px solid rgba(78,205,196,0.6)" : "1.5px solid rgba(255,255,255,0.06)",
+                  transition: "all 0.3s ease",
+                  transform: i < tappedOrder.length ? "scale(1.2)" : "scale(1)",
+                }}
+              />
+            ))}
+          </div>
+
+          {showNumber && (
+            <div key={showNumber.id} className="flex flex-col items-center" style={{ animation: "countPop 0.3s ease-out" }}>
+              <span
+                style={{
+                  fontSize: 64,
+                  fontWeight: 900,
+                  fontFamily: "'Lilita One', sans-serif",
+                  color: "#fff",
+                  textShadow: "0 0 30px rgba(78,205,196,0.5)",
+                  lineHeight: 1,
+                }}
+              >
+                {tappedOrder.length}
+              </span>
+              <span
+                style={{
+                  fontWeight: 900,
+                  fontSize: 18,
+                  color: "rgba(255,255,255,0.6)",
+                  marginTop: 4,
+                }}
+              >
+                {showNumber.phrase}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Emoji Counting Area */}
+        <div
+          className="flex-1 flex items-center justify-center"
+          style={{ padding: "16px 20px" }}
+        >
+          <div
+            className="grid w-full"
+            style={{
+              gridTemplateColumns: `repeat(${getGridCols(count)}, 1fr)`,
+              gap: count <= 4 ? 16 : 12,
+              maxWidth: 360,
+              animation: "fadeIn 0.4s ease-out",
+            }}
+          >
+            {Array.from({ length: count }).map((_, i) => {
+              const isTapped = tappedOrder.includes(i);
+              const isJustTapped = lastTapped === i && isTapped;
+
+              return (
+                <button
+                  key={i}
+                  className="active:scale-85"
+                  data-testid={`count-item-${i}`}
+                  onClick={() => handleTap(i)}
+                  style={{
+                    width: btnSize,
+                    height: btnSize,
+                    margin: "0 auto",
+                    borderRadius: 22,
+                    border: isTapped
+                      ? "2.5px solid rgba(78,205,196,0.6)"
+                      : "2.5px solid rgba(255,255,255,0.12)",
+                    background: isTapped
+                      ? "rgba(78,205,196,0.15)"
+                      : "rgba(255,255,255,0.04)",
+                    fontSize: emojiSize,
+                    cursor: isTapped ? "default" : "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    transition: "all 0.25s ease",
+                    animation: isJustTapped
+                      ? `bounceEmoji 0.35s ease 0s 1`
+                      : !isTapped
+                        ? `gentleFloat 2s ease-in-out ${i * 0.15}s infinite`
+                        : "none",
+                    opacity: isTapped ? 1 : 0.75,
+                    transform: isTapped ? "scale(1)" : "scale(0.95)",
+                    position: "relative",
+                    padding: 0,
+                    lineHeight: 1,
+                  }}
+                >
+                  {currentItem.emoji}
+                  {isTapped && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: -10,
+                        right: -10,
+                        width: 34,
+                        height: 34,
+                        borderRadius: "50%",
+                        background: "linear-gradient(135deg, #4ECDC4, #44B8AC)",
+                        color: "#fff",
+                        fontSize: 19,
+                        fontWeight: 900,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontFamily: "'Nunito', sans-serif",
+                        animation: "popIn 0.3s ease-out",
+                        boxShadow: "0 2px 8px rgba(78,205,196,0.4)",
+                        border: "2.5px solid rgba(255,255,255,0.3)",
+                      }}
+                    >
+                      {tappedOrder.indexOf(i) + 1}
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Bottom Controls */}
+        <div
+          className="shrink-0 flex justify-center gap-3"
+          style={{ padding: "12px 20px 8px" }}
+        >
+          <button
+            className="active:scale-88"
+            data-testid="count-shuffle"
+            onClick={newRound}
+            style={{
+              background: "rgba(255,179,71,0.15)",
+              border: "2px solid rgba(255,179,71,0.25)",
+              borderRadius: 18,
+              minHeight: 64,
+              padding: "10px 22px",
+              color: "#FFB347",
+              fontSize: 14,
+              fontWeight: 900,
+              cursor: "pointer",
+              fontFamily: "'Nunito', sans-serif",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              transition: "transform 0.1s",
+            }}
+          >
+            🔄 {shuffleText}
+          </button>
+
+          {completed && (
+            <button
+              className="active:scale-88"
+              data-testid="count-next"
+              onClick={nextRound}
+              style={{
+                background: "rgba(78,205,196,0.2)",
+                border: "2px solid rgba(78,205,196,0.4)",
+                borderRadius: 18,
+                minHeight: 64,
+                padding: "10px 26px",
+                color: "#4ECDC4",
+                fontSize: 14,
+                fontWeight: 900,
+                cursor: "pointer",
+                fontFamily: "'Nunito', sans-serif",
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                animation: "slideUp 0.4s ease-out, completePulse 1.5s ease-in-out infinite 0.4s",
+              }}
+            >
+              ✨ {nextText}
+            </button>
+          )}
+        </div>
+
+        {/* Count indicator */}
+        <div
+          className="fixed z-10"
+          style={{
+            bottom: 72,
+            right: 12,
+            fontSize: 10,
+            fontWeight: 800,
+            color: "rgba(255,255,255,0.12)",
+            fontFamily: "'Nunito', sans-serif",
+          }}
+        >
+          {lang === "zh" ? "数到" : lang === "ms" ? "Kira hingga" : "Count to"} {count}
+        </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>

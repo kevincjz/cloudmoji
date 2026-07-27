@@ -186,13 +186,41 @@ test.describe("touch targets", () => {
       const out: string[] = [];
       document.querySelectorAll("[data-testid]").forEach((el) => {
         const id = (el as HTMLElement).dataset.testid!;
-        const isChild = CHILD_FACING.includes(id) || id.startsWith("cat-") || id.startsWith("emoji-");
-        if (!isChild) return;
+        const isChild =
+          CHILD_FACING.includes(id) ||
+          id.startsWith("cat-") ||
+          id.startsWith("rail-cat-") ||
+          id.startsWith("emoji-");
+        if (!isChild && !id.startsWith("rail-cat-")) return;
         const b = el.getBoundingClientRect();
         if (b.height > 0 && b.height < 64) out.push(`${id}: ${Math.round(b.height)}px`);
       });
       return out;
     });
     expect(small, "child-facing controls under the 64px rule").toEqual([]);
+  });
+});
+
+test.describe("scroll affordances (portrait)", () => {
+  test("the category bar fades on the side that has hidden categories", async ({ page }) => {
+    // Landscape replaces this bar with the side rail, which has its own test.
+    test.skip(
+      (await page.getByTestId("side-rail").count()) > 0,
+      "landscape uses the rail instead of the category bar",
+    );
+    const bar = page.locator('[data-testid="category-bar"] .no-scroll');
+    await expect
+      .poll(() => bar.evaluate((el) => el.scrollWidth > el.clientWidth + 1))
+      .toBe(true);
+
+    const fade = (side: string) =>
+      page.getByTestId(`scroll-fade-${side}`).evaluate((el) => +getComputedStyle(el).opacity);
+
+    await expect.poll(() => fade("right")).toBe(1);
+    expect(await fade("left"), "nothing hidden to the left yet").toBe(0);
+
+    await bar.evaluate((el) => el.scrollTo({ left: el.scrollWidth }));
+    await expect.poll(() => fade("left")).toBe(1);
+    expect(await fade("right")).toBe(0);
   });
 });

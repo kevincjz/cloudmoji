@@ -130,6 +130,8 @@ export default function App() {
             lang={lang}
             muted={muted}
             compact={compact}
+            activeTab={activeTab}
+            onSelectTab={handleTabSelect}
             onLangSelect={handleLangSelect}
             onMuteToggle={handleMuteToggle}
             onTitleTap={handleTitleTap}
@@ -140,6 +142,8 @@ export default function App() {
             lang={lang}
             muted={muted}
             compact={compact}
+            activeTab={activeTab}
+            onSelectTab={handleTabSelect}
             onLangSelect={handleLangSelect}
             onMuteToggle={handleMuteToggle}
             onTitleTap={handleTitleTap}
@@ -148,8 +152,10 @@ export default function App() {
         )}
       </div>
 
-      {/* Tab Bar */}
-      <TabBar activeTab={activeTab} onSelect={handleTabSelect} maxWidth={contentMaxWidth} />
+      {/* Tab bar — in landscape the tabs live in the side rail instead. */}
+      {!compact && (
+        <TabBar activeTab={activeTab} onSelect={handleTabSelect} maxWidth={contentMaxWidth} />
+      )}
 
       {/* Hidden Stats Panel */}
       {statsGate && (

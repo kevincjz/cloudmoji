@@ -10,6 +10,8 @@ import { TypingRow } from "./TypingRow";
 import { WordBubble } from "./WordBubble";
 import { CategoryBar } from "./CategoryBar";
 import { LangToggle } from "./LangToggle";
+import { SideRail } from "./SideRail";
+import type { TabId } from "./TabBar";
 
 /** PRD: at most 50 emojis in the typing row, oldest dropped first. */
 const MAX_TYPED = 50;
@@ -22,13 +24,15 @@ interface WordsModeProps {
   lang: Language;
   muted: boolean;
   compact: boolean;
+  activeTab: TabId;
+  onSelectTab: (tab: TabId) => void;
   onLangSelect: (lang: Language) => void;
   onMuteToggle: () => void;
   onTitleTap: () => void;
   onAbout: () => void;
 }
 
-export function WordsMode({ lang, muted, compact, onLangSelect, onMuteToggle, onTitleTap, onAbout }: WordsModeProps) {
+export function WordsMode({ lang, muted, compact, activeTab, onSelectTab, onLangSelect, onMuteToggle, onTitleTap, onAbout }: WordsModeProps) {
   const [category, setCategory] = useState<"all" | Category>("all");
   const [typed, setTyped] = useState<TypedEmoji[]>([]);
   const [showWord, setShowWord] = useState<{
@@ -140,6 +144,176 @@ export function WordsMode({ lang, muted, compact, onLangSelect, onMuteToggle, on
     category === "all"
       ? EMOJIS
       : EMOJIS.filter((e) => e.cat === category);
+
+  if (compact) {
+    // Landscape: the rail takes the categories and the tab switcher off the
+    // vertical axis, which is the scarce one here. Everything else is shared.
+    return (
+      <div className="flex" style={{ flex: 1, minHeight: 0 }}>
+        <SideRail
+          category={category}
+          lang={lang}
+          activeTab={activeTab}
+          onSelectCategory={handleCategorySelect}
+          onSelectTab={onSelectTab}
+        />
+        <div className="flex flex-col flex-1" style={{ minWidth: 0, minHeight: 0 }}>
+        {/* Header */}
+        <div
+          className="flex items-center justify-between shrink-0"
+          style={{ padding: compact ? "4px 12px 2px" : "10px 14px 6px" }}
+        >
+          <div className="flex items-center gap-2">
+            <CloudMascot mood={mascotMood} size={compact ? 42 : 64} />
+            <div onClick={onTitleTap} style={{ cursor: "default" }}>
+              <div
+                data-testid="app-title"
+                style={{
+                  fontFamily: "'Lilita One', sans-serif",
+                  fontSize: compact ? 17 : 21,
+                  background:
+                    "linear-gradient(135deg, #4ECDC4, #56B4D3, #7B93DB)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  lineHeight: 1.1,
+                  letterSpacing: 0.5,
+                }}
+              >
+                Cloudmoji
+              </div>
+              {!compact && (
+                <div
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 800,
+                    color: "rgba(255,255,255,0.3)",
+                    letterSpacing: 0.5,
+                    marginTop: 1,
+                  }}
+                >
+                  Tap. Listen. Learn!
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex gap-[6px] items-center">
+            <button
+              data-testid="about-btn"
+              onClick={onAbout}
+              className="active:scale-88"
+              style={{
+                background: "rgba(255,255,255,0.06)",
+                border: "2px solid rgba(255,255,255,0.12)",
+                borderRadius: 14,
+                padding: "6px 12px",
+                color: "#fff",
+                fontSize: 14,
+                fontWeight: 900,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                fontFamily: "'Nunito', sans-serif",
+                transition: "all 0.2s",
+              }}
+            >
+              About
+            </button>
+            <button
+              data-testid="mute-btn"
+              onClick={onMuteToggle}
+              className="active:scale-88"
+              style={{
+                background: muted
+                  ? "rgba(255,107,107,0.2)"
+                  : "rgba(255,255,255,0.06)",
+                border: muted
+                  ? "2px solid rgba(255,107,107,0.3)"
+                  : "2px solid rgba(255,255,255,0.12)",
+                borderRadius: 14,
+                width: 40,
+                height: 40,
+                fontSize: 18,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "all 0.2s",
+              }}
+            >
+              {muted ? "🔇" : "🔊"}
+            </button>
+
+            <LangToggle lang={lang} onSelect={onLangSelect} />
+          </div>
+        </div>
+
+        {/* Typing Row */}
+        <TypingRow
+          typed={typed}
+          lang={lang}
+          muted={muted}
+          onReplayAll={replayAll}
+          onDeleteLast={() => {
+            cancelAll();
+            setTyped((p) => p.slice(0, -1));
+          }}
+          onClear={handleClear}
+          onTapTyped={handleTapTyped}
+        />
+
+        {/* Word Bubble — in compact (landscape) it floats over the grid instead of
+            reserving a row, which is 38px the grid badly needs when the phone is sideways. */}
+        <div
+          className="flex items-center justify-center shrink-0"
+          style={
+            compact
+              ? {
+                  position: "absolute",
+                  left: 0,
+                  right: 0,
+                  bottom: 6,
+                  height: 38,
+                  zIndex: 20,
+                  pointerEvents: "none",
+                }
+              : { height: 38 }
+          }
+        >
+          {showWord && (
+            <WordBubble
+              emoji={showWord.emoji}
+              word={showWord.word}
+              id={showWord.id}
+            />
+          )}
+        </div>
+
+        {/* Emoji Grid */}
+        <EmojiGrid
+          emojis={filtered}
+          bounceIdx={bounceIdx}
+          onTap={handleTap}
+        />
+
+        </div>
+      {/* Tap counter */}
+      <div
+        className="fixed z-10"
+        style={{
+          bottom: 72,
+          right: 12,
+          fontSize: 10,
+          fontWeight: 800,
+          color: "rgba(255,255,255,0.12)",
+          fontFamily: "'Nunito', sans-serif",
+        }}
+      >
+        {tapCount > 0 ? `${tapCount} ✨` : ""}
+      </div>
+      </div>
+    );
+  }
 
   return (
     <>

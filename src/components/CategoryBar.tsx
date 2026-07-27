@@ -1,4 +1,6 @@
 import { CATEGORIES } from "../data/emojis";
+import { useScrollEdges } from "../hooks/useScrollEdges";
+import { ScrollFade } from "./ScrollFade";
 import type { Language, Category } from "../types";
 
 interface CategoryBarProps {
@@ -8,12 +10,17 @@ interface CategoryBarProps {
 }
 
 export function CategoryBar({ category, lang, onSelect }: CategoryBarProps) {
+  const [barRef, bar] = useScrollEdges<HTMLDivElement>("x");
+
   return (
-    <div
-      data-testid="category-bar"
-      className="no-scroll flex gap-2 shrink-0 overflow-x-auto items-center"
-      style={{ padding: "2px 12px 6px" }}
-    >
+    <div data-testid="category-bar" className="shrink-0 relative">
+      <ScrollFade side="left" visible={bar.overflows && !bar.atStart} />
+      <ScrollFade side="right" visible={bar.overflows && !bar.atEnd} />
+      <div
+        ref={barRef}
+        className="no-scroll flex gap-2 overflow-x-auto items-center"
+        style={{ padding: "2px 12px 6px" }}
+      >
       {CATEGORIES.map((cat) => {
         const isActive = category === cat.id;
         return (
@@ -50,8 +57,9 @@ export function CategoryBar({ category, lang, onSelect }: CategoryBarProps) {
             <span style={{ fontSize: 18 }}>{cat.icon}</span>
             {cat.labels[lang]}
           </button>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }
