@@ -53,6 +53,13 @@ public final class SpeechController {
     /// Bumped on every cancel. Queued work compares against it and bails.
     private var generation = 0
 
+    /// How long to wait for the engine to report finishing before advancing
+    /// anyway. A real synthesiser can drop `didFinish` on a route change or an
+    /// interruption, which would otherwise strand the rest of a sequence.
+    public var watchdogInterval: Duration = .seconds(6)
+
+    private var watchdog: Task<Void, Never>?
+
     public init(resolver: VoiceResolver, engine: any SpeechEngine) {
         self.resolver = resolver
         self.engine = engine
@@ -60,17 +67,33 @@ public final class SpeechController {
 
     public func cancelAll() {
         generation += 1
+        watchdog?.cancel()
+        watchdog = nil
         engine.stop()
     }
 
-    public func speak(_ text: String, in language: Language) {
+    /// Speaks one word. `onFinish` runs when the engine reports completion, and
+    /// is dropped if the utterance is cancelled first — the mascot uses it to
+    /// return from speaking to happy.
+    public func speak(
+        _ text: String,
+        in language: Language,
+        onFinish: (() -> Void)? = nil
+    ) {
         // An empty request is itself a cancellation: it means "nothing
         // should be speaking now" (a cleared typing row, a category filter
         // with nothing in it). Cancel unconditionally, before the early
         // return, or whatever was already playing keeps going.
         cancelAll()
         guard !text.isEmpty else { return }
-        emit(text, in: language, onFinish: {})
+        let token = generation
+        emit(text, in: language) { [weak self] in
+            // A late callback for an utterance that was already stopped must
+            // not tell the mascot this word finished — by then something else
+            // is speaking, or nothing is.
+            guard let self, token == self.generation else { return }
+            onFinish?()
+        }
     }
 
     public func speakSequence(_ items: [SpeechItem], in language: Language) {
@@ -99,13 +122,34 @@ public final class SpeechController {
             // triggered the cancellation still gets forwarded to the engine
             // and speaks after whatever superseded it.
             guard token == generation else { return }
-            emit(item.text, in: language) {
-                // The sole guard against a cancelled chain resuming: a late
-                // engine callback for an utterance that was already stopped
-                // must not step into the next item.
-                guard token == self.generation else { return }
+
+            // Whichever arrives first — the engine's callback or the watchdog —
+            // moves the chain on, and the other becomes a no-op. The sole guard
+            // against a cancelled chain resuming is the generation check: a late
+            // engine callback for an utterance that was already stopped must not
+            // step into the next item.
+            var advanced = false
+            let advance = { [weak self] in
+                guard let self, !advanced, token == self.generation else { return }
+                advanced = true
+                self.watchdog?.cancel()
+                self.watchdog = nil
                 step()
             }
+
+            // Armed before the hand-off, not after: an engine that reported
+            // finishing synchronously would otherwise recurse into the next
+            // item, arm its watchdog, and then have this frame cancel it on the
+            // way back out.
+            watchdog?.cancel()
+            watchdog = Task { @MainActor [weak self] in
+                guard let self else { return }
+                try? await Task.sleep(for: self.watchdogInterval)
+                guard !Task.isCancelled else { return }
+                advance()
+            }
+
+            emit(item.text, in: language, onFinish: advance)
         }
         step()
     }

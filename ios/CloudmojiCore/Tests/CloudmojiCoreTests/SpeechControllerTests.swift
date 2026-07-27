@@ -203,4 +203,77 @@ struct SpeechControllerTests {
         #expect(SpeechController.rate == 0.85)
         #expect(SpeechController.pitch == 1.1)
     }
+
+    @Test("a single word reports completion")
+    func speakReportsCompletion() {
+        let (controller, engine) = makeController()
+        var finished = false
+        controller.speak("apple", in: .en) { finished = true }
+        #expect(finished == false)
+        engine.finishCurrent()
+        #expect(finished, "the mascot cannot return to happy without this")
+    }
+
+    @Test("a cancelled single word does not report completion")
+    func cancelledSpeakDoesNotReportCompletion() {
+        let (controller, engine) = makeController()
+        var finished = false
+        controller.speak("apple", in: .en) { finished = true }
+        controller.cancelAll()
+        engine.finishLate()
+        #expect(finished == false)
+    }
+
+    @Test("a sequence advances when the engine never reports finishing")
+    func watchdogAdvancesAStalledSequence() async throws {
+        let (controller, engine) = makeController()
+        controller.watchdogInterval = .milliseconds(50)
+        controller.speakSequence(
+            [SpeechItem(text: "one"), SpeechItem(text: "two")],
+            in: .en
+        )
+        #expect(engine.spoken.map(\.text) == ["one"])
+        // The engine never calls back — a real synthesiser can drop didFinish on
+        // a route change or session interruption.
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(engine.spoken.map(\.text) == ["one", "two"],
+                "a dropped didFinish must not strand the rest of the sequence")
+    }
+
+    @Test("the watchdog does not double-advance when the engine does report")
+    func watchdogDoesNotDoubleAdvance() async throws {
+        let (controller, engine) = makeController()
+        controller.watchdogInterval = .milliseconds(50)
+        controller.speakSequence(
+            [SpeechItem(text: "one"), SpeechItem(text: "two"), SpeechItem(text: "three")],
+            in: .en
+        )
+        engine.finishCurrent()
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(engine.spoken.map(\.text) == ["one", "two", "three"])
+    }
+
+    @Test("an engine report disarms that item's watchdog")
+    func engineReportDisarmsTheWatchdog() async throws {
+        let (controller, engine) = makeController()
+        controller.watchdogInterval = .milliseconds(100)
+        controller.speakSequence(
+            [
+                SpeechItem(text: "one"),
+                SpeechItem(text: "two"),
+                SpeechItem(text: "three"),
+                SpeechItem(text: "four"),
+            ],
+            in: .en
+        )
+        engine.finishCurrent() // "one" genuinely finished, so its watchdog is moot
+        #expect(engine.spoken.map(\.text) == ["one", "two"])
+        // Long enough for the watchdog armed for "two" to fire, and not long
+        // enough for the one that fire arms in turn. A watchdog left armed for
+        // "one" would fire in the same window and start "four" over "three" —
+        // two words overlapping in the child's ear.
+        try await Task.sleep(for: .milliseconds(150))
+        #expect(engine.spoken.map(\.text) == ["one", "two", "three"],
+                "an item that reported finishing must not be advanced past a second time")
+    }
 }
