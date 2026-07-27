@@ -818,6 +818,40 @@ the SettingsStore isolation question Stage 1 left open."
   `CloudMascot(mood: MascotMood, size: CGFloat)` where
   `enum MascotMood { case happy, excited, speaking, beaming }`
 
+
+#### Complete palette — use these values verbatim
+
+The earlier draft of this task listed only 7 of the 15 tokens. The 6 it omitted
+are all mascot colors, used 18 times across `src/components/CloudMascot.tsx`;
+`--eyes` alone appears 9 times. An implementer working from the short list would
+have invented an eye color, a mouth outline, and the cloud shading.
+
+| Token | Hex | SwiftUI | Role |
+| --- | --- | --- | --- |
+| `bgPrimary` | `#0F0E2A` | `Color(red: 0.059, green: 0.055, blue: 0.165)` | Deep indigo-black — app background base |
+| `bgMid` | `#1A1145` | `Color(red: 0.102, green: 0.067, blue: 0.271)` | Mid gradient stop |
+| `bgEdge` | `#0D2137` | `Color(red: 0.051, green: 0.129, blue: 0.216)` | Dark blue edge |
+| `coral` | `#FF6B6B` | `Color(red: 1.000, green: 0.420, blue: 0.420)` | Primary — taps, mascot mouth, energy |
+| `teal` | `#4ECDC4` | `Color(red: 0.306, green: 0.804, blue: 0.769)` | Secondary — active states, replay, mascot glow |
+| `gold` | `#FFE66D` | `Color(red: 1.000, green: 0.902, blue: 0.427)` | Accent — celebrations, sparkles, beaming glow |
+| `textPrimary` | `#FFFFFF` | `Color(red: 1.000, green: 1.000, blue: 1.000)` | Primary text |
+| `cloudBody` | `#FFFFFF` | `Color(red: 1.000, green: 1.000, blue: 1.000)` | Mascot body fill |
+| `cloudHighlight` | `#F8FCFF` | `Color(red: 0.973, green: 0.988, blue: 1.000)` | Mascot highlight — top bumps |
+| `cloudShadow` | `#E8EEF4` | `Color(red: 0.910, green: 0.933, blue: 0.957)` | Mascot underside shadow |
+| `eyes` | `#2D3436` | `Color(red: 0.176, green: 0.204, blue: 0.212)` | Mascot eyes — NOT pure black |
+| `mouth` | `#FF6B6B` | `Color(red: 1.000, green: 0.420, blue: 0.420)` | Mascot mouth fill |
+| `mouthStroke` | `#E55555` | `Color(red: 0.898, green: 0.333, blue: 0.333)` | Mascot mouth outline — darker than the fill |
+| `blush` | `#FFB5B5` | `Color(red: 1.000, green: 0.710, blue: 0.710)` | Cheeks, resting |
+| `blushBeaming` | `#FF9E9E` | `Color(red: 1.000, green: 0.620, blue: 0.620)` | Cheeks, rosier while beaming |
+
+Two that are easy to get wrong: the eyes are `#2D3436`, a warm near-black, not
+`.black` — pure black reads harsh at toddler scale. And `cloudBody` is pure white
+while `cloudHighlight` is `#F8FCFF`; the difference is deliberate and subtle, so
+do not collapse them.
+
+Source of truth is `docs/design/DESIGN_SYSTEM.md`. If it and this table ever
+disagree, the design system wins and this table is stale.
+
 - [ ] **Step 1: Write the theme**
 
 Create `ios/Cloudmoji/Cloudmoji/Theme.swift`:
