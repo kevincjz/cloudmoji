@@ -1041,9 +1041,9 @@ Create `ios/CloudmojiCore/Tests/CloudmojiCoreTests/VoiceResolverTests.swift`:
 import Testing
 @testable import CloudmojiCore
 
-// Not `private`: Swift 6 rejects an internal property (`appleish` below)
-// whose inferred type is less accessible than the property itself.
-struct FakeVoice: VoiceDescribing, Equatable {
+// Both this and `appleish` below are private: a declaration may not expose a
+// type less accessible than itself. That rule is not Swift-6 specific.
+private struct FakeVoice: VoiceDescribing, Equatable {
     let lang: String
     let name: String
 }
@@ -1182,7 +1182,9 @@ public struct VoiceResolver: Sendable {
 
         var tier: [any VoiceDescribing] = []
         for prefix in chain {
-            tier = voices.filter { $0.lang.hasPrefix(prefix) }
+            // Require a full match or a subtag boundary, so a short code cannot
+            // steal a tier from an unrelated longer tag.
+            tier = voices.filter { $0.lang == prefix || $0.lang.hasPrefix(prefix + "-") }
             if !tier.isEmpty { break }
         }
         guard !tier.isEmpty else { return nil }
