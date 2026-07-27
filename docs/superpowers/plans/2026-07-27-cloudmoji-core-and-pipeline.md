@@ -1511,7 +1511,9 @@ private final class FakeEngine: SpeechEngine {
 @MainActor
 @Suite("SpeechController")
 struct SpeechControllerTests {
-    func makeController() -> (SpeechController, FakeEngine) {
+    // private: this returns the file-private FakeEngine, and a declaration may
+    // not expose a type less accessible than itself.
+    private func makeController() -> (SpeechController, FakeEngine) {
         let engine = FakeEngine()
         let resolver = VoiceResolver(languages: try! EmojiRepository().languages)
         return (SpeechController(resolver: resolver, engine: engine), engine)
