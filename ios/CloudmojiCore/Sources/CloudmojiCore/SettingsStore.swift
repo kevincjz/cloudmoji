@@ -70,6 +70,14 @@ public final class SettingsStore {
 
     public var countRange: ClosedRange<Int> {
         didSet {
+            // Unlike language/enabledLanguages/enabledCategories above, this
+            // used to persist whatever it was handed -- an out-of-bounds
+            // range survived the session instead of self-healing. Route
+            // through the same `clampedRange` helper `readRange` uses, so
+            // init and the runtime setter can't disagree about what a valid
+            // range is.
+            let cleaned = Self.clampedRange(lower: countRange.lowerBound, upper: countRange.upperBound)
+            if cleaned != countRange { countRange = cleaned; return }
             defaults.set(countRange.lowerBound, forKey: Key.countLower)
             defaults.set(countRange.upperBound, forKey: Key.countUpper)
         }
@@ -147,12 +155,30 @@ public final class SettingsStore {
         return Set(raw.compactMap(make))
     }
 
+    /// The single place the "count range is within countBounds, and not
+    /// inverted" invariant is decided. Both `readRange` (reading two
+    /// possibly-stale, possibly-inverted raw Ints out of UserDefaults) and
+    /// `countRange`'s didSet (reacting to a runtime assignment that may sit
+    /// outside countBounds) call this rather than each encoding their own
+    /// clamp -- the same shared-helper shape `resolveLanguage` uses above.
+    ///
+    /// Each bound is clamped independently into countBounds, then the pair
+    /// falls back to the default 2...9 if that leaves them inverted. A
+    /// single-value range (lower == upper) is valid -- a parent choosing
+    /// "exactly 3" is a real, intentional setting, not an error.
+    private static func clampedRange(lower: Int, upper: Int) -> ClosedRange<Int> {
+        let clampedLower = max(countBounds.lowerBound, lower)
+        let clampedUpper = min(countBounds.upperBound, upper)
+        guard clampedLower <= clampedUpper else { return 2...9 }
+        return clampedLower...clampedUpper
+    }
+
     private static func readRange(_ defaults: UserDefaults) -> ClosedRange<Int> {
         guard defaults.object(forKey: Key.countLower) != nil,
               defaults.object(forKey: Key.countUpper) != nil else { return 2...9 }
-        let lower = max(countBounds.lowerBound, defaults.integer(forKey: Key.countLower))
-        let upper = min(countBounds.upperBound, defaults.integer(forKey: Key.countUpper))
-        guard lower < upper else { return 2...9 }
-        return lower...upper
+        return clampedRange(
+            lower: defaults.integer(forKey: Key.countLower),
+            upper: defaults.integer(forKey: Key.countUpper)
+        )
     }
 }

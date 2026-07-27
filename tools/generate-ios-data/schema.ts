@@ -1,4 +1,4 @@
-import type { Language } from "../../src/types";
+import type { Category, Language } from "../../src/types";
 
 export interface IosLanguage {
   id: Language;
@@ -11,12 +11,12 @@ export interface IosLanguage {
 export interface IosCategory {
   id: string; // "all" or a Category
   icon: string;
-  labels: Record<string, string>; // keyed by Language
+  labels: Record<Language, string>;
 }
 
 export interface IosEmoji {
   emoji: string;
-  cat: string;
+  cat: Category;
   en: string;
   zh: string;
   ms: string;

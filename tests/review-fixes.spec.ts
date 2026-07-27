@@ -71,6 +71,7 @@ test.describe("English plurals", () => {
         tooth: "teeth", mouse: "mice", foot: "feet", child: "children",
         person: "people", goose: "geese", sheep: "sheep", fish: "fish",
         man: "men", woman: "women", leaf: "leaves", knife: "knives", piano: "pianos",
+        mango: "mangoes",
       };
       const regular = (n: string) => {
         if (n === "fish") return "fish";

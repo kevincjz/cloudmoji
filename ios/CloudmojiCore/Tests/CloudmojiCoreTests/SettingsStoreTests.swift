@@ -172,4 +172,45 @@ struct SettingsStoreTests {
         defaults.set(99, forKey: "cm_count_upper")
         #expect(SettingsStore(defaults: defaults).countRange == 2...10)
     }
+
+    @Test("assigning an out-of-bounds count range clamps it rather than persisting it verbatim")
+    func settingCountRangeClamps() {
+        let defaults = makeDefaults()
+        let store = SettingsStore(defaults: defaults)
+        // Prior to the fix, countRange's didSet persisted whatever it was
+        // handed -- unlike language/enabledLanguages/enabledCategories, it
+        // did not self-heal.
+        store.countRange = 0...99
+        #expect(store.countRange == 2...10)
+        #expect(defaults.integer(forKey: "cm_count_lower") == 2)
+        #expect(defaults.integer(forKey: "cm_count_upper") == 10)
+    }
+
+    @Test("assigning a range entirely above countBounds recovers to the default")
+    func settingRangeAboveBoundsRecovers() {
+        let defaults = makeDefaults()
+        let store = SettingsStore(defaults: defaults)
+        store.countRange = 15...20
+        #expect(store.countRange == 2...9)
+    }
+
+    @Test("a single-value count range is accepted and survives a reload")
+    func singleValueCountRangeAccepted() {
+        // A parent choosing "exactly 3" is a real setting, not an error --
+        // readRange's old `lower < upper` guard silently reset it on the
+        // very next launch.
+        let defaults = makeDefaults()
+        let store = SettingsStore(defaults: defaults)
+        store.countRange = 3...3
+        #expect(store.countRange == 3...3)
+        #expect(SettingsStore(defaults: defaults).countRange == 3...3)
+    }
+
+    @Test("a single-value range stored directly in UserDefaults is honoured on read")
+    func singleValueRangeReadFromDefaults() {
+        let defaults = makeDefaults()
+        defaults.set(5, forKey: "cm_count_lower")
+        defaults.set(5, forKey: "cm_count_upper")
+        #expect(SettingsStore(defaults: defaults).countRange == 5...5)
+    }
 }

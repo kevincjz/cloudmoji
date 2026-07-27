@@ -65,4 +65,19 @@ struct CountingGrammarJaTlTests {
             #expect(grammar.phrase(aso, count: count, in: .tl).hasSuffix(" aso"))
         }
     }
+
+    @Test("the full Tagalog linker matrix is pinned for one noun across all ten counts")
+    func tagalogFullLinkerMatrix() throws {
+        // tagalogNg/tagalogNa/tagalogG above only name six of the ten number
+        // words between them. Pin all ten literally, for one noun, so every
+        // number word in the series is covered.
+        let expected = [
+            "isang aso", "dalawang aso", "tatlong aso", "apat na aso", "limang aso",
+            "anim na aso", "pitong aso", "walong aso", "siyam na aso", "sampung aso",
+        ]
+        let aso = try item("dog")
+        for (index, phrase) in expected.enumerated() {
+            #expect(grammar.phrase(aso, count: index + 1, in: .tl) == phrase)
+        }
+    }
 }

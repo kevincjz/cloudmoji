@@ -68,14 +68,16 @@ public final class SpeechController {
         let token = generation
         var index = 0
 
-        // Entry into `step()` is gated entirely by its two call sites: the
-        // direct call below (where token == generation is true by
-        // construction) and the recursive call inside emit's onFinish
-        // (guarded on the same check just before calling back in). So step()
-        // itself only needs the bounds check — re-testing token == generation
-        // here would just repeat what already gated entry.
+        // Both call sites already gate entry on token == generation: the
+        // direct call below (true by construction) and the recursive call
+        // inside emit's onFinish (checked immediately before calling back
+        // in). Re-checking it here is deliberate defense-in-depth rather
+        // than redundancy this function can shed: step() is the whole
+        // cancellation-correctness surface of this controller, so it must
+        // not depend on every future call site continuing to gate correctly
+        // forever.
         func step() {
-            guard index < items.count else { return }
+            guard token == generation, index < items.count else { return }
             let item = items[index]
             index += 1
             item.onSpeak?()

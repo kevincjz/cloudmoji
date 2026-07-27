@@ -25,7 +25,12 @@ export function pickVoice<T extends VoiceLike>(
 ): T | undefined {
   let matching: T[] = [];
   for (const prefix of voicePrefixesForSpeech(langCode)) {
-    matching = voices.filter((v) => v.lang.startsWith(prefix));
+    // Exact tag match, or a "-"-delimited subtag boundary — never a bare
+    // startsWith. "tlh" (Klingon's real IANA subtag) starts with the letters
+    // "tl" but is not Tagalog; a bare startsWith would wrongly seat it in
+    // Tagalog's tier before Malay/Indonesian ever got a look in. Mirrors
+    // VoiceResolver.pick in ios/CloudmojiCore — same rule, two ports.
+    matching = voices.filter((v) => v.lang === prefix || v.lang.startsWith(prefix + "-"));
     if (matching.length > 0) break;
   }
   if (matching.length === 0) return undefined;

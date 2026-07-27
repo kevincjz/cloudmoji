@@ -1,15 +1,21 @@
 import Foundation
 
-public enum EmojiRepositoryError: Error, CustomStringConvertible {
+public enum EmojiRepositoryError: Error, CustomStringConvertible, Sendable {
     case resourceMissing(String)
-    case decodeFailed(any Error)
+    /// The resource existed but couldn't be read (e.g. a permissions failure).
+    /// Kept distinct from `decodeFailed` so a read failure doesn't misreport
+    /// itself as a decode failure.
+    case readFailed(String)
+    case decodeFailed(String)
 
     public var description: String {
         switch self {
         case .resourceMissing(let name):
             "EmojiData resource '\(name).json' is missing from the bundle"
-        case .decodeFailed(let error):
-            "EmojiData.json could not be decoded: \(error)"
+        case .readFailed(let message):
+            "EmojiData.json could not be read: \(message)"
+        case .decodeFailed(let message):
+            "EmojiData.json could not be decoded: \(message)"
         }
     }
 }
@@ -32,11 +38,16 @@ public struct EmojiRepository: Sendable {
         guard let url = bundle.url(forResource: resource, withExtension: "json") else {
             throw EmojiRepositoryError.resourceMissing(resource)
         }
+        let raw: Data
         do {
-            let raw = try Data(contentsOf: url)
+            raw = try Data(contentsOf: url)
+        } catch {
+            throw EmojiRepositoryError.readFailed(String(describing: error))
+        }
+        do {
             self.data = try JSONDecoder().decode(EmojiData.self, from: raw)
         } catch {
-            throw EmojiRepositoryError.decodeFailed(error)
+            throw EmojiRepositoryError.decodeFailed(String(describing: error))
         }
     }
 

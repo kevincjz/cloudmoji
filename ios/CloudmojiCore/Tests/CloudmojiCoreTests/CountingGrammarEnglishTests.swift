@@ -55,4 +55,29 @@ struct CountingGrammarEnglishTests {
             #expect(!phrase.hasSuffix("ss"), "\(item.en) -> \(phrase)")
             }
     }
+
+    @Test("the plural of every noun whose plural is not simply +s is pinned literally")
+    func literalIrregularPlurals() throws {
+        // `noDoubleS` above is a weak invariant: it only catches a doubled
+        // trailing "s" ("mangoss"), not a wrong-but-plausible plural
+        // ("mangos" instead of "mangoes"). Pin the exact expected form for
+        // every shipped noun whose plural isn't the regular "+s" case.
+        let expected: [(noun: String, plural: String)] = [
+            ("fish", "fish"),
+            ("butterfly", "butterflies"),
+            ("strawberry", "strawberries"),
+            ("peach", "peaches"),
+            ("bus", "buses"),
+            ("tooth", "teeth"),
+            ("dress", "dresses"),
+            ("candy", "candies"),
+            ("mouse", "mice"),
+        ]
+        for (noun, plural) in expected {
+            #expect(
+                grammar.phrase(try item(noun), count: 2, in: .en) == "two \(plural)",
+                "\(noun) -> expected \"two \(plural)\""
+            )
+        }
+    }
 }
