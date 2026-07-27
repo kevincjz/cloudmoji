@@ -62,6 +62,16 @@ enum EmojiTileMetrics {
 struct EmojiTile: View {
     let entry: EmojiEntry
     var isBouncing: Bool = false
+    /// What VoiceOver announces. Defaults to `nil`, which reads as `entry.en`,
+    /// so every call site written before this parameter existed still compiles
+    /// and still says "apple".
+    ///
+    /// The screen passes the word in the *chosen* language, because announcing
+    /// "apple" while the child is hearing 苹果 describes a different app than
+    /// the one that is running. Swift cannot spell `= entry.en` as a property
+    /// default — a default may not reference another property — hence the
+    /// optional and the coalesce below.
+    var word: String?
     let onTap: () -> Void
 
     private var shape: RoundedRectangle {
@@ -99,9 +109,10 @@ struct EmojiTile: View {
         // simulator, invisible to every assertion in the suite.
         .zIndex(isBouncing ? 1 : 0)
         .animation(.spring(duration: EmojiTileMetrics.bounceDuration), value: isBouncing)
-        // English regardless of the chosen language: VoiceOver is parent-facing
-        // chrome here, and the identifier below is what the tests key on.
-        .accessibilityLabel(entry.en)
+        // The identifier below is glyph-based and stays language-independent,
+        // which is what the UI tests key on; the *label* follows the language
+        // the family chose.
+        .accessibilityLabel(word ?? entry.en)
         .accessibilityIdentifier("emoji-\(entry.emoji)")
     }
 }

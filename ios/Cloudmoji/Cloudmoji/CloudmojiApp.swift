@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import AVFoundation
 
 @main
 struct CloudmojiApp: App {
@@ -18,14 +19,26 @@ struct CloudmojiApp: App {
     /// tests call `register()` before asserting, so they passed throughout.
     private(set) static var didRegisterFontsAtLaunch = false
 
+    /// The one instance every screen reads. Owned here rather than created per
+    /// view, because `SpeechController` holds the synthesiser and a second one
+    /// would talk over the first.
+    @State private var model = AppModel()
+
     init() {
         BundledFonts.register()
         Self.didRegisterFontsAtLaunch = BundledFonts.logoFontIsAvailable
+
+        // `.playback` so Cloudmoji speaks even with the ringer switch off — what
+        // a parent expects when handing the phone over. A deliberate override of
+        // a system setting, recorded as such in the design spec. `.duckOthers`
+        // so a podcast or a nursery-rhyme playlist dips rather than stops.
+        try? AVAudioSession.sharedInstance().setCategory(.playback, options: [.duckOthers])
+        try? AVAudioSession.sharedInstance().setActive(true)
     }
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView().environment(model)
         }
     }
 }

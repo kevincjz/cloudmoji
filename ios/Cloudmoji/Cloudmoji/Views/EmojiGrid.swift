@@ -23,6 +23,11 @@ enum EmojiGridMetrics {
 struct EmojiGrid: View {
     let entries: [EmojiEntry]
     var bouncingID: String?
+    /// The word each tile announces to VoiceOver, in the chosen language. The
+    /// grid has no opinion about language — it forwards whatever the screen
+    /// already computed for speech. `nil` leaves the tile on its English
+    /// default, so callers written before this parameter existed still compile.
+    var word: ((EmojiEntry) -> String)?
     let onTap: (EmojiEntry) -> Void
 
     private let columns = [
@@ -39,6 +44,7 @@ struct EmojiGrid: View {
                     EmojiTile(
                         entry: entry,
                         isBouncing: bouncingID == entry.id,
+                        word: word?(entry),
                         onTap: { onTap(entry) }
                     )
                 }
