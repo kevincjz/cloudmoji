@@ -131,6 +131,17 @@ struct TypingRow: View {
         .frame(minHeight: TypingRowMetrics.minHeight)
         .background(Theme.surface, in: shape)
         .overlay(shape.stroke(Theme.surfaceBorder, lineWidth: TypingRowMetrics.borderWidth))
+        // `.contain` first, then the identifier. Without it this row is not an
+        // accessibility element of its own, so the identifier propagates down to
+        // the *nearest* element on each branch and overwrites whatever it finds:
+        // the three controls came out of the tree as three buttons all called
+        // "typing-row", and `replay-btn`, `delete-btn` and `clear-btn` did not
+        // exist at all. Not visible to any unit test — SwiftUI builds no
+        // accessibility tree outside XCUITest — and caught by
+        // `WordsModeUITests.testTypingRowControlsKeepTheirOwnIdentifiers`.
+        // Marking the row a container gives the identifier somewhere of its own
+        // to land and leaves the children's alone.
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("typing-row")
     }
 
