@@ -2,7 +2,11 @@ import Testing
 import UIKit
 @testable import Cloudmoji
 
+/// Main-actor isolated because font registration is: `CTFontManagerRegisterFontsForURL`
+/// with `.process` scope and `UIFont` lookups are UIKit work, and the target compiles
+/// with `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`.
 @Suite("BundledFonts")
+@MainActor
 struct BundledFontsTests {
     /// The failure this guards against is silent: an unregistered custom font
     /// does not throw, it falls back to the system face, and the logo looks
