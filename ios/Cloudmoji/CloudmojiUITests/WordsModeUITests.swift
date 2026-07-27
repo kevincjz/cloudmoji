@@ -399,4 +399,66 @@ final class WordsModeUITests: XCTestCase {
         app.buttons["emoji-🍎"].tap()
         waitForCount(typedEmojis(app), toBe: glyphs.count + 1, "the row stopped accepting emojis")
     }
+
+    /// Replay re-speaks the row from its first word.
+    ///
+    /// Task 10 left this uncovered, reasoning that replay is only observable
+    /// through `AVSpeechSynthesizer` and would go red on a machine with no voice
+    /// installed. That is true of `onFinish`, but not of what drives the bubble:
+    /// `SpeechController.speakSequence` calls each item's `onSpeak` synchronously
+    /// *before* handing anything to the engine, and `WordsView.replayAll` shows
+    /// the bubble from there. So this asserts real behaviour with no dependency
+    /// on audio at all — which is exactly why that seam exists.
+    func testReplaySpeaksFromTheFirstWord() {
+        let app = launch()
+        app.buttons["emoji-🍎"].tap()
+        app.buttons["emoji-🍌"].tap()
+        waitForCount(typedEmojis(app), toBe: 2, "setup")
+        // Let banana's own bubble expire, so a bubble reading "apple" afterwards
+        // can only have come from the replay.
+        settleAnimations()
+
+        app.buttons["replay-btn"].tap()
+
+        let bubble = app.staticTexts.matching(identifier: "word-bubble")
+        let appeared = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "count > 0"), object: bubble
+        )
+        XCTAssertEqual(
+            XCTWaiter().wait(for: [appeared], timeout: 5), .completed,
+            "replay produced no word bubble"
+        )
+        let labels = bubble.allElementsBoundByIndex.map { $0.label }
+        XCTAssertTrue(
+            labels.contains("apple"),
+            "replay should restart at the first word; the bubble said \(labels)"
+        )
+    }
+
+    /// The language picker is parent-only chrome, so it follows the 44pt iOS HIG
+    /// minimum rather than the 64pt child-facing rule.
+    ///
+    /// Worth an explicit test because the trap here is silent: `.frame(minHeight:)`
+    /// grows a menu picker's layout box without growing what is tappable, so the
+    /// control measured 62 x 34 while a comment beside it claimed 44. Nothing
+    /// failed; it was found by measuring by hand.
+    func testLanguagePickerMeetsTheParentChromeMinimum() {
+        let app = launch()
+        let picker = app.descendants(matching: .any)
+            .matching(identifier: "lang-picker").firstMatch
+        XCTAssertTrue(
+            picker.waitForExistence(timeout: 5),
+            "the language picker was not in the tree at all"
+        )
+
+        let frame = picker.frame
+        XCTAssertGreaterThanOrEqual(
+            frame.height, 44,
+            "the picker is \(frame.height)pt tall, under the 44pt HIG minimum"
+        )
+        XCTAssertGreaterThanOrEqual(
+            frame.width, 44,
+            "the picker is \(frame.width)pt wide, under the 44pt HIG minimum"
+        )
+    }
 }
