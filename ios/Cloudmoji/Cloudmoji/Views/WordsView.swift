@@ -175,6 +175,11 @@ struct WordsView: View {
         // Parent-facing chrome, so the 44pt HIG minimum rather than 64pt.
         // Forcing 64 here swallows the header on a 375pt screen.
         .frame(minWidth: 44, minHeight: 44)
+        // The frame alone does NOT grow a menu picker's hit area — it lays out
+        // at 62 x 34 and only the text is tappable, which the UI tests measured.
+        // `contentShape` is what actually extends the tappable region to the
+        // frame we just asked for.
+        .contentShape(Rectangle())
         .accessibilityIdentifier("lang-picker")
     }
 

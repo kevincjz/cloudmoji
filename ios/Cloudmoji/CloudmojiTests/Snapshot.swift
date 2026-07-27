@@ -46,6 +46,21 @@ struct Bitmap {
         settling: Duration = .zero,
         fillsWindow: Bool = false
     ) async -> Bitmap {
+        // Only one capture at a time, across every suite in the target.
+        //
+        // `drawHierarchy(afterScreenUpdates:)` needs its window to be key, and
+        // each capture makes a fresh one key. Swift Testing runs @MainActor tests
+        // concurrently and interleaves them at every `await` — and this function
+        // awaits, as does any test that sleeps to let an animation settle. So a
+        // second capture could take key status away from a first one mid-flight
+        // and hand it back a black rectangle, which reads as "the view drew
+        // nothing". That was roughly a 1-in-20 failure across the target.
+        //
+        // A `.serialized` trait would not have fixed this: it orders a suite's
+        // own tests, not sibling suites, and the race is between suites.
+        await CaptureGate.acquire()
+        defer { CaptureGate.release() }
+
         let host = UIHostingController(
             rootView: VStack(spacing: 0) {
                 view
@@ -84,6 +99,11 @@ struct Bitmap {
         let image = UIGraphicsImageRenderer(bounds: bounds, format: format).image { _ in
             host.view.drawHierarchy(in: bounds, afterScreenUpdates: true)
         }
+        // Give up key status and let the window go, rather than leaving one
+        // dangling per capture for the rest of the run.
+        window.isHidden = true
+        window.rootViewController = nil
+        window.windowScene = nil
         return Bitmap(image.cgImage)
     }
 
@@ -181,5 +201,33 @@ struct Bitmap {
             }
         }
         return count
+    }
+}
+
+/// A one-at-a-time gate for bitmap captures.
+///
+/// Everything here is already `@MainActor`, so no lock is needed — but being on
+/// the main actor does NOT make a sequence of `await`s atomic, which is the whole
+/// problem this solves. Waiters queue on a continuation and are handed the gate
+/// in turn.
+@MainActor
+enum CaptureGate {
+    private static var busy = false
+    private static var waiting: [CheckedContinuation<Void, Never>] = []
+
+    static func acquire() async {
+        // A loop, not an `if`: being resumed means it is this waiter's turn, but
+        // a re-check costs nothing and makes the invariant local rather than
+        // spread across acquire and release.
+        while busy {
+            await withCheckedContinuation { waiting.append($0) }
+        }
+        busy = true
+    }
+
+    static func release() {
+        busy = false
+        guard !waiting.isEmpty else { return }
+        waiting.removeFirst().resume()
     }
 }
