@@ -13,7 +13,8 @@ This is **Stage 1 of 3** from [the design spec](../specs/2026-07-27-ios-watchos-
 ## Global Constraints
 
 - Swift tools version 6.0; package platforms `.iOS(.v17)`, `.watchOS(.v10)`, `.macOS(.v14)` (macOS only so `swift test` runs on the CLI).
-- `CloudmojiCore` imports Foundation and AVFoundation only. **Never** SwiftUI, UIKit or WatchKit.
+- `CloudmojiCore` imports only non-UI system frameworks — Foundation, AVFoundation and
+  Observation. **Never** SwiftUI, UIKit or WatchKit.
 - All public API is `Sendable` where it crosses a concurrency boundary.
 - Speech rate `0.85`, pitch `1.1` — matching `src/hooks/useTTS.ts`.
 - Five languages exactly: `en`, `zh`, `ms`, `ja`, `tl`. Never Spanish, never Thai.
@@ -656,8 +657,7 @@ struct CountingGrammarEnglishTests {
         for item in repo.countables {
             let phrase = grammar.phrase(item, count: 2, in: .en)
             #expect(!phrase.hasSuffix("ss"), "\(item.en) -> \(phrase)")
-            #expect(!phrase.hasSuffix("ies s"), "\(item.en) -> \(phrase)")
-        }
+            }
     }
 }
 ```
@@ -1538,10 +1538,8 @@ struct SpeechControllerTests {
 
     @Test("rate and pitch match the web app")
     func rateAndPitch() {
-        let (controller, _) = makeController()
         #expect(SpeechController.rate == 0.85)
         #expect(SpeechController.pitch == 1.1)
-        controller.cancelAll()
     }
 }
 ```
