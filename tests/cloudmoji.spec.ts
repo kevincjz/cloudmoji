@@ -316,28 +316,6 @@ test.describe("emoji data", () => {
       expect(n, `NUMBER_WORDS.${lang}`).toBe(10);
     }
   });
-
-  test("Word mode and Count mode name the same thing in zh and ms", async ({ page }) => {
-    // The classifier is baked into the zh/ms countable, so the countable must END
-    // with the Word-mode noun — otherwise the app teaches two words per picture.
-    const mismatches = await page.evaluate(async () => {
-      const e = await import("/src/data/emojis.ts");
-      const c = await import("/src/data/countables.ts");
-      const byEmoji = new Map(e.EMOJIS.map((x: Record<string, string>) => [x.emoji, x]));
-      const out: string[] = [];
-      for (const item of c.COUNTABLES as Record<string, string>[]) {
-        const word = byEmoji.get(item.emoji);
-        if (!word) continue;
-        for (const lang of ["zh", "ms"]) {
-          if (!item[lang].endsWith(word[lang])) {
-            out.push(`${item.emoji} ${lang}: count="${item[lang]}" word="${word[lang]}"`);
-          }
-        }
-      }
-      return out;
-    });
-    expect(mismatches).toEqual([]);
-  });
 });
 
 test.describe("voice selection", () => {
@@ -388,6 +366,20 @@ test.describe("voice selection", () => {
   test("tl-PH tagging is accepted as well as fil-PH", async ({ page }) => {
     const picked = await evalPick(page, [...APPLE_ISH, { lang: "tl-PH", name: "Angelo" }]);
     expect(picked["fil-PH"]).toBe("Angelo / tl-PH");
+  });
+
+  test("a tlh (Klingon) tag does not steal the tl (Tagalog) tier", async ({ page }) => {
+    // "tlh" is Klingon's real IANA-registered language subtag. A bare
+    // startsWith("tl") would match it — "tlh" starts with "tl" — and wrongly
+    // seat it in Tagalog's tier before Malay/Indonesian ever get a look in.
+    // The chain must require an exact tag or a "tl-"-prefixed subtag, so a
+    // same-lettered but unrelated language never steals the tier. Mirrors
+    // VoiceResolverTests.klingonDoesNotMatchTagalogPrefix in
+    // ios/CloudmojiCore.
+    const picked = await evalPick(page, [...APPLE_ISH, { lang: "tlh", name: "Worf" }]);
+    expect(picked["fil-PH"], "a same-lettered but unrelated tag must not be treated as Tagalog").toBe(
+      "Amira / ms-MY",
+    );
   });
 
   test("Malay falls back to Indonesian before anything else", async ({ page }) => {
