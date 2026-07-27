@@ -1041,7 +1041,9 @@ Create `ios/CloudmojiCore/Tests/CloudmojiCoreTests/VoiceResolverTests.swift`:
 import Testing
 @testable import CloudmojiCore
 
-private struct FakeVoice: VoiceDescribing, Equatable {
+// Not `private`: Swift 6 rejects an internal property (`appleish` below)
+// whose inferred type is less accessible than the property itself.
+struct FakeVoice: VoiceDescribing, Equatable {
     let lang: String
     let name: String
 }
