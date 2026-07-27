@@ -567,7 +567,10 @@ public struct EmojiRepository: Sendable {
         self.data = data
     }
 
-    public init(bundle: Bundle = .module, resource: String = "EmojiData") throws {
+    // Bundle.module is generated as internal, so it cannot be a default argument
+    // on a public initialiser. Take an optional and fall back inside instead.
+    public init(bundle: Bundle? = nil, resource: String = "EmojiData") throws {
+        let bundle = bundle ?? .module
         guard let url = bundle.url(forResource: resource, withExtension: "json") else {
             throw EmojiRepositoryError.resourceMissing(resource)
         }
