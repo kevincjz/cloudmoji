@@ -95,27 +95,30 @@ struct WordBubbleTests {
         #expect(WordBubblePhase.leaving.scale < 1)
     }
 
-    /// The four legs must add up to the lifetime. They are derived from it, so
-    /// this fails the moment one is replaced by a hand-written literal — which
-    /// is how a bubble ends up still fading after its owner has removed it.
-    @Test("the animation legs fill exactly the 2.2s the web gives the bubble")
-    func legsFillTheLifetime() {
+    /// Pins the three keyframe stops to the literal seconds they must equal.
+    ///
+    /// The obvious version of this test — asserting the four legs sum to
+    /// `lifetime` — cannot fail. The legs are *defined* by telescoping
+    /// subtraction (`settleDuration = settleAt - arriveAt`, and so on), so the
+    /// sum collapses to `lifetime` for any values of the stops whatsoever;
+    /// changing 15% to 40% leaves it green. Review caught that. Assert the
+    /// literals instead, so a drifting stop actually fails something.
+    @Test("the animation stops match the wordFloat keyframe")
+    func stopsMatchTheKeyframe() {
         // 2200ms in `src/components/WordsMode.tsx`, `wordFloat 2.2s` in
         // `src/index.css`. The owner's timeout and this must stay equal.
         #expect(WordBubbleMetrics.lifetime == 2.2)
 
-        let total = WordBubbleMetrics.enterDuration
-            + WordBubbleMetrics.settleDuration
-            + WordBubbleMetrics.holdDuration
-            + WordBubbleMetrics.exitDuration
-        #expect(abs(total - WordBubbleMetrics.lifetime) < 0.0001, "the legs total \(total)s")
+        // `src/index.css` wordFloat: 15% arrive, 25% settle, 78% begin fading.
+        #expect(abs(WordBubbleMetrics.arriveAt - 0.330) < 0.001)
+        #expect(abs(WordBubbleMetrics.settleAt - 0.550) < 0.001)
+        #expect(abs(WordBubbleMetrics.fadeFrom - 1.716) < 0.001)
 
-        for leg in [
-            WordBubbleMetrics.enterDuration, WordBubbleMetrics.settleDuration,
-            WordBubbleMetrics.holdDuration, WordBubbleMetrics.exitDuration,
-        ] {
-            #expect(leg > 0, "a leg of the animation has no duration")
-        }
+        // Ordering, which the literals above already imply but which fails more
+        // legibly than three near-equality checks when a stop is transposed.
+        #expect(WordBubbleMetrics.arriveAt < WordBubbleMetrics.settleAt)
+        #expect(WordBubbleMetrics.settleAt < WordBubbleMetrics.fadeFrom)
+        #expect(WordBubbleMetrics.fadeFrom < WordBubbleMetrics.lifetime)
     }
 
     // MARK: It actually appears

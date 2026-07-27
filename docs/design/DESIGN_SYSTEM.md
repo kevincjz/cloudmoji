@@ -78,7 +78,7 @@ Three fixed-position radial gradients that animate with `bgGlow`:
 | Logo "Cloudmoji" | Lilita One | 21px | 400 | Gradient text (coral→gold→teal) |
 | Tagline | Nunito | 10px | 800 | rgba white 0.3, letter-spacing 0.5 |
 | Word bubble | Nunito | 18px | 900 | White, letter-spacing 0.5 |
-| Category label | Nunito | 12px | 800 | Teal when active, muted when inactive |
+| Category label | Nunito | 14px | 800 | Teal when active, muted when inactive |
 | Language toggle | Nunito | 14px | 900 | White |
 | Placeholder text | Nunito | 13px | 800 | rgba white 0.2 |
 | Tap counter | Nunito | 10px | 800 | rgba white 0.12 |
@@ -86,11 +86,11 @@ Three fixed-position radial gradients that animate with `bgGlow`:
 ## Spacing
 ```
 4px   — xs (gap between tiny elements)
-5px   — category tab padding vertical
-6px   — between category tabs, between glow orbs
-8px   — sm (grid gap, minimum gap between touch targets)
+7px   — category tab padding vertical
+6px   — between glow orbs
+8px   — sm (grid gap, gap between category tabs, minimum gap between touch targets)
 10px  — grid horizontal padding
-11px  — category tab padding horizontal
+16px  — category tab padding horizontal
 12px  — card margin horizontal
 14px  — header padding horizontal
 16px  — md
@@ -114,7 +114,7 @@ Either way, minimum 8px between adjacent targets.
 | Element | Who taps | Size | Border Radius |
 |---------|----------|------|---------------|
 | Emoji button | child | 72 × 72px | 18px |
-| Category tab | child | auto × 64px | 14px |
+| Category tab | child | auto × 64px | 16px |
 | Control button (replay/delete/clear) | child | 64 × 64px | 12px |
 | Typed emoji (re-speak) | child | 64 × 64px | — (inline text) |
 | Language toggle | parent | auto × 44px | 16px |
@@ -124,7 +124,7 @@ Either way, minimum 8px between adjacent targets.
 Everything is rounded. No sharp corners anywhere.
 ```
 12px — control buttons, language dropdown
-14px — category tabs
+16px — category tabs
 16px — language toggle, typing row inner
 18px — emoji buttons
 20px — typing row container, word bubble
