@@ -49,21 +49,21 @@ Five items were deferred out of `CloudmojiCore` with a note to land here. Each h
 
 | File | Responsibility |
 |---|---|
-| `ios/Cloudmoji.xcodeproj` | App project (created in Task 1) |
-| `ios/Cloudmoji/CloudmojiApp.swift` | `@main`, audio session setup |
-| `ios/Cloudmoji/SystemSpeechEngine.swift` | `AVSpeechSynthesizer` bound to `SpeechEngine` |
-| `ios/Cloudmoji/AppModel.swift` | `@Observable` — repository, settings, filtered content |
-| `ios/Cloudmoji/Theme.swift` | Colours and fonts, one place |
-| `ios/Cloudmoji/Views/CloudMascot.swift` | The mascot, four moods |
-| `ios/Cloudmoji/Views/EmojiTile.swift` | One 72pt tile |
-| `ios/Cloudmoji/Views/EmojiGrid.swift` | Scrollable grid |
-| `ios/Cloudmoji/Views/TypingRow.swift` | Tapped emojis, capped at 50 |
-| `ios/Cloudmoji/Views/WordBubble.swift` | Floating word label |
-| `ios/Cloudmoji/Views/CategorySource.swift` | Category list — one component, two layouts |
-| `ios/Cloudmoji/Views/WordsView.swift` | Assembles Words mode |
-| `ios/Cloudmoji/Views/AdaptiveShell.swift` | Chooses rail vs bars from size class |
-| `ios/CloudmojiTests/` | Unit tests for the adapter and model |
-| `ios/CloudmojiUITests/` | XCUITest for behaviour and touch targets |
+| `ios/Cloudmoji/Cloudmoji.xcodeproj` | App project (created in Task 1) |
+| `ios/Cloudmoji/Cloudmoji/CloudmojiApp.swift` | `@main`, audio session setup |
+| `ios/Cloudmoji/Cloudmoji/SystemSpeechEngine.swift` | `AVSpeechSynthesizer` bound to `SpeechEngine` |
+| `ios/Cloudmoji/Cloudmoji/AppModel.swift` | `@Observable` — repository, settings, filtered content |
+| `ios/Cloudmoji/Cloudmoji/Theme.swift` | Colours and fonts, one place |
+| `ios/Cloudmoji/Cloudmoji/Views/CloudMascot.swift` | The mascot, four moods |
+| `ios/Cloudmoji/Cloudmoji/Views/EmojiTile.swift` | One 72pt tile |
+| `ios/Cloudmoji/Cloudmoji/Views/EmojiGrid.swift` | Scrollable grid |
+| `ios/Cloudmoji/Cloudmoji/Views/TypingRow.swift` | Tapped emojis, capped at 50 |
+| `ios/Cloudmoji/Cloudmoji/Views/WordBubble.swift` | Floating word label |
+| `ios/Cloudmoji/Cloudmoji/Views/CategorySource.swift` | Category list — one component, two layouts |
+| `ios/Cloudmoji/Cloudmoji/Views/WordsView.swift` | Assembles Words mode |
+| `ios/Cloudmoji/Cloudmoji/Views/AdaptiveShell.swift` | Chooses rail vs bars from size class |
+| `ios/Cloudmoji/CloudmojiTests/` | Unit tests for the adapter and model |
+| `ios/Cloudmoji/CloudmojiUITests/` | XCUITest for behaviour and touch targets |
 
 ---
 
@@ -73,7 +73,7 @@ This is the one task a subagent cannot do: Xcode's project wizard is GUI-only. F
 steps, then run the verification command. Everything after this is automatable.
 
 **Files:**
-- Create: `ios/Cloudmoji.xcodeproj`, `ios/Cloudmoji/CloudmojiApp.swift`, `ios/Cloudmoji/ContentView.swift`
+- Create: `ios/Cloudmoji/Cloudmoji.xcodeproj`, `ios/Cloudmoji/Cloudmoji/CloudmojiApp.swift`, `ios/Cloudmoji/Cloudmoji/ContentView.swift`
 - Create: `ios/Cloudmoji/Resources/Fonts/` (two font files)
 - Modify: `docs/superpowers/specs/2026-07-27-ios-watchos-app-design.md` (setup steps 6 and 8)
 
@@ -109,7 +109,9 @@ sheet appears, navigate to `/Users/kevincjz/Programming/cloudmoji/ios` and untic
 - [ ] **Step 2: Set the identifier and deployment target**
 
 Select the project in the navigator → **Cloudmoji** target → **General**:
-- Minimum Deployments → iOS **17.0**
+- Minimum Deployments → iOS **17.0**. Xcode defaults this to whatever OS you are
+  running (26.5 on this machine), which would restrict the app to devices on that
+  release — effectively nobody. This is the easiest setting to leave wrong.
 - iPhone and iPad both ticked, Mac unticked
 
 Leave the bundle identifier as `app.cloudmoji.Cloudmoji`. It is the reverse-DNS of
@@ -148,7 +150,7 @@ Use whatever the files are actually named — the names must match exactly.
 Run from the repo root:
 
 ```bash
-xcodebuild -project ios/Cloudmoji.xcodeproj -scheme Cloudmoji \
+xcodebuild -project ios/Cloudmoji/Cloudmoji.xcodeproj -scheme Cloudmoji \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' \
   build 2>&1 | tail -5
 ```
@@ -163,7 +165,7 @@ xcrun simctl list devices available | grep iPhone
 
 - [ ] **Step 6: Verify the package is actually linked**
 
-Replace the body of `ios/Cloudmoji/ContentView.swift` with:
+Replace the body of `ios/Cloudmoji/Cloudmoji/ContentView.swift` with:
 
 ```swift
 import SwiftUI
@@ -208,7 +210,7 @@ and renumber the remaining steps.
 - [ ] **Step 8: Commit**
 
 ```bash
-git add ios/Cloudmoji.xcodeproj ios/Cloudmoji docs/superpowers/specs
+git add ios/Cloudmoji/Cloudmoji.xcodeproj ios/Cloudmoji docs/superpowers/specs
 git commit -m "feat(ios): add the Cloudmoji app target
 
 Universal iOS 17 app linking the CloudmojiCore package. EmojiData.json stays
@@ -221,8 +223,8 @@ into the target, which the spec's setup steps had wrong."
 ### Task 2: Speech engine adapter
 
 **Files:**
-- Create: `ios/Cloudmoji/SystemSpeechEngine.swift`
-- Test: `ios/CloudmojiTests/SystemSpeechEngineTests.swift`
+- Create: `ios/Cloudmoji/Cloudmoji/SystemSpeechEngine.swift`
+- Test: `ios/Cloudmoji/CloudmojiTests/SystemSpeechEngineTests.swift`
 
 **Interfaces:**
 - Consumes: `SpeechEngine`, `SpeechUtterance`, `VoiceDescribing` from `CloudmojiCore`
@@ -230,7 +232,7 @@ into the target, which the spec's setup steps had wrong."
 
 - [ ] **Step 1: Write the failing test**
 
-Create `ios/CloudmojiTests/SystemSpeechEngineTests.swift`:
+Create `ios/Cloudmoji/CloudmojiTests/SystemSpeechEngineTests.swift`:
 
 ```swift
 import Testing
@@ -293,7 +295,7 @@ struct SystemSpeechEngineTests {
 Run:
 
 ```bash
-xcodebuild -project ios/Cloudmoji.xcodeproj -scheme Cloudmoji \
+xcodebuild -project ios/Cloudmoji/Cloudmoji.xcodeproj -scheme Cloudmoji \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' \
   test 2>&1 | grep -E "error:|Testing failed" | head -5
 ```
@@ -302,7 +304,7 @@ Expected: `cannot find 'SystemSpeechEngine' in scope`
 
 - [ ] **Step 3: Write the implementation**
 
-Create `ios/Cloudmoji/SystemSpeechEngine.swift`:
+Create `ios/Cloudmoji/Cloudmoji/SystemSpeechEngine.swift`:
 
 ```swift
 import AVFoundation
@@ -393,7 +395,7 @@ Expected: `** TEST SUCCEEDED **`, 4 tests.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add ios/Cloudmoji ios/CloudmojiTests
+git add ios/Cloudmoji
 git commit -m "feat(ios): bind AVSpeechSynthesizer to the SpeechEngine protocol
 
 Voices are cached — enumerating them is not free and this sits on the
@@ -565,8 +567,8 @@ route change would otherwise strand the rest of a replay until the next tap."
 ### Task 4: App model
 
 **Files:**
-- Create: `ios/Cloudmoji/AppModel.swift`
-- Test: `ios/CloudmojiTests/AppModelTests.swift`
+- Create: `ios/Cloudmoji/Cloudmoji/AppModel.swift`
+- Test: `ios/Cloudmoji/CloudmojiTests/AppModelTests.swift`
 
 **Interfaces:**
 - Consumes: `EmojiRepository`, `SettingsStore`, `CountingGrammar`, `VoiceResolver`,
@@ -603,7 +605,7 @@ model in Step 5.
 
 - [ ] **Step 2: Write the failing test**
 
-Create `ios/CloudmojiTests/AppModelTests.swift`:
+Create `ios/Cloudmoji/CloudmojiTests/AppModelTests.swift`:
 
 ```swift
 import Foundation
@@ -675,7 +677,7 @@ Expected: `cannot find 'AppModel' in scope`
 
 - [ ] **Step 4: Write the implementation**
 
-Create `ios/Cloudmoji/AppModel.swift`:
+Create `ios/Cloudmoji/Cloudmoji/AppModel.swift`:
 
 ```swift
 import Foundation
@@ -751,7 +753,7 @@ Expected: `** TEST SUCCEEDED **`, 9 tests.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add ios/Cloudmoji ios/CloudmojiTests ios/CloudmojiCore
+git add ios/Cloudmoji ios/CloudmojiCore
 git commit -m "feat(ios): add AppModel
 
 Settings filtering lives here so views consume an already-narrowed list and
@@ -764,8 +766,8 @@ the SettingsStore isolation question Stage 1 left open."
 ### Task 5: Theme and mascot
 
 **Files:**
-- Create: `ios/Cloudmoji/Theme.swift`, `ios/Cloudmoji/Views/CloudMascot.swift`
-- Modify: `ios/Cloudmoji/ContentView.swift` (replace the Task 1 placeholder)
+- Create: `ios/Cloudmoji/Cloudmoji/Theme.swift`, `ios/Cloudmoji/Cloudmoji/Views/CloudMascot.swift`
+- Modify: `ios/Cloudmoji/Cloudmoji/ContentView.swift` (replace the Task 1 placeholder)
 
 **Interfaces:**
 - Consumes: nothing from earlier tasks
@@ -776,7 +778,7 @@ the SettingsStore isolation question Stage 1 left open."
 
 - [ ] **Step 1: Write the theme**
 
-Create `ios/Cloudmoji/Theme.swift`:
+Create `ios/Cloudmoji/Cloudmoji/Theme.swift`:
 
 ```swift
 import SwiftUI
@@ -816,7 +818,7 @@ enum Theme {
 
 - [ ] **Step 2: Write the mascot**
 
-Create `ios/Cloudmoji/Views/CloudMascot.swift`:
+Create `ios/Cloudmoji/Cloudmoji/Views/CloudMascot.swift`:
 
 ```swift
 import SwiftUI
@@ -933,7 +935,7 @@ struct CloudMascot: View {
 
 - [ ] **Step 3: Verify it renders**
 
-Open `ios/Cloudmoji/Views/CloudMascot.swift` in Xcode and resume the preview
+Open `ios/Cloudmoji/Cloudmoji/Views/CloudMascot.swift` in Xcode and resume the preview
 (**Cmd+Option+P**). All four moods should render as recognisable cloud faces: round eyes
 and a small smile for happy, gold stars for excited, an open coral mouth for speaking, and
 squinting eyes with a golden glow for beaming.
@@ -960,7 +962,7 @@ Mascot is drawn with shapes rather than a ported SVG, so it scales from the
 ### Task 6: Emoji tile and grid
 
 **Files:**
-- Create: `ios/Cloudmoji/Views/EmojiTile.swift`, `ios/Cloudmoji/Views/EmojiGrid.swift`
+- Create: `ios/Cloudmoji/Cloudmoji/Views/EmojiTile.swift`, `ios/Cloudmoji/Cloudmoji/Views/EmojiGrid.swift`
 
 **Interfaces:**
 - Consumes: `Theme` from Task 5; `EmojiEntry` from `CloudmojiCore`
@@ -968,7 +970,7 @@ Mascot is drawn with shapes rather than a ported SVG, so it scales from the
 
 - [ ] **Step 1: Write the tile**
 
-Create `ios/Cloudmoji/Views/EmojiTile.swift`:
+Create `ios/Cloudmoji/Cloudmoji/Views/EmojiTile.swift`:
 
 ```swift
 import SwiftUI
@@ -1003,7 +1005,7 @@ struct EmojiTile: View {
 
 - [ ] **Step 2: Write the grid**
 
-Create `ios/Cloudmoji/Views/EmojiGrid.swift`:
+Create `ios/Cloudmoji/Cloudmoji/Views/EmojiGrid.swift`:
 
 ```swift
 import SwiftUI
@@ -1064,7 +1066,7 @@ iPad without a breakpoint."
 ### Task 7: Typing row and word bubble
 
 **Files:**
-- Create: `ios/Cloudmoji/Views/TypingRow.swift`, `ios/Cloudmoji/Views/WordBubble.swift`
+- Create: `ios/Cloudmoji/Cloudmoji/Views/TypingRow.swift`, `ios/Cloudmoji/Cloudmoji/Views/WordBubble.swift`
 
 **Interfaces:**
 - Consumes: `Theme` from Task 5
@@ -1075,7 +1077,7 @@ iPad without a breakpoint."
 
 - [ ] **Step 1: Write the typing row**
 
-Create `ios/Cloudmoji/Views/TypingRow.swift`:
+Create `ios/Cloudmoji/Cloudmoji/Views/TypingRow.swift`:
 
 ```swift
 import SwiftUI
@@ -1151,7 +1153,7 @@ struct TypingRow: View {
 
 - [ ] **Step 2: Write the word bubble**
 
-Create `ios/Cloudmoji/Views/WordBubble.swift`:
+Create `ios/Cloudmoji/Cloudmoji/Views/WordBubble.swift`:
 
 ```swift
 import SwiftUI
@@ -1205,7 +1207,7 @@ them, so they follow the child-facing rule rather than the 44pt HIG minimum."
 ### Task 8: Category source and adaptive shell
 
 **Files:**
-- Create: `ios/Cloudmoji/Views/CategorySource.swift`, `ios/Cloudmoji/Views/AdaptiveShell.swift`
+- Create: `ios/Cloudmoji/Cloudmoji/Views/CategorySource.swift`, `ios/Cloudmoji/Cloudmoji/Views/AdaptiveShell.swift`
 
 **Interfaces:**
 - Consumes: `Theme`, `AppModel`, `CategoryTab`
@@ -1215,7 +1217,7 @@ them, so they follow the child-facing rule rather than the 44pt HIG minimum."
 
 - [ ] **Step 1: Write the category source**
 
-Create `ios/Cloudmoji/Views/CategorySource.swift`:
+Create `ios/Cloudmoji/Cloudmoji/Views/CategorySource.swift`:
 
 ```swift
 import SwiftUI
@@ -1292,7 +1294,7 @@ struct CategorySource: View {
 
 - [ ] **Step 2: Write the adaptive shell**
 
-Create `ios/Cloudmoji/Views/AdaptiveShell.swift`:
+Create `ios/Cloudmoji/Cloudmoji/Views/AdaptiveShell.swift`:
 
 ```swift
 import SwiftUI
@@ -1346,8 +1348,8 @@ The web app kept two copies and three edits landed on the dead one."
 ### Task 9: Words mode
 
 **Files:**
-- Create: `ios/Cloudmoji/Views/WordsView.swift`
-- Modify: `ios/Cloudmoji/ContentView.swift`, `ios/Cloudmoji/CloudmojiApp.swift`
+- Create: `ios/Cloudmoji/Cloudmoji/Views/WordsView.swift`
+- Modify: `ios/Cloudmoji/Cloudmoji/ContentView.swift`, `ios/Cloudmoji/Cloudmoji/CloudmojiApp.swift`
 
 **Interfaces:**
 - Consumes: everything from Tasks 4–8
@@ -1355,7 +1357,7 @@ The web app kept two copies and three edits landed on the dead one."
 
 - [ ] **Step 1: Write Words mode**
 
-Create `ios/Cloudmoji/Views/WordsView.swift`:
+Create `ios/Cloudmoji/Cloudmoji/Views/WordsView.swift`:
 
 ```swift
 import SwiftUI
@@ -1538,7 +1540,7 @@ struct WordsView: View {
 
 - [ ] **Step 2: Wire it up**
 
-Replace `ios/Cloudmoji/ContentView.swift` entirely:
+Replace `ios/Cloudmoji/Cloudmoji/ContentView.swift` entirely:
 
 ```swift
 import SwiftUI
@@ -1550,7 +1552,7 @@ struct ContentView: View {
 }
 ```
 
-Replace `ios/Cloudmoji/CloudmojiApp.swift` entirely:
+Replace `ios/Cloudmoji/Cloudmoji/CloudmojiApp.swift` entirely:
 
 ```swift
 import SwiftUI
@@ -1601,7 +1603,7 @@ share one view body and differ only in how the pieces are arranged."
 ### Task 10: UI tests
 
 **Files:**
-- Create: `ios/CloudmojiUITests/WordsModeUITests.swift`
+- Create: `ios/Cloudmoji/CloudmojiUITests/WordsModeUITests.swift`
 
 **Interfaces:**
 - Consumes: accessibility identifiers set in Tasks 6–9
@@ -1609,7 +1611,7 @@ share one view body and differ only in how the pieces are arranged."
 
 - [ ] **Step 1: Write the tests**
 
-Create `ios/CloudmojiUITests/WordsModeUITests.swift`:
+Create `ios/Cloudmoji/CloudmojiUITests/WordsModeUITests.swift`:
 
 ```swift
 import XCTest
@@ -1682,7 +1684,7 @@ final class WordsModeUITests: XCTestCase {
 Run:
 
 ```bash
-xcodebuild -project ios/Cloudmoji.xcodeproj -scheme Cloudmoji \
+xcodebuild -project ios/Cloudmoji/Cloudmoji.xcodeproj -scheme Cloudmoji \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' \
   test 2>&1 | tail -8
 ```
@@ -1692,7 +1694,7 @@ Expected: `** TEST SUCCEEDED **` — the unit tests from Tasks 2 and 4 plus thes
 - [ ] **Step 3: Commit**
 
 ```bash
-git add ios/CloudmojiUITests
+git add ios/Cloudmoji
 git commit -m "test(ios): UI tests for Words mode
 
 Covers the behaviours regression-tested on web: the tap loop, the typing row,
