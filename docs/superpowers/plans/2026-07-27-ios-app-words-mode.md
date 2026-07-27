@@ -29,6 +29,29 @@ Settings and About. **Stage 3** is watchOS.
 - Content comes from `CloudmojiCore`; never hand-write emoji data in Swift.
 - Commit after every task.
 
+### Typography (decided 2026-07-28, supersedes Task 1 Step 4)
+
+The web app pulls Nunito and Lilita One from the Google Fonts CDN. The iOS app
+cannot: Kids Category forbids network calls, so any custom face must ship as a
+file in the bundle. Kevin chose the hybrid:
+
+- **UI / body — SF Rounded.** `Font.cloudmojiRounded(size:weight:)`. Zero bytes,
+  responds to Dynamic Type, and carries the same low-contrast friendly feel as
+  Nunito. Use this for every label, tab, and word bubble.
+- **Logo only — Lilita One.** `Font.cloudmojiLogo(size:)`. Bundled at
+  `Cloudmoji/Resources/Fonts/LilitaOne-Regular.ttf` (27 KB, SIL OFL, licence
+  kept alongside as `OFL.txt`).
+
+`UIAppFonts` is deliberately NOT used. The target generates its Info.plist from
+build settings and `INFOPLIST_KEY_` passthrough writes strings, so an array key
+comes out malformed and the font falls back to the system face without error.
+`BundledFonts.register()` registers through Core Text instead, which is both
+reliable and assertable — `BundledFontsTests` fails loudly if the face stops
+resolving. Call `BundledFonts.register()` once at app launch.
+
+The PostScript name is `LilitaOne`. The family name is `Lilita One`, with a
+space; `UIFont(name:)` matches the PostScript name and returns nil for the other.
+
 ---
 
 ## Carried over from Stage 1
