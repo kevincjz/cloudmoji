@@ -24,6 +24,11 @@ final class AppModel {
 
     private let repository: EmojiRepository
     private let allEmojis: [EmojiEntry]
+    /// Glyph → category, built once. `Countable` carries no category of its own,
+    /// so narrowing the 84 countables to the categories a parent left enabled
+    /// means joining on the glyph against the 200-entry emoji catalogue. Doing
+    /// that per lookup would be 200 comparisons per tile per round.
+    private let categoryByGlyph: [String: Category]
     /// Retained so the voice cache can be dropped on foreground. `SpeechController`
     /// deliberately knows the engine only as a protocol, so it cannot forward this.
     private let engine: SystemSpeechEngine
@@ -36,6 +41,14 @@ final class AppModel {
         let repo = (try? EmojiRepository()) ?? .empty
         self.repository = repo
         self.allEmojis = repo.emojis
+        // `uniquingKeysWith` rather than a plain `Dictionary(uniqueKeysWithValues:)`:
+        // the generator's parity check enforces that a glyph appears once across
+        // the whole catalogue, and if that ever stopped being true the first entry
+        // is as good an answer as the last. It must not trap.
+        self.categoryByGlyph = Dictionary(
+            repo.emojis.map { ($0.emoji, $0.cat) },
+            uniquingKeysWith: { first, _ in first }
+        )
         self.grammar = CountingGrammar(repository: repo)
         let engine = SystemSpeechEngine()
         self.engine = engine
@@ -69,6 +82,52 @@ final class AppModel {
             guard let category else { return true }
             return entry.cat == category
         }
+    }
+
+    /// The countables Count mode may draw from, narrowed to the categories the
+    /// parent left enabled.
+    ///
+    /// Filtering happens here for the same reason it does for emojis: `CountView`
+    /// consumes an already-narrowed catalogue and never branches on a setting.
+    var countables: [Countable] {
+        Self.narrowed(
+            repository.countables,
+            to: settings.enabledCategories,
+            categoryOf: { categoryByGlyph[$0.emoji] }
+        )
+    }
+
+    /// The narrowing rule, pure so it can be given cases the shipped data does not
+    /// contain.
+    ///
+    /// Two rules, both deliberate. A countable that maps to **no** category — 🌟
+    /// is the only one today, because it is in `countables.ts` and not in
+    /// `emojis.ts` — is always available: a parent has no switch that could remove
+    /// it, so removing it would be removing something they never asked to lose.
+    /// And a narrowing that leaves **nothing** degrades to the whole catalogue
+    /// rather than to an empty screen, because a blank Count mode is a failure
+    /// state and rule 4 says the child never sees one.
+    static func narrowed(
+        _ countables: [Countable],
+        to categories: Set<Category>,
+        categoryOf: (Countable) -> Category?
+    ) -> [Countable] {
+        let kept = countables.filter { item in
+            guard let category = categoryOf(item) else { return true }
+            return categories.contains(category)
+        }
+        return kept.isEmpty ? countables : kept
+    }
+
+    /// How high this family counts. `SettingsStore` has already clamped it into
+    /// `SettingsStore.countBounds` and un-inverted it, so this needs no checking.
+    var countRange: ClosedRange<Int> { settings.countRange }
+
+    /// "three dogs", "三只狗", "いぬ みっつ", "tatlong aso" — built by
+    /// `CountingGrammar`, which is where the five languages' rules live and are
+    /// tested. This exists so the view never has to know the language either.
+    func phrase(for item: Countable, count: Int) -> String {
+        grammar.phrase(item, count: count, in: settings.language)
     }
 
     func word(for entry: EmojiEntry) -> String {

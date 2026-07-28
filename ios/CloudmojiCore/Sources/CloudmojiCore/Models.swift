@@ -48,6 +48,29 @@ public struct Countable: Codable, Sendable, Hashable, Identifiable {
     /// ja and tl stay bare — their morphology lives on the number.
     public let zh, ms, ja, tl: String
 
+    /// Swift synthesises only an `internal` memberwise initialiser for a `public`
+    /// struct, so without this the app target cannot construct a `Countable` at
+    /// all — including in a test fixture. Decoding is still how real content
+    /// arrives; this exists for fixtures and for anything that needs to model a
+    /// countable the shipped data does not happen to contain.
+    public init(
+        emoji: String,
+        en: String,
+        enPlural: String? = nil,
+        zh: String,
+        ms: String,
+        ja: String,
+        tl: String
+    ) {
+        self.emoji = emoji
+        self.en = en
+        self.enPlural = enPlural
+        self.zh = zh
+        self.ms = ms
+        self.ja = ja
+        self.tl = tl
+    }
+
     public var id: String { emoji }
 
     public func noun(_ language: Language) -> String {
