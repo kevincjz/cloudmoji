@@ -28,6 +28,7 @@ struct ThemeTests {
             ("bgEdge", Theme.bgEdge, "#0D2137"),
             ("coral", Theme.coral, "#FF6B6B"),
             ("teal", Theme.teal, "#4ECDC4"),
+            ("tealDeep", Theme.tealDeep, "#44B8AC"),
             ("gold", Theme.gold, "#FFE66D"),
             ("amber", Theme.amber, "#FFB347"),
             ("textPrimary", Theme.textPrimary, "#FFFFFF"),
@@ -41,7 +42,7 @@ struct ThemeTests {
             ("blushBeaming", Theme.blushBeaming, "#FF9E9E"),
         ]
         // Guards the table itself: dropping a row would quietly shrink coverage.
-        #expect(palette.count == 16)
+        #expect(palette.count == 17)
 
         for (name, color, expected) in palette {
             #expect(hex(color) == expected, "\(name) is off palette")
@@ -88,9 +89,16 @@ struct ThemeTests {
         #expect(abs(components(Theme.textMuted).a - 0.2) < 0.001)
         #expect(abs(components(Theme.surface).a - 0.04) < 0.001)
         #expect(abs(components(Theme.surfaceBorder).a - 0.06) < 0.001)
+        #expect(abs(components(Theme.surfaceBorderStrong).a - 0.12) < 0.001)
+        #expect(abs(components(Theme.textTertiary).a - 0.6) < 0.001)
         // Muted is quieter than secondary, or the placeholder competes with the
         // labels a parent actually needs to read.
         #expect(components(Theme.textMuted).a < components(Theme.textSecondary).a)
+        // The strong border is exactly twice the hairline, and the tertiary text
+        // sits between secondary and primary. Both are relationships the design
+        // system states and neither survives a token being redefined by feel.
+        #expect(components(Theme.surfaceBorderStrong).a > components(Theme.surfaceBorder).a)
+        #expect(components(Theme.textTertiary).a > components(Theme.textSecondary).a)
     }
 
     // MARK: Type

@@ -18,6 +18,7 @@
 --coral:         #FF6B6B;  /* Primary — taps, mascot mouth, energy */
 --teal:          #4ECDC4;  /* Secondary — active states, replay, mascot glow */
 --gold:          #FFE66D;  /* Accent — celebrations, sparkles, beaming glow */
+--teal-deep:     #44B8AC;  /* far stop of the count badge gradient */
 ```
 
 ### Surface
@@ -25,6 +26,7 @@
 --surface-card:     rgba(255, 255, 255, 0.04);
 --surface-hover:    rgba(255, 255, 255, 0.06);
 --surface-border:   rgba(255, 255, 255, 0.06);
+--surface-border-strong: rgba(255, 255, 255, 0.12);  /* count tiles, header buttons, gate card */
 --surface-active:   rgba(78, 205, 196, 0.20);   /* teal tint for active tabs */
 --border-active:    rgba(78, 205, 196, 0.40);
 ```
@@ -32,6 +34,7 @@
 ### Text
 ```css
 --text-primary:    #FFFFFF;
+--text-tertiary:   rgba(255, 255, 255, 0.6);
 --text-secondary:  rgba(255, 255, 255, 0.4);
 --text-muted:      rgba(255, 255, 255, 0.2);
 --text-disabled:   rgba(255, 255, 255, 0.12);

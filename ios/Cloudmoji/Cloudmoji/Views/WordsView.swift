@@ -163,45 +163,19 @@ struct WordsView: View {
 
     // MARK: - Pieces
 
+    /// The shared strip. Everything it used to draw here — the mascot, the
+    /// wordmark, the language picker and the 14pt inset — now lives in
+    /// `ModeHeader`, along with the mute button this screen never had.
+    ///
+    /// One property rather than the same four-line construction in both layouts:
+    /// portrait and landscape must always pass it the same title, and the web's
+    /// two copies of this header are how three edits landed on a dead one.
     private var header: some View {
-        HStack(spacing: 8) {
-            CloudMascot(mood: mood, size: isCompact ? 42 : 64)
-            VStack(alignment: .leading, spacing: 1) {
-                Text("Cloudmoji")
-                    .font(Theme.display(isCompact ? 17 : 21))
-                    .foregroundStyle(Theme.teal)
-                if !isCompact {
-                    Text("Tap. Listen. Learn!")
-                        .font(Theme.body(10, .heavy))
-                        .foregroundStyle(Theme.textSecondary)
-                }
-            }
-            Spacer()
-            languagePicker
-        }
-        .padding(.horizontal, 14)
-    }
-
-    private var languagePicker: some View {
-        @Bindable var settings = model.settings
-        return Picker("Language", selection: $settings.language) {
-            ForEach(model.availableLanguages) { meta in
-                Text(meta.short).tag(meta.id)
-            }
-        }
-        .pickerStyle(.menu)
-        // A menu picker draws its current value as tinted text, which is the
-        // system accent blue unless it is said otherwise.
-        .tint(Theme.textPrimary)
-        // Parent-facing chrome, so the 44pt HIG minimum rather than 64pt.
-        // Forcing 64 here swallows the header on a 375pt screen.
-        .frame(minWidth: 44, minHeight: 44)
-        // The frame alone does NOT grow a menu picker's hit area — it lays out
-        // at 62 x 34 and only the text is tappable, which the UI tests measured.
-        // `contentShape` is what actually extends the tappable region to the
-        // frame we just asked for.
-        .contentShape(Rectangle())
-        .accessibilityIdentifier("lang-picker")
+        ModeHeader(
+            mood: mood,
+            title: "Cloudmoji",
+            subtitle: "Tap. Listen. Learn!"
+        )
     }
 
     private var typingRow: some View {

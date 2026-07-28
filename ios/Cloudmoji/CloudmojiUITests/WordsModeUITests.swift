@@ -461,4 +461,66 @@ final class WordsModeUITests: XCTestCase {
             "the picker is \(frame.width)pt wide, under the 44pt HIG minimum"
         )
     }
+
+    /// The mute control, end to end.
+    ///
+    /// Everything behind it shipped in Stage 2a and nothing reached it:
+    /// `SettingsStore.muted` persisted, `TypingRow` hid replay for it,
+    /// `WordsView.speak` had a muted branch for it, and no control anywhere set
+    /// it. `TypingRowTests.mutingHidesReplay` passed the whole time, because a
+    /// unit test hands the row the flag itself — the thing that was missing was
+    /// a way for a *parent* to set it, and only a real tree can show that.
+    ///
+    /// So the assertion is not "muted is true" but the observable consequence:
+    /// `replay-btn` leaves the row and comes back. That is the same wiring the
+    /// speaker is on.
+    func testTheMuteButtonIsReachableAndSilencesTheApp() {
+        let app = launch()
+        app.buttons["emoji-🍎"].tap()
+        XCTAssertTrue(
+            app.buttons["replay-btn"].waitForExistence(timeout: 3),
+            "setup: replay should be in the row while the app is unmuted"
+        )
+
+        let mute = app.buttons["mute-btn"]
+        XCTAssertTrue(mute.waitForExistence(timeout: 3), "there is no mute button in the tree")
+        // Parent chrome, so the 44pt HIG minimum — not the 64pt child floor.
+        XCTAssertGreaterThanOrEqual(mute.frame.height, 44 - Self.tolerance,
+                                    "the mute button is \(mute.frame.height)pt tall")
+        XCTAssertGreaterThanOrEqual(mute.frame.width, 44 - Self.tolerance,
+                                    "the mute button is \(mute.frame.width)pt wide")
+
+        mute.tap()
+        XCTAssertTrue(
+            app.buttons["replay-btn"].waitForNonExistence(timeout: 5),
+            "tapping mute changed nothing — the control is still not wired to the setting"
+        )
+        // The label is the parent's only readout of which state they are in.
+        XCTAssertEqual(app.buttons["mute-btn"].label, "Unmute",
+                       "the muted button still offers to mute")
+
+        app.buttons["mute-btn"].tap()
+        XCTAssertTrue(
+            app.buttons["replay-btn"].waitForExistence(timeout: 5),
+            "unmuting did not bring the sound — or the row — back"
+        )
+    }
+
+    /// The mascot was `.accessibilityHidden(true)`, so no test in any target could
+    /// see it and deleting the milestone celebration outright left the whole suite
+    /// green. This is the check that the identifier actually reaches the tree —
+    /// setting one on a hidden element compiles and does nothing.
+    func testTheMascotPublishesItsMood() {
+        let app = launch()
+        let mascot = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "mascot-"))
+        XCTAssertGreaterThan(
+            mascot.count, 0,
+            "no mascot-<mood> element in the tree — the mood is unobservable again"
+        )
+        XCTAssertTrue(
+            app.descendants(matching: .any)["mascot-happy"].exists,
+            "the resting mascot should publish mascot-happy"
+        )
+    }
 }

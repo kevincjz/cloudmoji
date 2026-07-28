@@ -2,7 +2,11 @@ import SwiftUI
 
 /// How the cloud is feeling. The child never sets this directly — it follows
 /// taps and speech, and `beaming` (a milestone) outranks everything else.
-enum MascotMood: CaseIterable, Hashable {
+///
+/// The raw values are a contract with the UI tests: `CloudMascot` publishes the
+/// current mood as the accessibility identifier `mascot-<rawValue>`, which is
+/// the only way a UI test can observe that the celebration ever happens.
+enum MascotMood: String, CaseIterable, Hashable {
     case happy, excited, speaking, beaming
 }
 
@@ -224,7 +228,20 @@ struct CloudMascot: View {
             .compositingGroup()
             .shadow(color: style.glowShadow, radius: size * 0.075, x: 0, y: size * 0.06)
             .animation(.easeInOut(duration: 0.3), value: style.glowShadow)
-            .accessibilityHidden(true)
+            // NOT `.accessibilityHidden(true)`, which is what shipped and what made
+            // every mood unobservable: a hidden element is absent from the tree, so
+            // no UI test can assert the mascot ever celebrates. Deleting the
+            // celebration outright left the entire Stage 2a suite green.
+            //
+            // `children: .ignore` collapses the twenty-odd shapes into one element.
+            // The label is real rather than empty because this element is now
+            // visible to VoiceOver, and an unlabelled one announces as "image" —
+            // "Cloudmoji" is both truthful and the better thing for a parent
+            // running VoiceOver to hear. The mood rides on the identifier, which
+            // VoiceOver never speaks.
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Cloudmoji")
+            .accessibilityIdentifier("mascot-\(mood.rawValue)")
     }
 
     private var art: some View {

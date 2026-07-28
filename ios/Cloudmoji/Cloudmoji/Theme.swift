@@ -37,6 +37,11 @@ enum Theme {
     static let teal = Color(red: 0.306, green: 0.804, blue: 0.769)  // #4ECDC4
     static let gold = Color(red: 1.0, green: 0.902, blue: 0.427)    // #FFE66D
 
+    /// The far stop of the count badge's `linear-gradient(135deg, #4ECDC4, #44B8AC)`.
+    /// A flat teal badge reads as a sticker; the gradient is what makes it look
+    /// like it landed on the tile.
+    static let tealDeep = Color(red: 0.267, green: 0.722, blue: 0.675)  // #44B8AC
+
     /// `--btn-delete`, the only colour in the system that is not one of the three
     /// brand hues. It is a *warmer* orange than ``gold`` on purpose: delete sits
     /// between replay (teal, safe) and clear (coral, destructive), and reusing
@@ -48,10 +53,20 @@ enum Theme {
     static let surface = Color.white.opacity(0.04)
     static let surfaceBorder = Color.white.opacity(0.06)
 
+    /// Twice the weight of ``surfaceBorder``. Used where the outline is doing
+    /// structural work rather than being a hairline: count tiles a child is
+    /// aiming at, the parent-chrome buttons in the header, and the gate's card.
+    static let surfaceBorderStrong = Color.white.opacity(0.12)
+
     // MARK: - Text
 
     static let textPrimary = Color.white                     // #FFFFFF
     static let textSecondary = Color.white.opacity(0.4)
+
+    /// `--text-tertiary`. Brighter than ``textSecondary`` because the count
+    /// phrase under the big numeral is the word being spoken — it has to be
+    /// readable, not merely present.
+    static let textTertiary = Color.white.opacity(0.6)
 
     /// `--text-muted`. Quieter than ``textSecondary`` — for copy the parent may
     /// read once and the child never will, such as the typing row's placeholder.
