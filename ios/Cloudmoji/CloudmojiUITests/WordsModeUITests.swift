@@ -530,4 +530,60 @@ final class WordsModeUITests: XCTestCase {
             "the resting mascot should publish mascot-happy"
         )
     }
+
+    /// Nothing the app draws may overlap the Dynamic Island or status bar, in
+    /// either orientation.
+    ///
+    /// Asserts frames do not INTERSECT, rather than comparing edges on one axis.
+    /// Two earlier versions of this test were wrong in instructive ways: the
+    /// first compared the bubble to the mascot, which would pass even if the
+    /// whole header were buried under the island since both move together; the
+    /// second compared `minY` against the status bar's `maxY`, which is
+    /// meaningless in landscape, where the bar is a rotated strip down the
+    /// leading edge and its `maxY` is the bottom of the screen. Intersection is
+    /// the question actually being asked, and it holds in any orientation.
+    func testNothingIsDrawnUnderTheIsland() {
+        for orientation in [UIDeviceOrientation.portrait, .landscapeLeft] {
+            XCUIDevice.shared.orientation = orientation
+            let app = launch()
+
+            // The status bar belongs to SpringBoard, not the app under test —
+            // `app.statusBars` is always empty.
+            let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+            let statusBar = springboard.statusBars.firstMatch
+            guard statusBar.exists, statusBar.frame.height > 0 else {
+                XCTFail("\(orientation): no status bar to measure the unsafe region from")
+                return
+            }
+            let unsafe = statusBar.frame
+
+            let mascot = app.descendants(matching: .any)
+                .matching(NSPredicate(format: "identifier BEGINSWITH %@", "mascot-")).firstMatch
+            XCTAssertTrue(mascot.waitForExistence(timeout: 5), "\(orientation): no mascot")
+            XCTAssertFalse(
+                mascot.frame.intersects(unsafe),
+                "\(orientation): the header overlaps the island — mascot \(mascot.frame) vs \(unsafe)"
+            )
+
+            app.buttons["emoji-🍎"].tap()
+
+            let bubble = app.staticTexts.matching(identifier: "word-bubble")
+            let appeared = XCTNSPredicateExpectation(
+                predicate: NSPredicate(format: "count > 0"), object: bubble
+            )
+            XCTAssertEqual(
+                XCTWaiter().wait(for: [appeared], timeout: 5), .completed,
+                "\(orientation): no word bubble appeared"
+            )
+            for element in bubble.allElementsBoundByIndex {
+                XCTAssertFalse(
+                    element.frame.intersects(unsafe),
+                    "\(orientation): the word bubble \"\(element.label)\" at \(element.frame) "
+                    + "overlaps the island region \(unsafe)"
+                )
+            }
+            app.terminate()
+        }
+        XCUIDevice.shared.orientation = .portrait
+    }
 }
