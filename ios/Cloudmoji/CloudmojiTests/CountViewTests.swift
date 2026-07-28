@@ -228,4 +228,26 @@ struct CountViewTests {
         #expect(controls > 200, "only \(controls) lit pixels in the bottom 60pt — Shuffle is off the screen")
         #expect(chrome > 1500, "only \(chrome) lit pixels in the top 60pt — the column overflowed the window")
     }
+
+    /// Sideways, Count mode gets the same left-hand rail Words mode has — with the
+    /// tabs in it and nothing else, because Count mode has no categories. The rail
+    /// lays a darker plate, so the left edge of a landscape screen is measurably
+    /// darker than the right.
+    ///
+    /// Mutation: drop `SideRail` from `CountView.landscape`. The two edges match
+    /// and this fails.
+    @Test("sideways, Count mode shows the tab rail")
+    func landscapeShowsTheRail() async {
+        let width: CGFloat = 956
+        let height: CGFloat = 440
+        let bitmap = await Bitmap.of(
+            screen(makeModel()), width: width, height: height,
+            settling: .milliseconds(400), fillsWindow: true
+        )
+        for y in [Int(height) / 2, Int(height) * 3 / 4] {
+            let left = bitmap.rgb(x: 2, y: y).sum
+            let right = bitmap.rgb(x: Int(width) - 3, y: y).sum
+            #expect(left < right, "at y=\(y) the left edge (\(left)) is not darker than the right (\(right))")
+        }
+    }
 }

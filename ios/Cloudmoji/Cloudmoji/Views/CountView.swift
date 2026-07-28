@@ -18,6 +18,12 @@ struct CountView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.cloudmojiIsCompact) private var isCompact
 
+    /// Which mode is showing, for the landscape rail's tabs. Defaulted to this
+    /// screen's own mode so `CountViewTests` and the previews can build it alone
+    /// without the rail claiming Words is selected.
+    var mode: AppMode = .count
+    var onSelectMode: (AppMode) -> Void = { _ in }
+
     @State private var round: CountRound?
     /// The tile counted most recently, which bounces once. Separate from the
     /// round because it is presentation, not state the round cares about.
@@ -93,9 +99,16 @@ struct CountView: View {
             if isCompact { landscape } else { portrait }
         }
         .task {
-            // First round of the session. Guarded, because `.task` runs again on
-            // every reappearance and a child returning from Words mode should find
-            // the round they left.
+            // First round of the screen. Guarded, because `.task` runs again on
+            // every reappearance — a rotation, or the app coming back to the
+            // foreground — and re-rolling the countable under a child mid-round is
+            // the one thing this mode must not do.
+            //
+            // A *mode* switch does not come through here at all: `ContentView`
+            // swaps the two screens structurally, so this view's state is
+            // discarded and the round starts over. That is what the web does —
+            // `App.tsx` renders one mode or the other, never both — and it is the
+            // same reason Words mode's typing row comes back empty.
             if round == nil { startRound(target: CountRound.firstTarget(in: model.countRange)) }
         }
         // A parent narrowing the categories or the range mid-session invalidates
@@ -129,10 +142,14 @@ struct CountView: View {
 
     private var portrait: some View { column }
 
-    /// Sideways is the same column with the pieces given less room. Count mode has
-    /// no categories, so unlike Words mode there is nothing to move into a rail —
-    /// Task 5 replaces this with the version that hosts the tab rail.
-    private var landscape: some View { column }
+    /// Sideways the tabs move into the rail so they stop eating the scarce vertical
+    /// axis. Count mode has no categories, so the rail holds only the tabs.
+    private var landscape: some View {
+        HStack(spacing: 0) {
+            SideRail(mode: mode, onSelectMode: onSelectMode) { EmptyView() }
+            column
+        }
+    }
 
     /// One column, referenced by both layouts rather than transcribed into each.
     /// The web keeps two copies of this list and three edits landed on the dead

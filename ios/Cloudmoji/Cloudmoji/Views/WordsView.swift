@@ -15,6 +15,11 @@ struct WordsView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.cloudmojiIsCompact) private var isCompact
 
+    /// Which mode is showing, for the landscape rail's tabs. Defaulted so
+    /// `WordsViewTests` and the previews can build the screen on its own.
+    var mode: AppMode = .words
+    var onSelectMode: (AppMode) -> Void = { _ in }
+
     @State private var category: String = "all"
     @State private var typed: [TypedEmoji] = []
     @State private var bubble: TypedEmoji?
@@ -130,13 +135,14 @@ struct WordsView: View {
 
     private var landscape: some View {
         HStack(spacing: 0) {
-            CategorySource(
-                tabs: model.categories, selected: category,
-                label: model.label, layout: .rail, onSelect: select
-            )
-            // The rail publishes its own width so this screen does not have to
-            // repeat the number and drift from it.
-            .frame(width: CategorySourceMetrics.railWidth)
+            // The rail owns its own width and its own plate, so this screen does
+            // not have to repeat either number and drift from it.
+            SideRail(mode: mode, onSelectMode: onSelectMode) {
+                CategorySource(
+                    tabs: model.categories, selected: category,
+                    label: model.label, layout: .rail, onSelect: select
+                )
+            }
 
             VStack(spacing: 4) {
                 header

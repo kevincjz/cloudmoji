@@ -123,27 +123,11 @@ struct CategorySource: View {
                 .padding(.vertical, CategorySourceMetrics.spacing)
                 .padding(.horizontal, CategorySourceMetrics.railInset)
             }
-            .background(railPlate)
+            // No plate here. `SideRail` draws it for the whole rail, because the
+            // rail exists in Count mode too — where there are no categories at
+            // all — and two plates would lay 0.5 opacity over 0.5 opacity.
             .accessibilityIdentifier("category-rail")
         }
-    }
-
-    /// The rail's own darker panel, plus the hairline that separates it from the
-    /// grid.
-    ///
-    /// The fill ignores the safe area so the panel reaches the physical edge of
-    /// a notched phone held sideways; the *content* does not, because
-    /// `AdaptiveShell` is already laid out inside the safe area. Applying the
-    /// inset in both places is what cost the web port ~118px of dead space in
-    /// landscape, and it is invisible until you rotate a real device.
-    private var railPlate: some View {
-        Theme.bgPrimary.opacity(0.5)
-            .ignoresSafeArea()
-            .overlay(alignment: .trailing) {
-                Rectangle()
-                    .fill(Theme.surfaceBorder)
-                    .frame(width: 1)
-            }
     }
 
     private func chip(_ tab: CategoryTab, showsLabel: Bool) -> some View {
@@ -223,6 +207,8 @@ struct CategorySource: View {
                 layout: .horizontal, onSelect: { _ in }
             )
             HStack(spacing: 0) {
+                // Bare, without the plate or the mode tabs — see the `SideRail`
+                // preview for the rail as a screen actually shows it.
                 CategorySource(
                     tabs: tabs, selected: "animals", label: { $0.label(.en) },
                     layout: .rail, onSelect: { _ in }
