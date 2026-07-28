@@ -100,7 +100,11 @@ struct CategorySource: View {
     var body: some View {
         switch layout {
         case .horizontal:
-            ScrollView(.horizontal, showsIndicators: false) {
+            // Nine categories do not fit on a 375pt phone and the strip clips
+            // mid-chip — `どうぶ…` — with nothing saying there is more. Scroll
+            // indicators are off here and iOS hides them at rest anyway, so the
+            // chevron is the only thing that says so.
+            HintedScrollView(axis: .horizontal, identifier: "category-bar") {
                 HStack(spacing: CategorySourceMetrics.spacing) {
                     ForEach(tabs) { tab in chip(tab, showsLabel: true) }
                 }
@@ -108,10 +112,12 @@ struct CategorySource: View {
                 .padding(.top, CategorySourceMetrics.stripTopPadding)
                 .padding(.bottom, CategorySourceMetrics.stripBottomPadding)
             }
-            .accessibilityIdentifier("category-bar")
 
         case .rail:
-            ScrollView(showsIndicators: false) {
+            // No plate here. `SideRail` draws it for the whole rail, because the
+            // rail exists in Count mode too — where there are no categories at
+            // all — and two plates would lay 0.5 opacity over 0.5 opacity.
+            HintedScrollView(axis: .vertical, identifier: "category-rail") {
                 // The rail is deliberately wider than its two 64pt columns, and
                 // `LazyVGrid` centres fixed columns in the slack on its own —
                 // verified by mutation, not assumed, since an explicit content
@@ -123,10 +129,6 @@ struct CategorySource: View {
                 .padding(.vertical, CategorySourceMetrics.spacing)
                 .padding(.horizontal, CategorySourceMetrics.railInset)
             }
-            // No plate here. `SideRail` draws it for the whole rail, because the
-            // rail exists in Count mode too — where there are no categories at
-            // all — and two plates would lay 0.5 opacity over 0.5 opacity.
-            .accessibilityIdentifier("category-rail")
         }
     }
 
