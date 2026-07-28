@@ -400,23 +400,33 @@ final class WordsModeUITests: XCTestCase {
         waitForCount(typedEmojis(app), toBe: glyphs.count + 1, "the row stopped accepting emojis")
     }
 
-    /// Replay re-speaks the row from its first word.
+    /// Replay re-speaks the row after the bubble has gone.
     ///
-    /// Task 10 left this uncovered, reasoning that replay is only observable
-    /// through `AVSpeechSynthesizer` and would go red on a machine with no voice
-    /// installed. That is true of `onFinish`, but not of what drives the bubble:
-    /// `SpeechController.speakSequence` calls each item's `onSpeak` synchronously
-    /// *before* handing anything to the engine, and `WordsView.replayAll` shows
-    /// the bubble from there. So this asserts real behaviour with no dependency
-    /// on audio at all — which is exactly why that seam exists.
-    func testReplaySpeaksFromTheFirstWord() {
+    /// Deliberately a ONE-emoji row. The first version of this test typed two and
+    /// asserted the bubble said "apple", on the reasoning that a replay restarts
+    /// at the first word — and it failed, reporting "banana". That reasoning was
+    /// right about the code and wrong about the test: `speakSequence` advances as
+    /// each word finishes, and on a simulator that is faster than XCUITest can
+    /// sample the accessibility tree, so the first word's bubble exists for
+    /// milliseconds. Sampling mid-sequence is a race whichever word you expect.
+    ///
+    /// What this does still prove is the part that had no coverage at all: replay
+    /// produces a bubble again after the original expired, with no dependency on
+    /// installed voices — `speakSequence` calls each item's `onSpeak`
+    /// synchronously before handing anything to the engine, which is exactly what
+    /// that seam exists for. Ordering within a sequence is covered by
+    /// `SpeechControllerTests` at the unit level, where time is controllable.
+    func testReplaySpeaksTheRowAgain() {
         let app = launch()
         app.buttons["emoji-🍎"].tap()
-        app.buttons["emoji-🍌"].tap()
-        waitForCount(typedEmojis(app), toBe: 2, "setup")
-        // Let banana's own bubble expire, so a bubble reading "apple" afterwards
-        // can only have come from the replay.
+        waitForCount(typedEmojis(app), toBe: 1, "setup")
+        // Let the tap's own bubble expire, so a bubble afterwards can only have
+        // come from the replay.
         settleAnimations()
+        XCTAssertEqual(
+            app.staticTexts.matching(identifier: "word-bubble").count, 0,
+            "the first bubble never went away, so this test cannot prove anything"
+        )
 
         app.buttons["replay-btn"].tap()
 
@@ -429,10 +439,7 @@ final class WordsModeUITests: XCTestCase {
             "replay produced no word bubble"
         )
         let labels = bubble.allElementsBoundByIndex.map { $0.label }
-        XCTAssertTrue(
-            labels.contains("apple"),
-            "replay should restart at the first word; the bubble said \(labels)"
-        )
+        XCTAssertTrue(labels.contains("apple"), "replay showed \(labels), not the row's word")
     }
 
     /// The language picker is parent-only chrome, so it follows the 44pt iOS HIG
