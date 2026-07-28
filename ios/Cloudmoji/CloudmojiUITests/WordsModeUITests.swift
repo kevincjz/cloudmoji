@@ -606,4 +606,56 @@ final class WordsModeUITests: XCTestCase {
         }
         XCUIDevice.shared.orientation = .portrait
     }
+
+    /// Ten taps must actually make the cloud beam.
+    ///
+    /// This was the stage 2a review's sharpest finding and it was still true a
+    /// stage later: `WordsViewTests` asserts the milestone SET is [10,25,50,100]
+    /// and asserts `arbitrate` in both directions, but nothing tested the call
+    /// site — delete `if Self.milestones.contains(tapCount) { celebrate() }` and
+    /// every one of 178 unit and 38 UI tests stayed green while the mascot never
+    /// celebrated again. The tap counter exists solely to produce this moment.
+    ///
+    /// Possible only since the mascot began publishing `mascot-<mood>`; the
+    /// technique is borrowed from `CountModeUITests`.
+    ///
+    /// Mutation: delete the milestone check, or `tapCount += 1`, in `WordsView`.
+    func testTenTapsMakesTheCloudBeam() {
+        let app = launch()
+        let beaming = app.descendants(matching: .any).matching(identifier: "mascot-beaming")
+        XCTAssertEqual(beaming.count, 0, "the mascot was already beaming before any taps")
+
+        for _ in 0..<10 { app.buttons["emoji-🍎"].tap() }
+
+        let appeared = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "count > 0"), object: beaming
+        )
+        XCTAssertEqual(
+            XCTWaiter().wait(for: [appeared], timeout: 8), .completed,
+            "ten taps did not produce a celebration"
+        )
+    }
+
+    /// The typing row stops at fifty and keeps the NEWEST.
+    ///
+    /// `WordsView.capped` is well tested as a pure function — suffix-versus-prefix
+    /// is proven — but nothing proved `tap()` calls it. Change that line to a
+    /// plain `typed.append(...)` and the suite stayed green, leaving an unbounded
+    /// array in the hands of a child whose entire interaction model is mashing.
+    ///
+    /// Mutation: replace `Self.capped(typed, appending:)` with `typed.append(_:)`.
+    func testTheTypingRowStopsAtFifty() {
+        let app = launch()
+        let apple = app.buttons["emoji-🍎"]
+        // Past the cap, so the drop path runs rather than merely being reached.
+        for _ in 0..<55 { apple.tap() }
+        settleAnimations()
+
+        let typed = typedEmojis(app)
+        XCTAssertEqual(
+            typed.count, 50,
+            "the row holds \(typed.count) emojis; the cap is 50 and nothing is enforcing it"
+        )
+        XCTAssertEqual(app.state, .runningForeground, "the app did not survive 55 taps")
+    }
 }

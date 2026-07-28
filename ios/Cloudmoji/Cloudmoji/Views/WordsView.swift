@@ -115,6 +115,23 @@ struct WordsView: View {
             }
         }
         .onChange(of: model.settings.muted) { silence() }
+        // A parent switching off the category the child is currently looking at
+        // must not leave a blank grid.
+        //
+        // `emojis(in:)` applies the enabled-set filter before the named-category
+        // one, deliberately — so a selection pointing at a now-disabled category
+        // matches nothing. The chip is gone from the strip too, so nothing is
+        // highlighted and every tap on the empty space does nothing: a failure
+        // state, which `CLAUDE.md` rule 4 forbids outright. Recovery needs a
+        // deliberate tap on another chip, which is not something a 27-month-old
+        // will work out.
+        //
+        // Switching a category off while the child is on it is the most likely
+        // first use of Settings, so this is a near-certain encounter rather than
+        // an edge case.
+        .onChange(of: model.categories.map(\.id)) { _, ids in
+            if !ids.contains(category) { category = "all" }
+        }
         .onDisappear {
             model.speech.cancelAll()
             for task in [bubbleTask, bounceTask, moodTask, celebrationTask, speechFallback] { task?.cancel() }

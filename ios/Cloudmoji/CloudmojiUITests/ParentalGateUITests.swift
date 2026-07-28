@@ -282,4 +282,40 @@ final class ParentalGateUITests: XCTestCase {
             "a language that is already off was greyed out too — there is no way back"
         )
     }
+
+    /// Switching off the category the child is CURRENTLY on must not strand them
+    /// on a blank grid.
+    ///
+    /// The existing test above starts on "All", where the bug is invisible. Here
+    /// the child is on Animals — the likeliest real sequence, since a parent
+    /// narrowing the app is usually reacting to what is on screen. Before the
+    /// fix the grid went empty, no chip was highlighted, and every tap did
+    /// nothing: a failure state, which `CLAUDE.md` rule 4 forbids.
+    ///
+    /// Mutation: delete the `.onChange(of: model.categories.map(\.id))` handler
+    /// in `WordsView`.
+    func testDisablingTheCategoryTheChildIsOnFallsBackToAll() {
+        let app = launch()
+        app.buttons["cat-animals"].tap()
+        XCTAssertTrue(
+            app.buttons["emoji-🐶"].waitForExistence(timeout: 5),
+            "setup: the dog should be on screen under Animals"
+        )
+
+        let (a, b) = openGate(app)
+        type(String(a * b), into: app)
+        app.buttons["gate-submit"].tap()
+        flip("settings-cat-animals", in: app, to: "0")
+        app.buttons["settings-done"].tap()
+
+        // The child is left somewhere usable, not on an empty screen.
+        XCTAssertTrue(
+            app.buttons["emoji-🍎"].waitForExistence(timeout: 5),
+            "the grid is empty — the child is stranded on a category that no longer exists"
+        )
+        XCTAssertFalse(
+            app.buttons["emoji-🐶"].exists,
+            "the dog is still showing after Animals was switched off"
+        )
+    }
 }
