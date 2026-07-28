@@ -28,10 +28,22 @@ private struct RootContent: View {
     @State private var mode: AppMode = .words
 
     @State private var isGateShowing = false
-    @State private var isParentPanelShowing = false
     /// Which question comes next. Advanced on every attempt, passed or not, so a
     /// parent who has just answered one is not asked the same one again.
     @State private var gateIndex = 0
+
+    /// One presenter for both sheets rather than two `.sheet` modifiers.
+    ///
+    /// Two `.sheet` modifiers on the *same* view is a long-standing SwiftUI
+    /// misfire — only the last one presents — and this view needs both the
+    /// first-launch tour and the parent panel. An `item:` presenter with one
+    /// case each is the shape that cannot hit it.
+    private enum RootSheet: String, Identifiable {
+        case tutorial, settings
+        var id: String { rawValue }
+    }
+
+    @State private var sheet: RootSheet?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -68,7 +80,7 @@ private struct RootContent: View {
                     onPass: {
                         isGateShowing = false
                         gateIndex += 1
-                        isParentPanelShowing = true
+                        sheet = .settings
                     },
                     onCancel: {
                         isGateShowing = false
@@ -79,15 +91,39 @@ private struct RootContent: View {
             }
         }
         .animation(.easeOut(duration: 0.2), value: isGateShowing)
-        .sheet(isPresented: $isParentPanelShowing) {
-            NavigationStack {
-                SettingsView()
+        .sheet(item: $sheet) { which in
+            switch which {
+            case .tutorial:
+                TutorialView(onDone: { sheet = nil })
+                // The **only** place the flag is written, and deliberately not
+                // inside `onDone` as well. A sheet closes two ways — the Got it
+                // button and a downward swipe — and only this one covers both;
+                // a parent who flicks the tour away would otherwise get it back
+                // on every launch forever.
+                //
+                // Writing it in both places was the first version, and it made
+                // `TutorialUITests` unable to fail on this line: the test taps
+                // Got it, so deleting this modifier changed nothing it could
+                // see. One write site means the test that taps the button is
+                // also the test that proves `.onDisappear` fires at all.
+                .onDisappear { model.settings.seenTutorial = true }
+            case .settings:
+                NavigationStack {
+                    SettingsView()
+                }
+                // Re-injected rather than inherited. A sheet is presented from a
+                // detached hierarchy, and an observable put in with `.environment`
+                // at the app level is not reliably visible inside one — the
+                // failure is a crash on first appearance, not a compile error.
+                .environment(model)
             }
-            // Re-injected rather than inherited. A sheet is presented from a
-            // detached hierarchy, and an observable put in with `.environment` at
-            // the app level is not reliably visible inside one — the failure is a
-            // crash on first appearance, not a compile error.
-            .environment(model)
+        }
+        // First launch only, and never behind the gate: a parent installing this
+        // should not have to answer an arithmetic question to find out what they
+        // just installed. Settings itself stays gated.
+        .task {
+            guard !model.settings.seenTutorial else { return }
+            sheet = .tutorial
         }
     }
 

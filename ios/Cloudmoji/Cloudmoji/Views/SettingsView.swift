@@ -109,9 +109,26 @@ struct SettingsView: View {
             }
 
             Section {
-                // Pushed rather than presented: About is a second page of the same
-                // parent panel, and a sheet on top of a sheet loses the Done button
-                // this stack already has.
+                // The whole point of the tour being reopenable. It shows itself
+                // once, on first launch, and the person holding the phone then
+                // may well be the toddler — so there has to be a way back to it,
+                // and this is it. Pushed rather than presented, for the same
+                // reason About is: a sheet on top of a sheet loses the Done
+                // button this stack already has.
+                //
+                // No `onDone` — the navigation bar's back control is the way out
+                // here, and reaching the tour this way deliberately does not
+                // touch `seenTutorial`. That flag records a first run, not a
+                // reading.
+                NavigationLink {
+                    TutorialView()
+                } label: {
+                    Label("How to use Cloudmoji", systemImage: "questionmark.circle")
+                        .font(Theme.body(15, .bold))
+                        .frame(minHeight: Self.rowHeight)
+                }
+                .accessibilityIdentifier("settings-tutorial-row")
+
                 NavigationLink {
                     AboutView()
                 } label: {
@@ -121,7 +138,7 @@ struct SettingsView: View {
                 }
                 .accessibilityIdentifier("settings-about-row")
             } footer: {
-                Text("How to use Cloudmoji, what it does with your data, and what has changed.")
+                Text("The tour Cloudmoji showed you the first time, plus what the app does with your data and what has changed.")
             }
         }
         .font(Theme.body(15, .bold))

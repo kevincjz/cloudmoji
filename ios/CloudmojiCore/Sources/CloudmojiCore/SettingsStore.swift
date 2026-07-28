@@ -17,6 +17,7 @@ public final class SettingsStore {
         static let countLower = "cm_count_lower"
         static let countUpper = "cm_count_upper"
         static let muted = "cm_muted"
+        static let seenTutorial = "cm_seen_tutorial"
     }
 
     /// Count mode never goes below two (one is not counting) or above ten
@@ -87,6 +88,23 @@ public final class SettingsStore {
         didSet { defaults.set(muted, forKey: Key.muted) }
     }
 
+    /// Whether the welcome tour has been dismissed at least once.
+    ///
+    /// The only key here whose *default* is the interesting value: false on a
+    /// fresh install is what makes the tour appear, so this must never be
+    /// written at launch — only when a grown-up (or a toddler) has actually
+    /// dismissed it. Reopening the tour from Settings deliberately does not
+    /// touch it; that route is a lookup, not a first run.
+    ///
+    /// No validation clause, unlike the four above, and that is not an
+    /// oversight: `UserDefaults.bool(forKey:)` maps anything that is not a
+    /// truthy value to false, so a hand-edited or stale value can only ever
+    /// mean "show the tour again" — the harmless direction. `muted` is stored
+    /// the same way for the same reason.
+    public var seenTutorial: Bool {
+        didSet { defaults.set(seenTutorial, forKey: Key.seenTutorial) }
+    }
+
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
 
@@ -111,6 +129,7 @@ public final class SettingsStore {
         self.language = resolvedLanguage
         self.countRange = Self.readRange(defaults)
         self.muted = defaults.bool(forKey: Key.muted)
+        self.seenTutorial = defaults.bool(forKey: Key.seenTutorial)
     }
 
     /// The single place the "active language must be enabled" invariant is

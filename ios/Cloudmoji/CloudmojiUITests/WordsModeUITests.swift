@@ -69,6 +69,12 @@ final class WordsModeUITests: XCTestCase {
             "-cm_muted", "NO",
             "-cm_enabled_langs", "(en,zh,ms,ja,tl)",
             "-cm_enabled_cats", "(fruits,food,animals,vehicles,nature,objects,people,faces)",
+            // Pinned for the same reason the four above are, and it is the most
+            // dangerous of the five: without it a fresh simulator opens the
+            // first-launch tour over the app and every assertion in this suite
+            // measures a sheet instead of the screen it meant to. `TutorialUITests`
+            // is the one suite that leaves it off.
+            "-cm_seen_tutorial", "YES",
         ]
         app.launch()
         XCTAssertTrue(

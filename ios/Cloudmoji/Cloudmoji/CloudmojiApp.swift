@@ -22,9 +22,47 @@ struct CloudmojiApp: App {
     /// The one instance every screen reads. Owned here rather than created per
     /// view, because `SpeechController` holds the synthesiser and a second one
     /// would talk over the first.
-    @State private var model = AppModel()
+    ///
+    /// Assigned in `init` rather than given a default value, and that ordering is
+    /// load-bearing: a default value is evaluated *before* the initialiser's body
+    /// runs, so `SettingsStore` would have already read `UserDefaults` before
+    /// ``resetPersistedSettingsIfRequested()`` below could clear it.
+    @State private var model: AppModel
+
+    /// Wipes this app's persisted settings when launched with
+    /// `-cm_reset_persisted_settings YES`. Debug builds only — it is compiled out
+    /// of Release entirely, so there is no path to it in a shipped binary.
+    ///
+    /// This exists because a UI test cannot otherwise be hermetic about a value
+    /// the app only ever writes in one direction. `cm_seen_tutorial` goes false →
+    /// true when the tour is dismissed and never back, so once any run has
+    /// dismissed it, the simulator's container says "seen" forever. A later run
+    /// asserting "the tour does not come back on the second launch" then passes
+    /// whether or not the app still writes the flag at all — which is exactly
+    /// what happened: deleting the write from `ContentView` left `TutorialUITests`
+    /// green. `NSArgumentDomain` cannot fix it, because pinning the key on the
+    /// second launch is precisely what that assertion must not do.
+    ///
+    /// Read through `UserDefaults` rather than `ProcessInfo.arguments` on purpose:
+    /// `NSArgumentDomain` parses `-key value` pairs, so a bare flag would swallow
+    /// whichever argument came after it.
+    #if DEBUG
+    private static func resetPersistedSettingsIfRequested() {
+        guard UserDefaults.standard.bool(forKey: "cm_reset_persisted_settings"),
+              let domain = Bundle.main.bundleIdentifier else { return }
+        // Only the app domain. Anything the launch passed in arrives through
+        // `NSArgumentDomain`, which this does not touch — so a test can reset and
+        // pin in the same launch.
+        UserDefaults.standard.removePersistentDomain(forName: domain)
+    }
+    #endif
 
     init() {
+        #if DEBUG
+        Self.resetPersistedSettingsIfRequested()
+        #endif
+        _model = State(initialValue: AppModel())
+
         BundledFonts.register()
         Self.didRegisterFontsAtLaunch = BundledFonts.logoFontIsAvailable
 

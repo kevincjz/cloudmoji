@@ -18,7 +18,7 @@ import SwiftUI
 /// about this binary and was checked against the source before it was written: the
 /// app imports only AVFoundation, CoreText, Foundation, Observation and SwiftUI, the
 /// package has no dependencies, there is no `URLSession` anywhere in the target, and
-/// `SettingsStore` writes exactly six `UserDefaults` keys. Shipping the web's
+/// `SettingsStore` writes exactly seven `UserDefaults` keys. Shipping the web's
 /// wording instead would attach an inaccurate disclosure to a listing whose
 /// nutrition label says "Data Not Collected".
 struct AboutView: View {
@@ -134,10 +134,11 @@ struct AboutView: View {
                 the one typeface we ship travels with the app.
 
                 WHAT IS STORED, AND WHERE
-                Six small settings are kept on this device by iOS: the chosen language, which \
+                Seven small settings are kept on this device by iOS: the chosen language, which \
                 languages are switched on, which categories are switched on, the lowest and the \
-                highest number Count mode uses, and whether Cloudmoji is muted. That is the \
-                whole list. They never leave the device, and deleting the app deletes them.
+                highest number Count mode uses, whether Cloudmoji is muted, and whether the \
+                welcome tour has been dismissed. That is the whole list. They never leave the \
+                device, and deleting the app deletes them.
 
                 SPEECH
                 Words are spoken by your device's own text-to-speech. Cloudmoji hands iOS a word \

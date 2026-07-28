@@ -19,6 +19,41 @@ struct SettingsStoreTests {
         #expect(store.enabledCategories == Set(Category.allCases))
         #expect(store.countRange == 2...9)
         #expect(store.muted == false)
+        // False is the load-bearing default of the seven: it is what makes the
+        // welcome tour appear at all. A store that came up `true` on a fresh
+        // install would ship an app whose Settings panel nobody can find.
+        #expect(store.seenTutorial == false)
+    }
+
+    /// The whole tour feature in two lines: it is shown once because dismissing
+    /// it survives a relaunch.
+    ///
+    /// Two stores over the *same* defaults rather than one — reading the value
+    /// back off the object that just set it would assert the setter against
+    /// itself and pass with the `defaults.set` deleted.
+    @Test("dismissing the tour survives a relaunch")
+    func seenTutorialPersists() {
+        let defaults = makeDefaults()
+        #expect(SettingsStore(defaults: defaults).seenTutorial == false)
+
+        SettingsStore(defaults: defaults).seenTutorial = true
+        #expect(SettingsStore(defaults: defaults).seenTutorial == true,
+                "the tour would be shown again on the next launch")
+
+        // And it is a real toggle, not a one-way latch that would make the flag
+        // impossible to reset from a launch argument or a fresh install.
+        SettingsStore(defaults: defaults).seenTutorial = false
+        #expect(SettingsStore(defaults: defaults).seenTutorial == false)
+    }
+
+    /// `cm_seen_tutorial`, spelled out. The key is what a launch argument and
+    /// every UI-test pin address it by, so a rename here silently un-pins four
+    /// suites and hands them a sheet over the app.
+    @Test("the tour flag is stored under cm_seen_tutorial")
+    func seenTutorialKeyName() {
+        let defaults = makeDefaults()
+        SettingsStore(defaults: defaults).seenTutorial = true
+        #expect(defaults.bool(forKey: "cm_seen_tutorial") == true)
     }
 
     @Test("a stored language survives a reload")
