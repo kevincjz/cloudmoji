@@ -9,6 +9,17 @@ import CloudmojiCore
 /// `Category` rather than qualifying every mention.
 typealias Category = CloudmojiCore.Category
 
+/// One category's worth of the continuous emoji list, with the tab that names
+/// it. Mirrors the web's `SECTION_CATEGORIES` join in `src/data/emojis.ts`.
+///
+/// The id is the tab's, so it doubles as the scroll target a chip jumps to.
+struct EmojiSection: Identifiable, Equatable {
+    let tab: CategoryTab
+    let entries: [EmojiEntry]
+
+    var id: String { tab.id }
+}
+
 /// Everything the views read. Settings filtering happens here, so a view never
 /// branches on a setting — it consumes an already-narrowed list.
 ///
@@ -136,6 +147,34 @@ final class AppModel {
             guard settings.enabledCategories.contains(entry.cat) else { return false }
             guard let category else { return true }
             return entry.cat == category
+        }
+    }
+
+    /// The emoji list as the child sees it: one continuous run of every enabled
+    /// emoji, cut into a section per category, in catalogue order.
+    ///
+    /// Built from ``categories`` and ``emojis(in:)``, both of which have already
+    /// applied the enabled-set filter — so a category a parent switched off has
+    /// no section here, no chip, and no tiles, and the view never branches on a
+    /// setting to make that true.
+    ///
+    /// That is also what deletes a failure state rather than guarding it. When a
+    /// chip *filtered* the grid, switching off the category the child was on
+    /// left an empty screen — `CLAUDE.md` rule 4 — and `WordsView` carried an
+    /// `.onChange` handler to snap the selection back to "All". A section that
+    /// does not exist is simply absent from a list that still has seven others
+    /// in it, so there is nothing to snap back from.
+    ///
+    /// The "All" tab is deliberately not a section: in a continuous list every
+    /// emoji is already on screen, so "all of them" is not a place to scroll to.
+    /// An empty section is dropped too — no category ships empty today, but a
+    /// header with nothing under it is a small blank screen of its own.
+    var sections: [EmojiSection] {
+        categories.compactMap { tab in
+            guard let category = tab.category else { return nil }
+            let entries = emojis(in: category)
+            guard !entries.isEmpty else { return nil }
+            return EmojiSection(tab: tab, entries: entries)
         }
     }
 

@@ -131,6 +131,19 @@ struct ScrollEdges: Equatable {
     var showsEnd: Bool { overflows && !atEnd }
 }
 
+/// The coordinate space a measured scroll view declares on itself —
+/// ``HintedScrollView``, and the emoji list.
+///
+/// A child's frame in this space is its position relative to the *viewport*,
+/// which is what both the hint's own probes and the emoji list's
+/// which-section-am-I-in arithmetic need. Resolved to the nearest ancestor that
+/// declares it, so one name is safe even with one measured scroll view inside
+/// another — and it is a free enum rather than a static on the generic view so
+/// that reading it does not mean naming a `Content` type.
+enum CloudmojiScroll {
+    static let space = "cloudmoji.scroll-hint"
+}
+
 /// A scroll view that marks the edges it is hiding content behind.
 ///
 /// Scroll indicators are off everywhere in this app and iOS hides them at rest
@@ -155,9 +168,6 @@ struct HintedScrollView<Content: View>: View {
     @State private var viewport: CGFloat = 0
     @State private var contentLength: CGFloat = 0
 
-    /// Resolved to the nearest ancestor that declares it, so one constant name
-    /// is safe even with a hinted scroll view inside another.
-    private static var space: String { "cloudmoji.scroll-hint" }
 
     private var edges: ScrollEdges {
         ScrollEdges(offset: offset, viewport: viewport, content: contentLength)
@@ -172,7 +182,7 @@ struct HintedScrollView<Content: View>: View {
         ScrollView(axis == .horizontal ? .horizontal : .vertical, showsIndicators: false) {
             content.background { contentProbe }
         }
-        .coordinateSpace(name: Self.space)
+        .coordinateSpace(name: CloudmojiScroll.space)
         .background { viewportProbe }
         .accessibilityIdentifier(identifier)
         .overlay(alignment: startAlignment) {
@@ -187,7 +197,7 @@ struct HintedScrollView<Content: View>: View {
     /// coordinate space gives both the content's length and how far it has slid.
     private var contentProbe: some View {
         GeometryReader { proxy in
-            let frame = proxy.frame(in: .named(Self.space))
+            let frame = proxy.frame(in: .named(CloudmojiScroll.space))
             // `initial: true` is what delivers the first reading. Doing it in the
             // view body instead would be a state write during an update pass.
             Color.clear.onChange(of: frame, initial: true) { _, new in

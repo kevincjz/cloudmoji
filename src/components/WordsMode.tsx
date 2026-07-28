@@ -1,11 +1,12 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import type { EmojiEntry, MascotMood, TypedEmoji, Language, Category } from "../types";
 import { EMOJIS } from "../data/emojis";
+import { SECTION_CATEGORIES, buildSections } from "../lib/sections";
 import { SPEECH_LANG } from "../data/languages";
 import { useTTS } from "../hooks/useTTS";
 import { logEvent } from "../lib/measurement";
 import { CloudMascot } from "./CloudMascot";
-import { EmojiGrid } from "./EmojiGrid";
+import { EmojiGrid, type SectionJump } from "./EmojiGrid";
 import { TypingRow } from "./TypingRow";
 import { WordBubble } from "./WordBubble";
 import { CategoryBar } from "./CategoryBar";
@@ -33,14 +34,18 @@ interface WordsModeProps {
 }
 
 export function WordsMode({ lang, muted, compact, activeTab, onSelectTab, onLangSelect, onMuteToggle, onTitleTap, onAbout }: WordsModeProps) {
-  const [category, setCategory] = useState<"all" | Category>("all");
+  // Which section the list is *showing*. Set by scrolling, and by the jump a
+  // chip starts — never by a chip on its own, or the chips would light up for a
+  // place the child is not looking at.
+  const [category, setCategory] = useState<Category>(SECTION_CATEGORIES[0].id);
+  const [jump, setJump] = useState<SectionJump | null>(null);
   const [typed, setTyped] = useState<TypedEmoji[]>([]);
   const [showWord, setShowWord] = useState<{
     emoji: string;
     word: string;
     id: number;
   } | null>(null);
-  const [bounceIdx, setBounceIdx] = useState<number | null>(null);
+  const [bounceKey, setBounceKey] = useState<string | null>(null);
   const [mascotMood, setMascotMood] = useState<MascotMood>("happy");
   const [tapCount, setTapCount] = useState(0);
 
@@ -55,7 +60,7 @@ export function WordsMode({ lang, muted, compact, activeTab, onSelectTab, onLang
   const { speak, speakSequence, cancelAll, initTTS } = useTTS({ muted, lang, safeMood });
 
   const handleTap = useCallback(
-    (item: EmojiEntry, idx: number) => {
+    (item: EmojiEntry) => {
       initTTS();
       const word = getWord(item, lang);
 
@@ -63,7 +68,9 @@ export function WordsMode({ lang, muted, compact, activeTab, onSelectTab, onLang
         [...prev, { emoji: item.emoji, word, id: Date.now() }].slice(-MAX_TYPED),
       );
       setShowWord({ emoji: item.emoji, word, id: Date.now() });
-      setBounceIdx(idx);
+      // Keyed by glyph+category, not by index: an index is only meaningful
+      // inside one section, and there are eight of them now.
+      setBounceKey(item.emoji + item.cat);
       if (!beamingRef.current) setMascotMood("excited");
 
       speak(word, SPEECH_LANG[lang]);
@@ -85,7 +92,7 @@ export function WordsMode({ lang, muted, compact, activeTab, onSelectTab, onLang
 
       if (wordTimerRef.current) clearTimeout(wordTimerRef.current);
       wordTimerRef.current = setTimeout(() => setShowWord(null), 2200);
-      setTimeout(() => setBounceIdx(null), 400);
+      setTimeout(() => setBounceKey(null), 400);
       setTimeout(() => safeMood("happy"), 600);
     },
     [lang, speak, tapCount, initTTS, safeMood],
@@ -104,8 +111,11 @@ export function WordsMode({ lang, muted, compact, activeTab, onSelectTab, onLang
     [lang, speak],
   );
 
-  const handleCategorySelect = useCallback((cat: "all" | Category, label: string, icon: string) => {
-    setCategory(cat);
+  const handleCategorySelect = useCallback((cat: Category, label: string, icon: string) => {
+    // The token is what lets the same chip be tapped twice: a child who has
+    // scrolled away from Animals and taps Animals again must go back there, and
+    // an unchanged value would be a no-op effect.
+    setJump((prev) => ({ id: cat, token: (prev?.token ?? 0) + 1 }));
     logEvent("cat", cat);
 
     setShowWord({ emoji: icon, word: label, id: Date.now() });
@@ -140,10 +150,9 @@ export function WordsMode({ lang, muted, compact, activeTab, onSelectTab, onLang
     logEvent("clear");
   }, [cancelAll]);
 
-  const filtered =
-    category === "all"
-      ? EMOJIS
-      : EMOJIS.filter((e) => e.cat === category);
+  // One continuous list, grouped. Every emoji is present at all times — the
+  // sections are places inside it, not alternatives to it.
+  const sections = useMemo(() => buildSections((cat) => cat.labels[lang]), [lang]);
 
   if (compact) {
     // Landscape: the rail takes the categories and the tab switcher off the
@@ -307,8 +316,10 @@ export function WordsMode({ lang, muted, compact, activeTab, onSelectTab, onLang
 
         {/* Emoji Grid */}
         <EmojiGrid
-          emojis={filtered}
-          bounceIdx={bounceIdx}
+          sections={sections}
+          bounceKey={bounceKey}
+          jumpTo={jump}
+          onActiveSection={setCategory}
           onTap={handleTap}
         />
 
@@ -464,8 +475,10 @@ export function WordsMode({ lang, muted, compact, activeTab, onSelectTab, onLang
 
       {/* Emoji Grid */}
       <EmojiGrid
-        emojis={filtered}
-        bounceIdx={bounceIdx}
+        sections={sections}
+        bounceKey={bounceKey}
+        jumpTo={jump}
+        onActiveSection={setCategory}
         onTap={handleTap}
       />
 

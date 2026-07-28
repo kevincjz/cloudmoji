@@ -282,6 +282,7 @@ struct CountView: View {
     // MARK: - Behaviour
 
     private func tap(_ index: Int) {
+        Haptics.tap()
         guard var current = round else { return }
         // A refused tap must not speak. Saying "three" twice for two taps on the
         // same dog is the one way this mode can actively teach the wrong thing —
@@ -328,6 +329,7 @@ struct CountView: View {
     }
 
     private func celebrate(_ finished: CountRound) {
+        Haptics.reward()
         completionTask?.cancel()
         completionTask = Task {
             try? await Task.sleep(for: Self.completionDelay)

@@ -1,12 +1,14 @@
-import { CATEGORIES } from "../data/emojis";
+import { SECTION_CATEGORIES } from "../lib/sections";
 import { useScrollEdges } from "../hooks/useScrollEdges";
 import { ScrollHint } from "./ScrollHint";
 import type { Language, Category } from "../types";
 
 interface CategoryBarProps {
-  category: "all" | Category;
+  /** The section the list is currently showing — set by scrolling, not by tapping. */
+  category: Category;
   lang: Language;
-  onSelect: (cat: "all" | Category, label: string, icon: string) => void;
+  /** Scrolls the list to that section. It does not filter anything. */
+  onSelect: (cat: Category, label: string, icon: string) => void;
 }
 
 export function CategoryBar({ category, lang, onSelect }: CategoryBarProps) {
@@ -21,12 +23,13 @@ export function CategoryBar({ category, lang, onSelect }: CategoryBarProps) {
         className="no-scroll flex gap-2 overflow-x-auto items-center"
         style={{ padding: "2px 12px 6px" }}
       >
-      {CATEGORIES.map((cat) => {
+      {SECTION_CATEGORIES.map((cat) => {
         const isActive = category === cat.id;
         return (
           <button
             key={cat.id}
             data-testid={`cat-${cat.id}`}
+            data-active={isActive ? "true" : "false"}
             onClick={() => {
               const label = cat.labels[lang];
               onSelect(cat.id, label, cat.icon);

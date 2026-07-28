@@ -64,6 +64,10 @@ struct CloudmojiApp: App {
         _model = State(initialValue: AppModel())
 
         BundledFonts.register()
+        // Warm the Taptic Engine now rather than on the child's first tap: an
+        // unprepared generator has to spin the hardware up, and that delay is
+        // enough to break the link between finger and buzz.
+        Haptics.prepare()
         Self.didRegisterFontsAtLaunch = BundledFonts.allFacesAreAvailable
 
         // `.playback` so Cloudmoji speaks even with the ringer switch off — what

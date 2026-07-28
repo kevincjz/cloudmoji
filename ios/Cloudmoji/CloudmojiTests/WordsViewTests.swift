@@ -251,8 +251,10 @@ struct WordsViewTests {
     @Test("the grid carries a word for its tiles, and defaults to none")
     func gridCarriesTheWord() throws {
         let apple = try #require(Self.repository.emojis.first { $0.emoji == "🍎" })
-        #expect(EmojiGrid(entries: [apple], onTap: { _ in }).word == nil)
-        let localised = EmojiGrid(entries: [apple], word: { $0.word(.zh) }, onTap: { _ in })
+        let tab = try #require(Self.repository.categories.first { $0.id == "fruits" })
+        let sections = [EmojiSection(tab: tab, entries: [apple])]
+        #expect(EmojiGrid(sections: sections, onTap: { _ in }).word == nil)
+        let localised = EmojiGrid(sections: sections, word: { $0.word(.zh) }, onTap: { _ in })
         #expect(localised.word?(apple) == "苹果")
     }
 }

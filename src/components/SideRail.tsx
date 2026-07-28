@@ -1,14 +1,15 @@
-import { CATEGORIES } from "../data/emojis";
+import { SECTION_CATEGORIES } from "../lib/sections";
 import { useScrollEdges } from "../hooks/useScrollEdges";
 import { ScrollHint } from "./ScrollHint";
 import type { Language, Category } from "../types";
 import type { TabId } from "./TabBar";
 
 interface SideRailProps {
-  category: "all" | Category;
+  /** The section the list is currently showing. Count mode has none. */
+  category: Category | null;
   lang: Language;
   activeTab: TabId;
-  onSelectCategory: (cat: "all" | Category, label: string, icon: string) => void;
+  onSelectCategory: (cat: Category, label: string, icon: string) => void;
   onSelectTab: (tab: TabId) => void;
   /** Count mode has no categories — the rail is then just the tab switcher. */
   showCategories?: boolean;
@@ -65,12 +66,13 @@ export function SideRail({
           style={{ padding: "8px 4px" }}
         >
         {showCategories &&
-          CATEGORIES.map((cat) => {
+          SECTION_CATEGORIES.map((cat) => {
             const isActive = category === cat.id;
             return (
               <button
                 key={cat.id}
                 data-testid={`rail-cat-${cat.id}`}
+                data-active={isActive ? "true" : "false"}
                 aria-label={cat.labels[lang]}
                 onClick={() => onSelectCategory(cat.id, cat.labels[lang], cat.icon)}
                 className="active:scale-90 shrink-0"

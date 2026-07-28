@@ -179,6 +179,11 @@ struct CategorySource: View {
         }
         .buttonStyle(PressScale(scale: CategorySourceMetrics.pressedScale))
         .accessibilityLabel(label(tab))
+        // The teal wash says "this is the section you are in" to a person and
+        // nothing at all to a test. `.isSelected` is what publishes it as
+        // `XCUIElement.isSelected`, which is how the UI suite proves the strip
+        // follows the list rather than merely following the last tap.
+        .accessibilityAddTraits(isActive ? [.isSelected] : [])
         // One identifier for both layouts: only one is ever on screen, and the
         // web's second `rail-` prefix is exactly the kind of duplicate that let
         // three edits land on a dead copy.

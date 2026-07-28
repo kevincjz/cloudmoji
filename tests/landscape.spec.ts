@@ -26,14 +26,33 @@ test.describe("landscape rail", () => {
     await expect(page.getByTestId("tab-count")).toBeVisible();
   });
 
-  test("the grid gets at least 2 rows and the worst case is bounded", async ({ page }) => {
-    const m = await page.getByTestId("emoji-grid").evaluate((el) => ({
-      h: el.clientHeight,
-      screenfuls: el.scrollHeight / el.clientHeight,
-    }));
-    // pre-rail this was 77px / 21 screenfuls
+  /**
+   * Two rows of emojis sideways, and no section longer than a short scroll.
+   *
+   * The second half used to bound the *whole* grid at 12 screenfuls, which was
+   * the right question when a chip filtered the grid down to one category. It
+   * is meaningless now: the list holds all 200 emojis and is twenty screenfuls
+   * long by design. What a child actually has to scroll is a section — a chip
+   * puts them at the top of one — so that is what is bounded here.
+   */
+  test("the grid gets at least 2 rows and no section is a long scroll", async ({ page }) => {
+    const m = await page.getByTestId("emoji-grid").evaluate((el) => {
+      const sections = [...el.querySelectorAll('[data-testid^="section-"]')].filter(
+        (s) => !(s as HTMLElement).dataset.testid!.startsWith("section-header-"),
+      );
+      return {
+        h: el.clientHeight,
+        sections: sections.length,
+        worst: Math.max(...sections.map((s) => s.getBoundingClientRect().height)),
+      };
+    });
+    // pre-rail this was 77px
     expect(m.h, "grid height in landscape").toBeGreaterThanOrEqual(180);
-    expect(m.screenfuls, "screenfuls to reach the end").toBeLessThan(12);
+    expect(m.sections, "every category is a section of the one list").toBe(8);
+    expect(
+      m.worst / m.h,
+      "screenfuls to scroll through the longest section",
+    ).toBeLessThan(4);
   });
 
   test("most categories are reachable without scrolling the rail", async ({ page }) => {
@@ -56,12 +75,33 @@ test.describe("landscape rail", () => {
     await expect(page.getByTestId("emoji-grid")).toBeVisible();
   });
 
-  test("a rail category filters the grid", async ({ page }) => {
+  /**
+   * The rail's chips do what the portrait strip's do: scroll the one list, not
+   * replace it. This is where the complaint came from — sideways, the child
+   * could not tell that there was anything past the category he had picked.
+   *
+   * `continuous-list.spec.ts` covers the behaviour in depth under every
+   * project, including this one; what is pinned here is that the *rail* is
+   * wired to it at all, at the squeezed 320pt height that made landscape a
+   * problem in the first place.
+   */
+  test("a rail chip scrolls the list to that section, keeping the rest", async ({ page }) => {
     const all = await page.getByTestId("emoji-grid").locator("button").count();
-    await page.getByTestId("rail-cat-fruits").click();
+    expect(all, "the whole catalogue is in one list").toBe(200);
+
+    await page.getByTestId("rail-cat-animals").click();
+
     await expect
-      .poll(() => page.getByTestId("emoji-grid").locator("button").count())
-      .toBeLessThan(all);
+      .poll(() =>
+        page.evaluate(() => {
+          const g = document.querySelector('[data-testid="emoji-grid"]')!;
+          const h = document.querySelector('[data-testid="section-header-animals"]')!;
+          return Math.abs(h.getBoundingClientRect().top - g.getBoundingClientRect().top);
+        }),
+      )
+      .toBeLessThan(8);
+    // Nothing was taken away to get there.
+    expect(await page.getByTestId("emoji-grid").locator("button").count()).toBe(all);
   });
 
   test("portrait still uses the horizontal bars", async ({ page }) => {
@@ -135,7 +175,7 @@ test.describe("safe-area insets (simulated notch)", () => {
     const box = await page.getByTestId("side-rail").boundingBox();
     expect(box!.x, "rail background must reach the physical left edge").toBe(0);
 
-    const firstCat = await page.getByTestId("rail-cat-all").boundingBox();
+    const firstCat = await page.getByTestId("rail-cat-fruits").boundingBox();
     expect(
       firstCat!.x,
       "rail icons must sit clear of the notch",

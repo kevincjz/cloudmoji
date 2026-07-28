@@ -190,7 +190,7 @@ export function CountMode({ lang, muted, compact, activeTab, onSelectTab, onLang
     return (
       <div className="flex" style={{ flex: 1, minHeight: 0 }}>
         <SideRail
-          category="all"
+          category={null}
           lang={lang}
           activeTab={activeTab}
           onSelectCategory={() => {}}

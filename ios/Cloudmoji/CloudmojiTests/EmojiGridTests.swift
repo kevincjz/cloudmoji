@@ -23,8 +23,28 @@ struct EmojiGridTests {
 
     static let repository = (try? EmojiRepository()) ?? .empty
 
+    /// Every real category's tab, in catalogue order — what `AppModel.sections`
+    /// draws from, without needing a model.
+    static let tabs = repository.categories.filter { $0.category != nil }
+
     func entries(_ count: Int) -> [EmojiEntry] {
         Array(Self.repository.emojis.prefix(count))
+    }
+
+    /// A one-section list, so the layout measurements below are taken on the
+    /// same geometry the old flat grid had plus exactly one header.
+    func oneSection(_ entries: [EmojiEntry]) -> [EmojiSection] {
+        guard let tab = Self.tabs.first else { return [] }
+        return entries.isEmpty ? [] : [EmojiSection(tab: tab, entries: entries)]
+    }
+
+    /// The real thing: every category, in order.
+    func allSections() -> [EmojiSection] {
+        Self.tabs.compactMap { tab in
+            guard let category = tab.category else { return nil }
+            let rows = Self.repository.emojis.filter { $0.cat == category }
+            return rows.isEmpty ? nil : EmojiSection(tab: tab, entries: rows)
+        }
     }
 
     // MARK: Photographing the real grid
@@ -50,12 +70,19 @@ struct EmojiGridTests {
         height: CGFloat = 600
     ) async -> [Bitmap.Run] {
         let bitmap = await Bitmap.of(
-            EmojiGrid(entries: entries, bouncingID: bouncingID) { _ in },
+            EmojiGrid(sections: oneSection(entries), bouncingID: bouncingID) { _ in },
             width: width,
             height: height,
             fillsWindow: true
         )
-        let scanline = Int(EmojiGridMetrics.topPadding + EmojiTileMetrics.side / 2)
+        // The first row now sits under a section header, whose height is fixed
+        // for exactly this reason — a header that grew with its label would put
+        // this scanline somewhere different in every language.
+        let scanline = Int(
+            EmojiGridMetrics.topPadding
+            + EmojiGridMetrics.headerHeight
+            + EmojiTileMetrics.side / 2
+        )
         return bitmap.runs(y: scanline, threshold: 8)
     }
 
@@ -173,6 +200,86 @@ struct EmojiGridTests {
         let pad = await firstRowTiles(entries(60), width: 1024).count
         #expect(phone >= 4, "only \(phone) columns at 375pt")
         #expect(pad > phone, "1024pt fits \(pad) per row, 375pt fits \(phone)")
+    }
+
+    // MARK: One continuous list
+
+    /// The premise of the whole change: the list holds every category at once.
+    ///
+    /// Measured as rows of tiles down one column. Fruits is sixteen emojis —
+    /// four rows at 375pt — so a list that stopped at the first section could
+    /// never produce more than four, however tall the window.
+    ///
+    /// Mutation: hand `EmojiGrid` only `oneSection(...)`, or drop the
+    /// `ForEach(sections)` down to `sections.prefix(1)`.
+    @Test("the list draws past the end of its first section")
+    func listRunsPastTheFirstSection() async {
+        let rows = await tileRows(allSections(), height: 900)
+        // 900pt of window: 4 fruit rows, a header, then five or six food rows.
+        #expect(rows.count > 5, "only \(rows.count) rows of tiles in a 900pt window")
+    }
+
+    /// A section boundary has to be *visible* — a header's worth of separation
+    /// between the last tile of one category and the first of the next, not the
+    /// same 8pt gap the rows inside a section use.
+    ///
+    /// This is the assertion that actually proves the header drew. A header that
+    /// rendered as nothing, or collapsed to zero height, leaves the two sections
+    /// looking like one run of emojis, and every other test in this suite stays
+    /// green.
+    ///
+    /// Mutation: delete `header(section)` from the `ForEach`, or drop its
+    /// `.frame(height:)`.
+    @Test("a section boundary is wider than the gap between rows inside a section")
+    func sectionBoundaryIsVisible() async throws {
+        let rows = await tileRows(allSections(), height: 900)
+        #expect(rows.count > 5, "only \(rows.count) rows — nothing to compare")
+
+        let gaps = zip(rows, rows.dropFirst()).map { $0.1.start - $0.0.end }
+        // Fruits is 16 emojis in 4 columns at 375pt, so the boundary is the gap
+        // after the fourth row. Spelled out rather than "the biggest gap", which
+        // would be true of any list with one big gap anywhere in it.
+        let boundary = try #require(gaps.count >= 4 ? gaps[3] : nil)
+        let inside = try #require(gaps.first)
+
+        #expect(CGFloat(inside) <= EmojiTileMetrics.spacing + 2,
+                "rows inside a section are \(inside)pt apart, not \(EmojiTileMetrics.spacing)")
+        #expect(boundary > inside * 3,
+                "the Fruits/Food boundary is \(boundary)pt, rows inside a section are \(inside)pt")
+    }
+
+    /// Section headers show the name in the chosen language, from the same
+    /// closure the chips use. A header hard-wired to English would leave a
+    /// 日本語 list captioned "Fruits", and no pixel test would notice.
+    ///
+    /// Asserted on the value the view is built from: SwiftUI publishes no
+    /// accessibility tree to a unit test, so a query-based version would run
+    /// over an empty array.
+    @Test("the list carries a section label closure, and defaults to none")
+    func listCarriesTheLabel() throws {
+        let sections = allSections()
+        let tab = try #require(sections.first?.tab)
+        #expect(EmojiGrid(sections: sections, onTap: { _ in }).label == nil)
+        let localised = EmojiGrid(sections: sections, label: { $0.label(.ja) }, onTap: { _ in })
+        #expect(localised.label?(tab) == "くだもの")
+        #expect(tab.label(.ja) != tab.label(.en), "the fixture cannot tell the languages apart")
+    }
+
+    /// Vertical bands of lit pixels down the middle of the **last** column.
+    ///
+    /// The last column rather than the first because a section header's icon and
+    /// name sit at the leading edge, where they would read as short rows of
+    /// their own; out here the only thing crossing is the header's 1pt rule,
+    /// which `minimumLength` discards.
+    func tileRows(_ sections: [EmojiSection], height: CGFloat) async -> [Bitmap.Run] {
+        let width: CGFloat = 375
+        let bitmap = await Bitmap.of(
+            EmojiGrid(sections: sections) { _ in },
+            width: width, height: height, fillsWindow: true
+        )
+        // Centre of the fourth of four columns at 375pt.
+        let column = Int(width) - Int(EmojiGridMetrics.horizontalPadding) - 40
+        return bitmap.verticalRuns(x: column, threshold: 8, minimumLength: 40)
     }
 
     /// A model of the `auto-fill` rule the adaptive columns implement, run

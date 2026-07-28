@@ -97,10 +97,40 @@ final class ParentalGateUITests: XCTestCase {
         let toggle = element(identifier, in: app)
         XCTAssertTrue(toggle.waitForExistence(timeout: 5), "\(identifier) is not on screen",
                       file: file, line: line)
+        // Scroll the row properly into view first, and **do not** ask
+        // `isHittable` — it says `true` for a row hanging off the bottom of the
+        // screen. Measured on an iPhone 17 Pro Max: the Categories rows sit at
+        // y = 774 (Fruits) and y = 922 (Animals) in a 956pt window, so Animals'
+        // own centre is at 959 — six points *below the screen* — and the
+        // coordinate tap below landed nowhere at all. That is a pre-existing
+        // defect in this helper, not a new one: the same failure reproduces on
+        // `main` in `testDisablingTheCategoryTheChildIsOnFallsBackToAll`, which
+        // has been silently unable to flip its switch.
+        let window = app.windows.firstMatch.frame
+        for _ in 0..<8 {
+            let centre = toggle.frame.midY
+            if centre > window.maxY - 60 {
+                app.swipeUp()
+            } else if centre < window.minY + 60 {
+                app.swipeDown()
+            } else {
+                break
+            }
+        }
+
         toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5)).tap()
+        // Waited for rather than read straight back. Switching a category off
+        // makes the screen behind Settings rebuild a 200-emoji list, and the
+        // accessibility snapshot can be taken before the switch has published
+        // its new value — which reads exactly like a tap that missed.
+        let settled = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "value == %@", expected),
+            object: element(identifier, in: app)
+        )
         XCTAssertEqual(
-            element(identifier, in: app).value as? String, expected,
-            "\(identifier) did not change state — the tap missed the switch",
+            XCTWaiter().wait(for: [settled], timeout: 5), .completed,
+            "\(identifier) did not change state — the tap missed the switch, "
+            + "or the value is \(String(describing: element(identifier, in: app).value))",
             file: file, line: line
         )
     }
@@ -296,24 +326,39 @@ final class ParentalGateUITests: XCTestCase {
         )
     }
 
-    /// Switching off the category the child is CURRENTLY on must not strand them
-    /// on a blank grid.
+    /// Switching off the category the child is CURRENTLY looking at must not
+    /// strand them on a blank screen.
     ///
-    /// The existing test above starts on "All", where the bug is invisible. Here
-    /// the child is on Animals — the likeliest real sequence, since a parent
-    /// narrowing the app is usually reacting to what is on screen. Before the
-    /// fix the grid went empty, no chip was highlighted, and every tap did
-    /// nothing: a failure state, which `CLAUDE.md` rule 4 forbids.
+    /// **This test used to be `testDisablingTheCategoryTheChildIsOnFallsBackToAll`,
+    /// and it is kept rather than deleted because the promise it protects has
+    /// not changed — only the mechanism has.** When a chip *filtered* the grid,
+    /// a selection pointing at a now-disabled category matched nothing: the grid
+    /// went empty, no chip was highlighted, and every tap did nothing, which
+    /// `CLAUDE.md` rule 4 forbids outright. `WordsView` carried an
+    /// `.onChange(of: model.categories.map(\.id))` handler that snapped the
+    /// selection back to "All", and that handler was what the old test's
+    /// mutation named.
     ///
-    /// Mutation: delete the `.onChange(of: model.categories.map(\.id))` handler
-    /// in `WordsView`.
-    func testDisablingTheCategoryTheChildIsOnFallsBackToAll() {
+    /// The handler is gone. With a continuous list there is no selection to be
+    /// left dangling — `AppModel.sections` is built from the enabled set, so a
+    /// disabled category is simply not a section and the other seven are
+    /// untouched. The failure is now structurally impossible rather than
+    /// guarded, so what is asserted here is the *observable* promise: the child
+    /// is left with a list they can still scroll and still tap.
+    ///
+    /// Mutation: build `AppModel.sections` from `repository.categories` rather
+    /// than the filtered `categories` — Animals survives being switched off and
+    /// the two `XCTAssertFalse`s below fail.
+    func testDisablingTheCategoryTheChildIsScrolledToLeavesAUsableList() {
         let app = launch()
         app.buttons["cat-animals"].tap()
-        XCTAssertTrue(
-            app.buttons["emoji-🐶"].waitForExistence(timeout: 5),
-            "setup: the dog should be on screen under Animals"
+        let dog = app.buttons["emoji-🐶"]
+        XCTAssertTrue(dog.waitForExistence(timeout: 5), "setup: the list should scroll to the dog")
+        let onScreen = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "isHittable == true"), object: dog
         )
+        XCTAssertEqual(XCTWaiter().wait(for: [onScreen], timeout: 5), .completed,
+                       "setup: the child should be looking at Animals")
 
         let (a, b) = openGate(app)
         type(String(a * b), into: app)
@@ -321,14 +366,33 @@ final class ParentalGateUITests: XCTestCase {
         flip("settings-cat-animals", in: app, to: "0")
         app.buttons["settings-done"].tap()
 
-        // The child is left somewhere usable, not on an empty screen.
+        // Animals is gone in every sense: no tiles, no chip, no section.
         XCTAssertTrue(
-            app.buttons["emoji-🍎"].waitForExistence(timeout: 5),
-            "the grid is empty — the child is stranded on a category that no longer exists"
-        )
-        XCTAssertFalse(
-            app.buttons["emoji-🐶"].exists,
+            app.buttons["emoji-🐶"].waitForNonExistence(timeout: 5),
             "the dog is still showing after Animals was switched off"
+        )
+        XCTAssertFalse(app.buttons["cat-animals"].exists, "the Animals chip survived")
+        XCTAssertFalse(
+            element("section-animals", in: app).exists,
+            "the Animals section header survived — the list still has a hole where it was"
+        )
+
+        // And the child is left with a list, not a blank screen. The scroll
+        // position is wherever Animals used to be, so this deliberately does not
+        // insist on any particular emoji — only that SOMETHING is there and
+        // that tapping it still rewards.
+        let tiles = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "emoji-"))
+        let hittable = tiles.allElementsBoundByIndex.filter { $0.isHittable }
+        XCTAssertGreaterThan(
+            hittable.count, 4,
+            "only \(hittable.count) emojis are reachable — the child is stranded"
+        )
+        XCTAssertTrue(app.buttons["cat-fruits"].exists, "the other chips went with Animals")
+
+        hittable[0].tap()
+        XCTAssertTrue(
+            app.staticTexts.matching(identifier: "word-bubble").element.waitForExistence(timeout: 5),
+            "tapping an emoji produced nothing — this is the failure state rule 4 forbids"
         )
     }
 }

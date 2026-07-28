@@ -22,6 +22,83 @@ struct AppModelTests {
         #expect(model.categories.count == 9)
     }
 
+    // MARK: - The continuous list
+
+    /// The list is every enabled emoji, once, in catalogue order — not a
+    /// category at a time.
+    ///
+    /// The counts are spelled out. Reading them back off `emojis(in: nil)`
+    /// would be a derived value asserted against its own definition, which is
+    /// this project's most common dead test.
+    @Test("the sections hold the whole catalogue, once each, in catalogue order")
+    func sectionsCoverEverything() {
+        let model = makeModel()
+        let sections = model.sections
+
+        #expect(sections.count == 8, "\(sections.count) sections for 8 categories")
+        #expect(sections.map(\.id) == ["fruits", "food", "animals", "vehicles",
+                                      "nature", "objects", "people", "faces"])
+        #expect(sections.flatMap(\.entries).count == 200)
+        // No emoji in two sections, and every section actually holds its own.
+        let ids = sections.flatMap(\.entries).map(\.id)
+        #expect(Set(ids).count == ids.count, "an emoji appears in two sections")
+        for section in sections {
+            #expect(!section.entries.isEmpty, "\(section.id) is an empty section")
+            #expect(
+                section.entries.allSatisfy { $0.cat.rawValue == section.id },
+                "\(section.id) holds an emoji from another category"
+            )
+        }
+    }
+
+    /// "All" is a view of the list, not a place inside it. A chip for it could
+    /// never be the section the child is in, and tapping it would be a control
+    /// that does nothing.
+    @Test("there is no All section")
+    func noAllSection() {
+        let model = makeModel()
+        #expect(model.categories.contains { $0.id == "all" }, "the tab itself still exists")
+        #expect(!model.sections.contains { $0.id == "all" })
+    }
+
+    /// Settings narrowing still applies, and it applies *structurally*: the
+    /// switched-off category has no section at all rather than an empty one.
+    ///
+    /// This is what replaced `WordsView`'s fallback handler. Before, a chip
+    /// filtered the grid and switching off the category the child was on left a
+    /// blank screen; now that category is simply not in the list, and the other
+    /// seven are untouched.
+    ///
+    /// Mutation: build `sections` from `repository.categories` instead of the
+    /// filtered `categories` — Fruits keeps its section and this fails.
+    /// (Swapping the inner `emojis(in: category)` for an unfiltered filter does
+    /// *not* fail, and deliberately so: the two filters are belt and braces, and
+    /// the outer one is the load-bearing half.)
+    @Test("a category switched off has no section, and the rest are untouched")
+    func disablingACategoryRemovesItsSection() {
+        let model = makeModel()
+        #expect(model.sections.contains { $0.id == "fruits" }, "setup")
+
+        model.settings.enabledCategories.remove(.fruits)
+
+        #expect(!model.sections.contains { $0.id == "fruits" })
+        #expect(model.sections.count == 7)
+        #expect(model.sections.flatMap(\.entries).allSatisfy { $0.cat != .fruits })
+        // A narrowing, not a blanking — the child still has a list to scroll.
+        #expect(model.sections.flatMap(\.entries).count > 150)
+        #expect(model.sections.contains { $0.id == "animals" })
+    }
+
+    /// The extreme: one category left on. Still a list, still scrollable, still
+    /// no empty section anywhere.
+    @Test("one enabled category leaves exactly one section")
+    func oneCategoryLeavesOneSection() {
+        let model = makeModel()
+        model.settings.enabledCategories = [.faces]
+        #expect(model.sections.map(\.id) == ["faces"])
+        #expect(!model.sections[0].entries.isEmpty)
+    }
+
     @Test("disabling a category narrows both the grid and the tabs")
     func disablingACategory() {
         let model = makeModel()

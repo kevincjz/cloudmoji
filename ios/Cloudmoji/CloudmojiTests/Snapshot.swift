@@ -193,6 +193,35 @@ struct Bitmap {
         return runs
     }
 
+    /// The runs down one column, in the same shape ``runs(y:threshold:)`` gives
+    /// across a row — `start`/`end` are y coordinates here.
+    ///
+    /// `minimumLength` throws away the incidental: a section header's 1pt rule
+    /// crosses every column in the list, and a one-pixel run of it between two
+    /// rows of tiles would otherwise read as a row of its own.
+    func verticalRuns(x: Int, threshold: Int, minimumLength: Int = 1) -> [Run] {
+        guard x >= 0, x < width else { return [] }
+        var runs: [Run] = []
+        var current: Run?
+        for y in 0..<height {
+            let lit = rgb(x: x, y: y).sum > threshold
+            switch (lit, current) {
+            case (true, nil):
+                current = Run(start: y, end: y + 1)
+            case (true, .some(var run)):
+                run.end = y + 1
+                current = run
+            case (false, .some(let run)):
+                if run.width >= minimumLength { runs.append(run) }
+                current = nil
+            case (false, nil):
+                break
+            }
+        }
+        if let run = current, run.width >= minimumLength { runs.append(run) }
+        return runs
+    }
+
     func litPixels(threshold: Int) -> Int {
         var count = 0
         for y in 0..<height {

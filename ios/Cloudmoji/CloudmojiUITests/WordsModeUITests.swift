@@ -111,6 +111,14 @@ final class WordsModeUITests: XCTestCase {
         typingRow(app).buttons.matching(identifier: "typed-emoji")
     }
 
+    /// Type-agnostic lookup. A section header is a combined accessibility
+    /// element, not a button or a static text, so a type-specific query is
+    /// false whether it is on screen or not — one of this project's confirmed
+    /// shapes of dead test.
+    private func element(_ identifier: String, in app: XCUIApplication) -> XCUIElement {
+        app.descendants(matching: .any).matching(identifier: identifier).firstMatch
+    }
+
     private func rowControls(_ app: XCUIApplication) -> XCUIElementQuery {
         app.buttons.matching(
             NSPredicate(format: "identifier IN %@", ["replay-btn", "delete-btn", "clear-btn"])
@@ -284,7 +292,7 @@ final class WordsModeUITests: XCTestCase {
         // however many tiles the device is tall enough for. They exist so that a
         // group which quietly stopped rendering cannot pass by being empty.
         let tileFrames = assertMeetsChildMinimum(tiles(app), named: "emoji tile", atLeast: 20)
-        let chipFrames = assertMeetsChildMinimum(chips(app), named: "category chip", atLeast: 9)
+        let chipFrames = assertMeetsChildMinimum(chips(app), named: "category chip", atLeast: 8)
         let typedFrames = assertMeetsChildMinimum(typedEmojis(app), named: "typed emoji", atLeast: 2)
         let controlFrames = assertMeetsChildMinimum(rowControls(app), named: "row control", atLeast: 3)
 
@@ -357,21 +365,133 @@ final class WordsModeUITests: XCTestCase {
 
     // MARK: - Categories
 
-    func testCategorySelectionFiltersTheGrid() {
+    /// A chip MOVES the list. It does not replace it.
+    ///
+    /// This is the behaviour the whole change is about and the easiest one in
+    /// the app to fake: a test that checks the Animals header exists proves
+    /// nothing, because the header exists before the tap too.
+    ///
+    /// So three things are asserted together. The dog becomes reachable, the
+    /// Animals header arrives at the top of the list, and the apple — which was
+    /// hittable a moment ago — is still in the app but has scrolled off. A grid
+    /// that filtered would satisfy the first; only a list that scrolled
+    /// satisfies all three.
+    ///
+    /// Mutation: delete `proxy.scrollTo(new.id, anchor: .top)` in `EmojiGrid`,
+    /// or the `jump = SectionJump(...)` line in `WordsView.select`.
+    func testTappingAChipScrollsTheListToThatSection() {
         let app = launch()
-        XCTAssertTrue(app.buttons["emoji-🍎"].exists, "the apple should be on screen under 'All'")
+        let grid = app.scrollViews["emoji-grid"]
+        XCTAssertTrue(grid.waitForExistence(timeout: 5), "the list has no scroll view")
+        XCTAssertTrue(app.buttons["emoji-🍎"].isHittable, "setup: the apple starts on screen")
 
         app.buttons["cat-animals"].tap()
 
-        XCTAssertTrue(
-            app.buttons["emoji-🍎"].waitForNonExistence(timeout: 5),
-            "fruit is still in the grid after choosing Animals"
+        let dog = app.buttons["emoji-🐶"]
+        XCTAssertTrue(dog.waitForExistence(timeout: 5), "the dog never appeared")
+        let reachable = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "isHittable == true"), object: dog
         )
-        XCTAssertTrue(app.buttons["emoji-🐶"].exists, "the dog is missing from Animals")
-        XCTAssertTrue(
-            app.buttons["emoji-🐶"].isHittable,
-            "the dog is in the tree but not reachable — the grid did not scroll back to the top"
+        XCTAssertEqual(
+            XCTWaiter().wait(for: [reachable], timeout: 5), .completed,
+            "the dog is in the tree but not on screen — the list did not scroll"
         )
+
+        // Landed flush, not merely somewhere. 12pt of slack for the list's own
+        // top padding and wherever the glide settles.
+        let header = element("section-animals", in: app)
+        XCTAssertTrue(header.exists, "the Animals section has no header in the tree")
+        XCTAssertEqual(
+            header.frame.minY, grid.frame.minY, accuracy: 12,
+            "the Animals header is at \(header.frame.minY), the list starts at \(grid.frame.minY)"
+        )
+
+        XCTAssertFalse(app.buttons["emoji-🍎"].isHittable, "the list did not move")
+
+        // Nothing was taken away to get there: the fruit is still in the same
+        // list, above the animals, and going back gets it. Asserted this way
+        // rather than as `exists` because a lazy list drops what is off screen
+        // from the accessibility tree entirely — so `exists` would be false here
+        // whether the fruit had been scrolled past or deleted.
+        app.buttons["cat-fruits"].tap()
+        let apple = app.buttons["emoji-🍎"]
+        let back = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "isHittable == true"), object: apple
+        )
+        XCTAssertEqual(
+            XCTWaiter().wait(for: [back], timeout: 5), .completed,
+            "the fruit did not come back — the list is not continuous"
+        )
+    }
+
+    /// The child's own way round the app, and the thing he was reaching for when
+    /// the filtered grid stopped him: **no chips at all, just scrolling**.
+    ///
+    /// Swipes the list from top to bottom and records every section header that
+    /// came past. All eight must, which is only true if they are in one list.
+    ///
+    /// Mutation: hand `EmojiGrid` one section, or restore the filter — seven of
+    /// the eight are then unreachable however far the list is swiped.
+    func testEveryCategoryIsReachableByScrollingAlone() {
+        let app = launch()
+        let grid = app.scrollViews["emoji-grid"]
+        XCTAssertTrue(grid.waitForExistence(timeout: 5), "the list has no scroll view")
+
+        let headers = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "section-"))
+        var seen = Set<String>()
+        // The very last emoji in the catalogue, on screen and tappable — which
+        // is what "reachable" has to mean to a child who cannot read a header.
+        var reachedTheEnd = false
+        // Generous, and bounded: the list is roughly six screenfuls on this
+        // device and a swipe covers most of one.
+        for _ in 0..<25 {
+            for header in headers.allElementsBoundByIndex {
+                seen.insert(header.identifier)
+            }
+            if app.buttons["emoji-🥳"].isHittable {
+                reachedTheEnd = true
+                break
+            }
+            grid.swipeUp()
+        }
+
+        XCTAssertTrue(reachedTheEnd, "swiping never reached the last emoji in the catalogue")
+        XCTAssertEqual(
+            seen.sorted(),
+            ["section-animals", "section-faces", "section-food", "section-fruits",
+             "section-nature", "section-objects", "section-people", "section-vehicles"],
+            "scrolling alone reached \(seen.sorted())"
+        )
+    }
+
+    /// The strip has to follow the list, not the last tap.
+    ///
+    /// Driven by swiping only — nothing is tapped — so a highlight wired
+    /// straight to `select` cannot pass. `isSelected` is the trait
+    /// `CategorySource` publishes for the active chip; the teal wash says the
+    /// same thing to a person and nothing at all to a test.
+    ///
+    /// Mutation: delete `onActiveSection: { activeSection = $0 }` in
+    /// `WordsView.grid`.
+    func testTheLitChipFollowsTheScrollWithNothingTapped() {
+        let app = launch()
+        let grid = app.scrollViews["emoji-grid"]
+        XCTAssertTrue(grid.waitForExistence(timeout: 5), "the list has no scroll view")
+
+        XCTAssertTrue(app.buttons["cat-fruits"].isSelected,
+                      "the app opened at the top of the list without lighting the first chip")
+        XCTAssertFalse(app.buttons["cat-faces"].isSelected, "setup: the last chip is not lit")
+
+        for _ in 0..<25 {
+            if app.buttons["emoji-🥳"].exists, app.buttons["emoji-🥳"].isHittable { break }
+            grid.swipeUp()
+        }
+
+        XCTAssertTrue(app.buttons["cat-faces"].isSelected,
+                      "the list is at the faces and the strip still says otherwise")
+        XCTAssertFalse(app.buttons["cat-fruits"].isSelected,
+                       "two chips are lit at once")
     }
 
     /// Landscape is a real way a toddler holds a phone, and it swaps the whole
@@ -391,7 +511,7 @@ final class WordsModeUITests: XCTestCase {
             app.scrollViews["category-bar"].exists,
             "both category layouts are on screen at once"
         )
-        _ = assertMeetsChildMinimum(chips(app), named: "rail chip", atLeast: 9)
+        _ = assertMeetsChildMinimum(chips(app), named: "rail chip", atLeast: 8)
         _ = assertMeetsChildMinimum(tiles(app), named: "landscape emoji tile", atLeast: 10)
     }
 

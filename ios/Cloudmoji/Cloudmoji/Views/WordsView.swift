@@ -23,7 +23,12 @@ struct WordsView: View {
     /// cover the tab bar as well as this screen.
     var onParent: () -> Void = {}
 
-    @State private var category: String = "all"
+    /// Which section the list is *showing*. Set by scrolling, and by the jump a
+    /// chip starts — never by a chip on its own, or a chip would light up for a
+    /// place the child is not looking at.
+    @State private var activeSection: String?
+    /// The last chip tap, which is what moves the list.
+    @State private var jump: SectionJump?
     @State private var typed: [TypedEmoji] = []
     @State private var bubble: TypedEmoji?
     @State private var bouncingID: String?
@@ -88,9 +93,15 @@ struct WordsView: View {
     private static let celebrationDelay = Duration.milliseconds(500)
     private static let celebrationHold = Duration.seconds(3)
 
-    private var entries: [EmojiEntry] {
-        model.emojis(in: Category(rawValue: category))
-    }
+    /// One continuous list, grouped. Already narrowed to the categories the
+    /// parent left enabled — a switched-off category has no section, which is
+    /// why this screen no longer needs a fallback for one.
+    private var sections: [EmojiSection] { model.sections }
+
+    /// The chips, which are the sections' names. There is deliberately no "All"
+    /// chip: in a continuous list every emoji is already on screen, so "all of
+    /// them" is not a place to scroll to.
+    private var tabs: [CategoryTab] { sections.map(\.tab) }
 
     var body: some View {
         Group {
@@ -115,23 +126,23 @@ struct WordsView: View {
             }
         }
         .onChange(of: model.settings.muted) { silence() }
-        // A parent switching off the category the child is currently looking at
-        // must not leave a blank grid.
+        // There was an `.onChange(of: model.categories.map(\.id))` here that
+        // snapped the selection back to "All" when a parent switched off the
+        // category the child was on. It is gone, and deliberately not replaced.
         //
-        // `emojis(in:)` applies the enabled-set filter before the named-category
-        // one, deliberately — so a selection pointing at a now-disabled category
-        // matches nothing. The chip is gone from the strip too, so nothing is
-        // highlighted and every tap on the empty space does nothing: a failure
-        // state, which `CLAUDE.md` rule 4 forbids outright. Recovery needs a
-        // deliberate tap on another chip, which is not something a 27-month-old
-        // will work out.
+        // It existed because a chip *filtered* the grid: a selection pointing at
+        // a now-disabled category matched nothing, so the child was left on a
+        // blank screen where every tap did nothing — a failure state, which
+        // `CLAUDE.md` rule 4 forbids. With a continuous list there is no
+        // selection to be left dangling. `AppModel.sections` builds from the
+        // enabled set, so a disabled category is simply not a section, the list
+        // still holds the other seven, and the chip strip still holds their
+        // chips. The failure is structurally impossible rather than guarded.
         //
-        // Switching a category off while the child is on it is the most likely
-        // first use of Settings, so this is a near-certain encounter rather than
-        // an edge case.
-        .onChange(of: model.categories.map(\.id)) { _, ids in
-            if !ids.contains(category) { category = "all" }
-        }
+        // `ParentalGateUITests.testDisablingTheCategoryTheChildIsScrolledToLeavesAUsableList`
+        // is the regression test, kept and rewritten around the new mechanism
+        // rather than deleted — the user-visible promise it protects is
+        // unchanged.
         .onDisappear {
             model.speech.cancelAll()
             for task in [bubbleTask, bounceTask, moodTask, celebrationTask, speechFallback] { task?.cancel() }
@@ -146,7 +157,7 @@ struct WordsView: View {
             typingRow
             bubbleRow
             CategorySource(
-                tabs: model.categories, selected: category,
+                tabs: tabs, selected: activeSection ?? "",
                 label: model.label, layout: .horizontal, onSelect: select
             )
             grid
@@ -159,7 +170,7 @@ struct WordsView: View {
             // not have to repeat either number and drift from it.
             SideRail(mode: mode, onSelectMode: onSelectMode) {
                 CategorySource(
-                    tabs: model.categories, selected: category,
+                    tabs: tabs, selected: activeSection ?? "",
                     label: model.label, layout: .rail, onSelect: select
                 )
             }
@@ -257,23 +268,32 @@ struct WordsView: View {
 
     private var grid: some View {
         EmojiGrid(
-            entries: entries,
+            sections: sections,
             bouncingID: bouncingID,
             // The same word that is about to be spoken, so VoiceOver and the
             // speaker agree.
             word: { model.word(for: $0) },
+            jumpTo: jump,
+            onActiveSection: { activeSection = $0 },
+            label: model.label,
             onTap: tap
         )
     }
 
     // MARK: - Behaviour
 
+    /// A chip scrolls the list. It does not filter anything, and it does not set
+    /// the highlight either — the list reports back which section it landed in,
+    /// so the chip and the content can never disagree.
     private func select(_ tab: CategoryTab) {
-        category = tab.id
+        jump = SectionJump(id: tab.id, token: (jump?.token ?? 0) + 1)
         speak(model.label(for: tab), emoji: tab.icon)
     }
 
     private func tap(_ entry: EmojiEntry) {
+        // Before anything else: the buzz should land with the finger, not after
+        // the speech engine has decided what to say.
+        Haptics.tap()
         let word = model.word(for: entry)
         typed = Self.capped(typed, appending: TypedEmoji(emoji: entry.emoji, word: word))
         bounce(entry.id)
@@ -361,6 +381,7 @@ struct WordsView: View {
     }
 
     private func celebrate() {
+        Haptics.reward()
         celebrationTask?.cancel()
         celebrationTask = Task {
             try? await Task.sleep(for: Self.celebrationDelay)
