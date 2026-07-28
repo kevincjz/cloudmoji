@@ -384,9 +384,10 @@ final class CountModeUITests: XCTestCase {
     /// uncounted tile at `uncountedScale` 0.95, and `scaleEffect` moves the hit region
     /// as well as the pixels — so what a child actually taps is 0.95 × `side`. Upright
     /// that is 72 × 0.95 = 68.4 and clears the floor. Sideways, a round of six or more
-    /// takes `side` 64 and lands at **60.8pt**, measured on iPhone 17 Pro Max. Asserting
-    /// it here would ship this suite red, so it is reported rather than enforced; the
-    /// fix is `CountTileMetrics`'s, not this file's.
+    /// took `side` 64 and landed at **60.8pt**, measured on iPhone 17 Pro Max — under
+    /// the floor. FIXED in `CountTile`: the visual scale now sits inside the frame, so
+    /// it changes how the tile looks without changing how big it is to a finger. The
+    /// landscape assertion below is therefore enforced, not merely reported.
     ///
     /// Mutation: change `CountTileMetrics.side`'s last line from 72 to 60.
     func testEveryChildFacingControlInCountModeClearsSixtyFourPoints() {
@@ -547,5 +548,38 @@ final class CountModeUITests: XCTestCase {
         waitForCount(countTiles(app), toBe: 5, "the round stopped drawing its tiles")
         app.buttons["count-item-0"].tap()
         waitForReadout(app, toBe: "1", "the round stopped accepting taps")
+    }
+
+    /// The 64pt floor holds SIDEWAYS too, where it actually broke.
+    ///
+    /// Landscape is the case that found the bug: a round of six or more takes the
+    /// compact `side` of 64, and the uncounted tile's 0.95 scale used to shrink the
+    /// hit region with it — 60.8pt, under the floor. Upright the same code measured
+    /// 68.4 and looked fine, which is exactly why this needs its own rotated test
+    /// rather than trusting the portrait one.
+    ///
+    /// Mutation: move `.scaleEffect` in `CountTile` back outside the `Button`, where
+    /// it scales the tappable box along with the artwork.
+    func testCountTilesClearSixtyFourPointsInLandscapeToo() {
+        XCUIDevice.shared.orientation = .landscapeLeft
+        defer { XCUIDevice.shared.orientation = .portrait }
+
+        let app = launch(countRange: 9...9)
+        openCountMode(app)
+        waitForCount(countTiles(app), toBe: 9, "a round of nine drew the wrong number of tiles sideways")
+        settleAnimations()
+
+        let tiles = assertMeetsChildMinimum(
+            countTiles(app), named: "count tile (landscape)", atLeast: 9
+        )
+        // Restated explicitly: `assertMeetsChildMinimum` is the shared floor, and this
+        // is the one place a regression would be silent upright.
+        for frame in tiles {
+            XCTAssertGreaterThanOrEqual(
+                min(frame.width, frame.height), 64 - Self.tolerance,
+                "a landscape count tile is \(frame.width)x\(frame.height) — under the 64pt floor"
+            )
+        }
+        app.terminate()
     }
 }

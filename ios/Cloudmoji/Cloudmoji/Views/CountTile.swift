@@ -114,6 +114,21 @@ struct CountTile: View {
                         lineWidth: CountTileMetrics.borderWidth
                     )
                 )
+                // The visual scale goes HERE, inside the frame that follows, so it
+                // changes how the tile looks without changing how big it is to a
+                // toddler's finger. Applied outside the button — where it used to
+                // be — it shrank the hit region too: 64 x 0.95 = 60.8pt, under the
+                // 64pt floor `CLAUDE.md` rule 1 sets for anything a child taps.
+                // Found by measuring the live accessibility tree in landscape;
+                // upright it was 72 x 0.95 = 68.4 and hid the bug. The web shipped
+                // the same class of defect as a 42.5pt tab bar.
+                //
+                // The bounce still reads at full size: `scaleEffect` draws outside
+                // its frame, and nothing clips it.
+                .scaleEffect(isJustCounted
+                             ? CountTileMetrics.bounceScale
+                             : (isCounted ? 1 : CountTileMetrics.uncountedScale))
+                .frame(width: side, height: side)
                 // Without an explicit hit shape the tappable area is the glyph's
                 // own box and the corners of the square a toddler aims at are dead.
                 .contentShape(Rectangle())
@@ -121,9 +136,6 @@ struct CountTile: View {
         }
         .buttonStyle(PressScale(scale: CountTileMetrics.pressedScale))
         .opacity(isCounted ? 1 : CountTileMetrics.uncountedOpacity)
-        .scaleEffect(isJustCounted
-                     ? CountTileMetrics.bounceScale
-                     : (isCounted ? 1 : CountTileMetrics.uncountedScale))
         // The badge hangs 10pt outside the tile and a bouncing tile overlaps its
         // neighbours, and a grid paints in order — so without this the tile the
         // child just touched has its badge drawn *underneath* the tiles after it.
