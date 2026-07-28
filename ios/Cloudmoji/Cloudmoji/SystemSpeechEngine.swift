@@ -34,10 +34,23 @@ final class SystemSpeechEngine: NSObject, SpeechEngine {
         cachedVoices = nil
     }
 
+    /// `SpeechController.rate` converted into AVFoundation's scale.
+    ///
+    /// Named so a test can assert the one property that matters and that the
+    /// raw constant violated: this must come out **slower** than normal speech.
+    static let utteranceRate = AVSpeechUtteranceDefaultSpeechRate * SpeechController.rate
+
     func speak(_ utterance: SpeechUtterance) {
         pendingFinish = utterance.onFinish
         let u = AVSpeechUtterance(string: utterance.text)
-        u.rate = SpeechController.rate
+        // `SpeechController.rate` is a fraction of normal speed, on the Web
+        // Speech API's scale where 1.0 is normal. `AVSpeechUtterance.rate` runs
+        // 0...1 with `AVSpeechUtteranceDefaultSpeechRate` (0.5) as normal, so
+        // assigning 0.85 straight across asks for near-maximum speed — which is
+        // what shipped, and it sounded exactly as fast as it was. Nothing caught
+        // it: the tests asserted the constant equalled itself, and both suites
+        // are silent.
+        u.rate = Self.utteranceRate
         u.pitchMultiplier = SpeechController.pitch
         u.voice = utterance.voice as? AVSpeechSynthesisVoice
             ?? AVSpeechSynthesisVoice(language: utterance.languageTag)

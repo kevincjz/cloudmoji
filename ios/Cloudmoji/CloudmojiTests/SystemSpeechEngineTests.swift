@@ -50,4 +50,25 @@ struct SystemSpeechEngineTests {
         engine.simulateFinish()
         #expect(count == 1)
     }
+
+    /// The rate handed to AVFoundation must be slower than normal speech.
+    ///
+    /// This shipped wrong. `SpeechController.rate` is 0.85 on the Web Speech
+    /// API's scale, where 1.0 is normal — but `AVSpeechUtterance.rate` treats
+    /// 0.5 as normal, so assigning it directly asked for near-maximum speed and
+    /// the app gabbled at a toddler. Kevin heard it on the device; no test did.
+    ///
+    /// Asserting `utteranceRate == 0.425` would restate the arithmetic. This
+    /// asserts the *intent*, so reverting to the raw constant fails here.
+    @Test("speech is slower than normal, not faster")
+    func rateIsSlowerThanNormal() {
+        #expect(
+            SystemSpeechEngine.utteranceRate < AVSpeechUtteranceDefaultSpeechRate,
+            "a word aimed at a 2-year-old must be slower than natural speech"
+        )
+        // Not so slow it drawls — the web sits 15% under normal.
+        #expect(SystemSpeechEngine.utteranceRate > AVSpeechUtteranceDefaultSpeechRate * 0.7)
+        #expect(SystemSpeechEngine.utteranceRate >= AVSpeechUtteranceMinimumSpeechRate)
+        #expect(SystemSpeechEngine.utteranceRate <= AVSpeechUtteranceMaximumSpeechRate)
+    }
 }

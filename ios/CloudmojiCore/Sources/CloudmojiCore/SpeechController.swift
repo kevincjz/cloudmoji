@@ -45,7 +45,18 @@ public struct SpeechItem {
 /// can call it back — which is exactly what happened on the web.
 @MainActor
 public final class SpeechController {
+    /// Speech rate as a **fraction of the engine's normal speed** — 0.85 is 15%
+    /// slower than natural, which is what a toddler needs to catch a new word.
+    ///
+    /// This is the Web Speech API's scale, where 1.0 is normal, and it is the
+    /// number `src/hooks/useTTS.ts` uses. It is deliberately NOT an
+    /// `AVSpeechUtterance.rate`: that property runs 0...1 with *0.5* as normal,
+    /// so assigning 0.85 to it directly gives near-maximum speed. Converting is
+    /// the adapter's job — see `SystemSpeechEngine.speak`.
     public static let rate: Float = 0.85
+
+    /// Pitch multiplier. 1.0 is natural on both platforms, so this one does
+    /// carry across unchanged.
     public static let pitch: Float = 1.1
 
     private let resolver: VoiceResolver
