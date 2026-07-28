@@ -106,7 +106,13 @@ enum Theme {
         .cloudmojiLogo(size: size)
     }
 
-    /// Everything else. SF Rounded stands in for Nunito on the web.
+    /// Everything else: Nunito, the web's own UI face, bundled.
+    ///
+    /// Delegates for the same reason ``display(_:)`` does, and with one extra
+    /// trap on top: Nunito ships as a *variable* file, so `Font.custom("Nunito",
+    /// size:)` resolves happily and hands back whatever the platform picks off
+    /// the `wght` axis — never the 700–900 this app draws in. The weight has to
+    /// select a named instance; see `BundledFonts.bodyPostScriptName(for:)`.
     static func body(_ size: CGFloat, _ weight: Font.Weight = .heavy) -> Font {
         .cloudmojiRounded(size: size, weight: weight)
     }

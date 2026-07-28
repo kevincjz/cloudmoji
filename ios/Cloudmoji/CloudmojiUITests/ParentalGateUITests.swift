@@ -184,10 +184,10 @@ final class ParentalGateUITests: XCTestCase {
     // MARK: - What Settings actually changes
 
     /// Settings is the only screen that shows a parent what they switched **off**,
-    /// and the child's picker is the only one that must not.
+    /// and the header is the one that must not.
     ///
-    /// Switching three languages off in the real panel and then counting the
-    /// child's picker is the whole feature in one test: the toggle writes through
+    /// Switching three languages off in the real panel and then driving the
+    /// header is the whole feature in one test: the Settings switch writes through
     /// `SettingsStore`, `AppModel.availableLanguages` narrows, and `ModeHeader`
     /// consumes the narrowed list without branching on anything.
     func testSwitchingLanguagesOffNarrowsTheChildsPicker() {
@@ -214,20 +214,33 @@ final class ParentalGateUITests: XCTestCase {
         }
         app.buttons["settings-done"].tap()
 
-        let picker = app.descendants(matching: .any).matching(identifier: "lang-picker").firstMatch
-        XCTAssertTrue(picker.waitForExistence(timeout: 5), "the header picker did not come back")
-        picker.tap()
+        let toggle = app.descendants(matching: .any).matching(identifier: "lang-picker").firstMatch
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5), "the header toggle did not come back")
 
-        // The menu's options are the only place the narrowing is visible. English
-        // and 中文 stay; the three that were switched off must be gone.
-        for name in ["BM", "日本語", "TL"] {
-            XCTAssertFalse(
-                app.buttons[name].waitForExistence(timeout: 1),
-                "\(name) is still offered to the child after being switched off in Settings"
+        // The header used to hold a menu, and the narrowing was visible in its
+        // list. There is no list any more — the toggle cycles — so the narrowing
+        // has to be read off where it lands. Six taps over what should now be a
+        // two-language cycle gives any of the three switched-off languages three
+        // wrap-arounds to show up in.
+        var visited: [String] = [toggle.label]
+        for _ in 1...6 {
+            toggle.tap()
+            let changed = XCTNSPredicateExpectation(
+                predicate: NSPredicate(format: "label != %@", visited.last!), object: toggle
             )
+            // Not asserted: what matters is where the toggle went, and the set
+            // below says that far more usefully than a timeout would.
+            _ = XCTWaiter().wait(for: [changed], timeout: 8)
+            visited.append(toggle.label)
         }
-        XCTAssertTrue(app.buttons["中文"].exists, "中文 was left on but is not in the picker")
-        XCTAssertTrue(app.buttons["EN"].exists, "EN was left on but is not in the picker")
+
+        // Exactly two. Membership is the claim — Malay, Japanese and Tagalog are
+        // switched off and must never be reached — and the count is what stops a
+        // toggle stuck on English from passing it.
+        XCTAssertEqual(
+            Set(visited), ["Language: English", "Language: Chinese"],
+            "after switching Malay, Japanese and Tagalog off the toggle still visited \(visited)"
+        )
     }
 
     /// The same proof on the other axis, and the one a parent actually notices:

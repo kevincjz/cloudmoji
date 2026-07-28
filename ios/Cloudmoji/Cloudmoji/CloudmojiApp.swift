@@ -64,7 +64,7 @@ struct CloudmojiApp: App {
         _model = State(initialValue: AppModel())
 
         BundledFonts.register()
-        Self.didRegisterFontsAtLaunch = BundledFonts.logoFontIsAvailable
+        Self.didRegisterFontsAtLaunch = BundledFonts.allFacesAreAvailable
 
         // `.playback` so Cloudmoji speaks even with the ringer switch off — what
         // a parent expects when handing the phone over. A deliberate override of

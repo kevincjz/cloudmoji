@@ -46,6 +46,22 @@ enum ModeHeaderMetrics {
     static let mascotSize: CGFloat = 64
     static let compactMascotSize: CGFloat = 42
 
+    /// `font-size: 14; font-weight: 900` on the web's `LangToggle` button.
+    static let languageLabelSize: CGFloat = 14
+
+    /// Fixed, not intrinsic, and both halves of that are deliberate.
+    ///
+    /// 62 is what the menu picker it replaced laid out at, so the width budget
+    /// `ModeHeaderTests` measures — mascot, wordmark, three controls, 375pt — is
+    /// unchanged. And a fixed width means the strip does not reflow when the
+    /// label changes: cycling EN → 中文 → BM → 日本語 → TL through an intrinsically
+    /// sized button would shuffle the whole header sideways under the child's
+    /// finger on every tap.
+    ///
+    /// It fits the longest label with room to spare: 日本語 is three CJK glyphs at
+    /// 14pt, so about 42pt inside a 58pt interior.
+    static let languageControlWidth: CGFloat = 62
+
     /// Design system Active States: control buttons `scale(0.88)`.
     static let pressedScale: CGFloat = 0.88
 }
@@ -115,7 +131,7 @@ struct ModeHeader: View {
 
             parentControl
             muteControl
-            languagePicker
+            languageToggle
         }
         .padding(.horizontal, isCompact
                  ? ModeHeaderMetrics.compactHorizontalPadding
@@ -164,24 +180,103 @@ struct ModeHeader: View {
         }
     }
 
-    /// Unchanged from Stage 2a, including its identifier — `WordsModeUITests`
-    /// measures it by name.
-    private var languagePicker: some View {
-        @Bindable var settings = model.settings
-        return Picker("Language", selection: $settings.language) {
-            ForEach(model.availableLanguages) { meta in
-                Text(meta.short).tag(meta.id)
-            }
+    /// One tap, one language. This was a `.menu` `Picker` until a 27-month-old
+    /// met it: opening a menu, reading five rows and landing on one is three
+    /// separate skills he does not have, and the language stopped changing at
+    /// all. A button that advances to the next enabled language is one tap, one
+    /// action, one visible result — `CLAUDE.md` rule 3, applied to the one piece
+    /// of parent chrome the child had learned to reach for.
+    ///
+    /// Keeps the identifier `lang-picker` even though it is no longer a picker:
+    /// `WordsModeUITests` measures it by name, and renaming it would silently
+    /// retire that test rather than fail it.
+    private var languageToggle: some View {
+        let languages = model.availableLanguages
+        let current = languages.first { $0.id == model.settings.language }
+        let next = Self.nextMeta(in: languages, after: model.settings.language)
+        let canCycle = model.canCycleLanguage
+
+        return LanguageToggle(
+            // The fallback cannot happen — `SettingsStore` re-resolves the active
+            // language whenever either side of the invariant moves — but a blank
+            // button would be a worse way to find that out than a wrong one.
+            label: current?.short ?? model.settings.language.rawValue.uppercased(),
+            // English, and spelled out: VoiceOver here is for the parent. The
+            // short label alone would have it read "BM" and "TL" as letters.
+            voiceOverLabel: "Language: \(current?.name ?? model.settings.language.rawValue)",
+            voiceOverValue: current?.short ?? "",
+            voiceOverHint: canCycle
+                ? "Switches to \(next?.name ?? "the next language")"
+                : "The only language switched on in Settings",
+            isEnabled: canCycle,
+            action: { model.cycleLanguage() }
+        )
+    }
+
+    /// The language this control would move to next. Pure and static so the
+    /// wrap-around can be tested without a view, and shared with `AppModel` so the
+    /// hint can never promise a different language from the one the tap delivers.
+    static func nextMeta(in languages: [LanguageMeta], after current: Language) -> LanguageMeta? {
+        let next = AppModel.nextLanguage(after: current, in: languages.map(\.id))
+        return languages.first { $0.id == next }
+    }
+}
+
+/// The language button: the current language's own short name, tapped to advance
+/// to the next one the parent left enabled.
+///
+/// Its own type for the same reason `ModeHeaderControl` is — so the 44pt parent
+/// chrome floor can be measured off a real render rather than read back out of
+/// the constant that set it.
+struct LanguageToggle: View {
+    let label: String
+    let voiceOverLabel: String
+    let voiceOverValue: String
+    let voiceOverHint: String
+    /// False when this is the only language the parent left on. The button stays
+    /// on screen — it is the only place the current language is written down —
+    /// but it is visibly disabled rather than tappable and inert. A control that
+    /// answers every tap with nothing is exactly the failure state rule 4 forbids,
+    /// and the child would keep tapping it.
+    let isEnabled: Bool
+    let action: () -> Void
+
+    private var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: ModeHeaderMetrics.controlCornerRadius, style: .continuous)
+    }
+
+    var body: some View {
+        Button(action: action) {
+            Text(label)
+                // A text label inside a Button takes the button's accent tint,
+                // which is the system blue unless it is said otherwise. The two
+                // controls beside this one get away with saying nothing only
+                // because 🔊 and ⚙️ are colour emoji.
+                .foregroundStyle(Theme.textPrimary)
+                .font(Theme.body(ModeHeaderMetrics.languageLabelSize, .black))
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+                .frame(width: ModeHeaderMetrics.languageControlWidth,
+                       height: ModeHeaderMetrics.controlSide)
+                .background(Theme.surface, in: shape)
+                .overlay(
+                    shape.stroke(
+                        Theme.surfaceBorderStrong,
+                        lineWidth: ModeHeaderMetrics.controlBorderWidth
+                    )
+                )
+                // The frame alone does NOT grow the hit area: without this only
+                // the glyphs themselves are tappable. The menu picker this
+                // replaced shipped that way — 62 x 34, beside a comment claiming
+                // 44 — and nothing failed.
+                .contentShape(Rectangle())
         }
-        .pickerStyle(.menu)
-        // A menu picker draws its current value as tinted text, which is the
-        // system accent blue unless it is said otherwise.
-        .tint(Theme.textPrimary)
-        .frame(minWidth: ModeHeaderMetrics.controlSide,
-               minHeight: ModeHeaderMetrics.controlSide)
-        // The frame alone does NOT grow a menu picker's hit area — it lays out at
-        // 62 x 34 and only the text is tappable, which the UI tests measured.
-        .contentShape(Rectangle())
+        .buttonStyle(PressScale(scale: ModeHeaderMetrics.pressedScale))
+        .disabled(!isEnabled)
+        .opacity(isEnabled ? 1 : 0.5)
+        .accessibilityLabel(voiceOverLabel)
+        .accessibilityValue(voiceOverValue)
+        .accessibilityHint(voiceOverHint)
         .accessibilityIdentifier("lang-picker")
     }
 }

@@ -240,6 +240,78 @@ struct ModeHeaderTests {
     /// person does not re-derive it from the comment that used to claim otherwise.
     private static let wordmarkFloor = 65
 
+    /// The language toggle is parent chrome too, and it is the control that has
+    /// already shipped here under the floor once: the menu picker it replaced laid
+    /// out at 62 × 34 while the comment beside it said 44.
+    ///
+    /// Measured off a real render, not off `ModeHeaderMetrics`. The failing
+    /// mutation is not "delete the frame" — the width would survive on the text's
+    /// own intrinsic size — it is the height.
+    ///
+    /// Mutation: delete `.frame(width:height:)` from `LanguageToggle`. The button
+    /// collapses to the label's own ~19pt box and the height assertion fails. Run
+    /// and confirmed failing.
+    @Test("the language toggle is at least 44pt on both axes")
+    func languageToggleMeetsTheParentChromeMinimum() {
+        let toggle = LanguageToggle(
+            // The widest of the five labels — if the box holds this it holds them
+            // all, and if the box were intrinsic this is where it would burst.
+            label: "日本語",
+            voiceOverLabel: "Language: Japanese",
+            voiceOverValue: "日本語",
+            voiceOverHint: "Switches to Tagalog",
+            isEnabled: true,
+            action: {}
+        )
+        let bitmap = Bitmap.rendered(toggle)
+        #expect(bitmap.width >= 44, "the toggle is \(bitmap.width)pt wide")
+        #expect(bitmap.height >= 44, "the toggle is \(bitmap.height)pt tall")
+        // And it stays inside the width the strip budgeted for it, or the wordmark
+        // pays for the overrun.
+        #expect(
+            bitmap.width <= Int(ModeHeaderMetrics.languageControlWidth),
+            "the toggle is \(bitmap.width)pt wide, past the \(Int(ModeHeaderMetrics.languageControlWidth))pt the header budgeted"
+        )
+    }
+
+    /// The header has to *read* the current language, not just own a button.
+    ///
+    /// Asserted on the pixels inside the toggle's own band rather than on a
+    /// string, because the string would be `meta.short` compared against
+    /// `meta.short` — a value asserted against its own definition. "EN" and "中文"
+    /// are two Latin letters against two CJK glyphs; they cannot draw the same
+    /// ink.
+    ///
+    /// The band is the last 62pt inside the 14pt inset, which is where the fixed
+    /// `languageControlWidth` puts it. The 12%-white border falls under the 150
+    /// threshold, so what is being counted is the label and nothing else.
+    ///
+    /// Mutation: hardcode `label:` to `"EN"` in `languageToggle`. Both renders
+    /// light the same pixels. Run and confirmed failing.
+    @Test("the toggle shows the language that is actually selected")
+    func toggleShowsTheCurrentLanguage() async {
+        let width = 375
+        let band = (width - Int(ModeHeaderMetrics.horizontalPadding)
+                    - Int(ModeHeaderMetrics.languageControlWidth))..<(width - Int(ModeHeaderMetrics.horizontalPadding))
+
+        func labelInk(_ language: Language) async -> Int {
+            let model = makeModel()
+            model.settings.language = language
+            let bitmap = await Bitmap.of(
+                header(model).frame(width: CGFloat(width)), width: CGFloat(width), height: 90
+            )
+            return litColumnCount(bitmap, threshold: 150, in: band)
+        }
+
+        let english = await labelInk(.en)
+        let chinese = await labelInk(.zh)
+        #expect(english > 0, "nothing was drawn in the toggle's band at all")
+        #expect(
+            english != chinese,
+            "EN and 中文 both lit \(english) columns in the toggle's band — the label is not reading the language"
+        )
+    }
+
     /// Mutation: return a constant from `muteGlyph`. One of the two fails, and the
     /// parent has no way to tell whether the app is silenced.
     @Test("the mute control says which state it is in")

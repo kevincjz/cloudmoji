@@ -257,4 +257,98 @@ struct AppModelTests {
         model.settings.enabledCategories = []
         #expect(model.categories.count == 9, "the store did not recover an empty category set")
     }
+
+    // MARK: - The language toggle
+
+    /// A cycle has to come back. Tapping once per enabled language and landing
+    /// where it started is the whole contract, and it is not satisfied by a
+    /// button that simply advances — one that ran off the end and stuck on the
+    /// last language would pass any "the language changed" assertion.
+    ///
+    /// The visited list is asserted as a whole rather than just its endpoints:
+    /// endpoints alone would also accept a toggle that oscillated between the
+    /// first two languages and never reached 日本語.
+    ///
+    /// Mutation: drop the `% enabled.count` in `nextLanguage(after:in:)`. The
+    /// fourth tap traps on an out-of-range index; with a clamp instead of a
+    /// modulo it sticks on `.tl` and the sequence assertion fails.
+    @Test("cycling visits every enabled language once and wraps to the start")
+    func cyclingWrapsAround() {
+        let model = makeModel()
+        model.settings.language = .en
+        let expected = model.availableLanguages.map(\.id)
+        #expect(expected.count == 5, "setup: all five languages should be enabled by default")
+
+        var visited: [Language] = []
+        for _ in expected.indices {
+            model.cycleLanguage()
+            visited.append(model.settings.language)
+        }
+        // Five taps from the first language: the other four in order, then home.
+        #expect(visited == Array(expected.dropFirst()) + [expected[0]], "visited \(visited)")
+    }
+
+    /// The reason the toggle exists in this shape: a family that switched three
+    /// languages off in Settings gets a two-way toggle, not a five-way one.
+    ///
+    /// Ten taps rather than two, so a bug that only shows up after the wrap has
+    /// somewhere to appear. The assertion is on the *set* of everything visited —
+    /// asserting `!= .zh` on a single tap would pass even if the third tap landed
+    /// on Chinese.
+    ///
+    /// Mutation: make `cycleLanguage` read `repository.languages` instead of
+    /// `availableLanguages` (i.e. drop the Settings filter). Chinese appears on
+    /// the second tap. Run and confirmed failing.
+    @Test("cycling never reaches a language Settings switched off")
+    func cyclingRespectsSettings() {
+        let model = makeModel()
+        model.settings.enabledLanguages = [.en, .ja]
+        model.settings.language = .en
+
+        var visited: Set<Language> = [model.settings.language]
+        for _ in 0..<10 {
+            model.cycleLanguage()
+            visited.insert(model.settings.language)
+        }
+        #expect(visited == [.en, .ja], "the toggle reached \(visited.sorted { $0.rawValue < $1.rawValue })")
+        // And it really does alternate rather than sitting still — a toggle that
+        // never moved would also satisfy a subset check.
+        model.settings.language = .en
+        model.cycleLanguage()
+        #expect(model.settings.language == .ja)
+    }
+
+    /// One language left on is the case where a cycle has nothing to cycle to.
+    /// The button must not be left looking tappable and doing nothing, so the
+    /// model says so and the view disables it.
+    ///
+    /// Mutation: change `canCycleLanguage` to `true`. The second expectation
+    /// fails and the header ships a control that answers every tap with silence.
+    @Test("with one language enabled the toggle reports that it cannot cycle")
+    func oneLanguageCannotCycle() {
+        let model = makeModel()
+        #expect(model.canCycleLanguage, "five languages are enabled by default")
+
+        model.settings.enabledLanguages = [.ms]
+        #expect(model.availableLanguages.map(\.id) == [.ms], "setup: only Malay should be left")
+        #expect(!model.canCycleLanguage)
+        // And if it is tapped anyway, it stays put rather than falling off the end.
+        model.cycleLanguage()
+        #expect(model.settings.language == .ms)
+    }
+
+    /// The impossible case, made possible: a current language outside the enabled
+    /// list. `SettingsStore` re-resolves it, so the model can never be asked this
+    /// — but the pure function is where the recovery lives and it is the only
+    /// place it can be exercised.
+    ///
+    /// Mutation: make the `guard`'s else branch `return current`. An off-list
+    /// language then never recovers and the toggle is dead for that parent.
+    @Test("a language that is not in the enabled list recovers to the first one")
+    func offListLanguageRecovers() {
+        // Tagalog is a real case, and deliberately not in the list handed in.
+        #expect(AppModel.nextLanguage(after: .tl, in: [.en, .zh]) == .en)
+        // An empty list has no answer but the one it was given.
+        #expect(AppModel.nextLanguage(after: .tl, in: []) == .tl)
+    }
 }

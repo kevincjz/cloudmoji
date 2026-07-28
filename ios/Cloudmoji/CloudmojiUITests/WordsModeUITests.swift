@@ -62,12 +62,12 @@ final class WordsModeUITests: XCTestCase {
     /// `launch()` precondition failed and nothing below it ran. Pinning the
     /// content the same way the language was already pinned makes this suite
     /// hermetic against any test, or any hand-fiddling, that came before it.
-    private func launch() -> XCUIApplication {
+    private func launch(enabledLanguages: String = "(en,zh,ms,ja,tl)") -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = [
             "-cm_lang", "en",
             "-cm_muted", "NO",
-            "-cm_enabled_langs", "(en,zh,ms,ja,tl)",
+            "-cm_enabled_langs", enabledLanguages,
             "-cm_enabled_cats", "(fruits,food,animals,vehicles,nature,objects,people,faces)",
             // Pinned for the same reason the four above are, and it is the most
             // dangerous of the five: without it a fresh simulator opens the
@@ -462,13 +462,15 @@ final class WordsModeUITests: XCTestCase {
         XCTAssertTrue(labels.contains("apple"), "replay showed \(labels), not the row's word")
     }
 
-    /// The language picker is parent-only chrome, so it follows the 44pt iOS HIG
+    /// The language toggle is parent-only chrome, so it follows the 44pt iOS HIG
     /// minimum rather than the 64pt child-facing rule.
     ///
-    /// Worth an explicit test because the trap here is silent: `.frame(minHeight:)`
-    /// grows a menu picker's layout box without growing what is tappable, so the
-    /// control measured 62 x 34 while a comment beside it claimed 44. Nothing
-    /// failed; it was found by measuring by hand.
+    /// Worth an explicit test because the trap here is silent, and it has already
+    /// been sprung once: `.frame(minHeight:)` grows a control's layout box without
+    /// growing what is tappable, so the menu picker this replaced measured 62 × 34
+    /// while a comment beside it claimed 44. Nothing failed; it was found by
+    /// measuring by hand. The replacement carries `.contentShape(Rectangle())` for
+    /// exactly that reason.
     func testLanguagePickerMeetsTheParentChromeMinimum() {
         let app = launch()
         let picker = app.descendants(matching: .any)
@@ -486,6 +488,89 @@ final class WordsModeUITests: XCTestCase {
         XCTAssertGreaterThanOrEqual(
             frame.width, 44,
             "the picker is \(frame.width)pt wide, under the 44pt HIG minimum"
+        )
+    }
+
+    /// The toggle, tapped the way the child taps it.
+    ///
+    /// This is the only place the whole path can be seen: the button exists, it
+    /// is hittable, tapping it reaches `AppModel.cycleLanguage`, the change is
+    /// persisted, and the header redraws. `AppModelTests` proves the cycle is a
+    /// cycle; it cannot prove anything is wired to it, and a `Button` whose action
+    /// closure was dropped would leave that suite entirely green.
+    ///
+    /// Five taps and back to English, not one tap and "it changed": a control
+    /// that advanced and stuck on the last language would satisfy the weaker
+    /// assertion. The intermediate labels are collected too, so a toggle
+    /// oscillating between the first two cannot pass by ending in the right place.
+    func testTheLanguageToggleCyclesThroughEveryEnabledLanguage() {
+        let app = launch()
+        let toggle = app.descendants(matching: .any)
+            .matching(identifier: "lang-picker").firstMatch
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5), "the language toggle was not in the tree")
+
+        let start = toggle.label
+        XCTAssertEqual(start, "Language: English", "the app did not launch pinned to English")
+
+        var seen: [String] = []
+        for _ in 1...5 {
+            seen.append(tapAndSettle(toggle, from: seen.last ?? start))
+        }
+
+        XCTAssertEqual(
+            seen,
+            [
+                "Language: Chinese",
+                "Language: Malay",
+                "Language: Japanese",
+                "Language: Tagalog",
+                "Language: English",
+            ],
+            "starting at \(start) the toggle visited \(seen)"
+        )
+    }
+
+    /// Taps `element` and returns its label once it has moved off `previous`.
+    ///
+    /// The wait is generous and its result is deliberately **not** asserted: this
+    /// machine has run the suite at 27 seconds a test under load, and a tap that
+    /// has not landed within eight seconds should be reported by whatever the
+    /// caller is actually measuring — the visited sequence — rather than by a
+    /// timeout that says nothing about which language went missing.
+    private func tapAndSettle(_ element: XCUIElement, from previous: String) -> String {
+        element.tap()
+        let changed = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "label != %@", previous), object: element
+        )
+        _ = XCTWaiter().wait(for: [changed], timeout: 8)
+        return element.label
+    }
+
+    /// The design case: a family switches three languages off and gets a two-way
+    /// toggle. `AppModel.availableLanguages` already filters, but nothing proved
+    /// the header consumed the filtered list rather than the catalogue.
+    ///
+    /// Six taps over a two-language cycle, so a third language has three
+    /// wrap-arounds to appear in. The assertion is on the set of everything seen —
+    /// checking only the final label would pass on a five-way cycle that happened
+    /// to land back on English.
+    func testTheLanguageToggleOnlyOffersTheLanguagesSettingsLeftOn() {
+        let app = launch(enabledLanguages: "(en,ja)")
+        let toggle = app.descendants(matching: .any)
+            .matching(identifier: "lang-picker").firstMatch
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5), "the language toggle was not in the tree")
+
+        var visited: [String] = [toggle.label]
+        for _ in 1...6 {
+            visited.append(tapAndSettle(toggle, from: visited.last!))
+        }
+
+        // Asserted as a set of exactly two: membership is the claim ("never a
+        // third language"), and the count of two is what stops a toggle that
+        // simply never moved from satisfying it.
+        XCTAssertEqual(
+            Set(visited), ["Language: English", "Language: Japanese"],
+            "with only English and Japanese switched on the toggle visited \(visited)"
         )
     }
 

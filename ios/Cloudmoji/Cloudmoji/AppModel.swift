@@ -62,6 +62,38 @@ final class AppModel {
         repository.languages.filter { settings.enabledLanguages.contains($0.id) }
     }
 
+    /// Whether the header's language button does anything. False when the parent
+    /// has left exactly one language on — the button stays visible, because it is
+    /// the only place the current language is written down, but it is disabled
+    /// rather than tappable-and-inert.
+    var canCycleLanguage: Bool { availableLanguages.count > 1 }
+
+    /// Advances to the next language the parent left enabled, wrapping at the end.
+    ///
+    /// Replaces a menu picker: a 27-month-old cannot open a menu, read five rows
+    /// and hit one, but he can hit one button repeatedly. Cycling only through
+    /// `availableLanguages` is the point of the design — a family that switched
+    /// three off gets a two-way toggle.
+    func cycleLanguage() {
+        settings.language = Self.nextLanguage(
+            after: settings.language,
+            in: availableLanguages.map(\.id)
+        )
+    }
+
+    /// Pure, so the wrap-around and the not-in-the-list case can be given inputs
+    /// the shipped data cannot produce.
+    ///
+    /// A current language that is not in `enabled` should be impossible —
+    /// `SettingsStore` re-resolves it whenever either side changes — but "should
+    /// be impossible" is how the web shipped a stale `es` into `NUMBER_WORDS`.
+    /// Landing on the first enabled language is the recovery, and it is the same
+    /// answer an empty list gives.
+    static func nextLanguage(after current: Language, in enabled: [Language]) -> Language {
+        guard let index = enabled.firstIndex(of: current) else { return enabled.first ?? current }
+        return enabled[(index + 1) % enabled.count]
+    }
+
     var categories: [CategoryTab] {
         repository.categories.filter { tab in
             guard let category = tab.category else { return true } // "all"
