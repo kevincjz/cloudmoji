@@ -27,6 +27,12 @@ private struct RootContent: View {
 
     @State private var mode: AppMode = .words
 
+    @State private var isGateShowing = false
+    @State private var isParentPanelShowing = false
+    /// Which question comes next. Advanced on every attempt, passed or not, so a
+    /// parent who has just answered one is not asked the same one again.
+    @State private var gateIndex = 0
+
     var body: some View {
         VStack(spacing: 0) {
             // A `switch`, so the outgoing screen is torn down rather than kept
@@ -38,9 +44,9 @@ private struct RootContent: View {
             // screen nobody is looking at.
             switch mode {
             case .words:
-                WordsView(mode: mode, onSelectMode: select)
+                WordsView(mode: mode, onSelectMode: select, onParent: openParentDoor)
             case .count:
-                CountView(mode: mode, onSelectMode: select)
+                CountView(mode: mode, onSelectMode: select, onParent: openParentDoor)
             }
 
             // Sideways the tabs are in the rail instead: a landscape phone gives
@@ -49,6 +55,47 @@ private struct RootContent: View {
                 ModeTabBar(mode: mode, layout: .bar, onSelect: select)
             }
         }
+        // An overlay rather than a sheet. Swapping one sheet for another on pass is
+        // a documented SwiftUI misfire, and a numeric keyboard inside a detented
+        // sheet fights the detent. It sits out here rather than inside either mode
+        // so that it also covers the tab bar — a gate a child can tap around is not
+        // a gate.
+        .overlay {
+            if isGateShowing {
+                ParentalGate(
+                    challenge: GateChallenge.at(gateIndex),
+                    action: "Settings let you choose which languages and categories Cloudmoji shows, and how high Count mode goes.",
+                    onPass: {
+                        isGateShowing = false
+                        gateIndex += 1
+                        isParentPanelShowing = true
+                    },
+                    onCancel: {
+                        isGateShowing = false
+                        gateIndex += 1
+                    }
+                )
+                .transition(.opacity)
+            }
+        }
+        .animation(.easeOut(duration: 0.2), value: isGateShowing)
+        .sheet(isPresented: $isParentPanelShowing) {
+            NavigationStack {
+                SettingsView()
+            }
+            // Re-injected rather than inherited. A sheet is presented from a
+            // detached hierarchy, and an observable put in with `.environment` at
+            // the app level is not reliably visible inside one — the failure is a
+            // crash on first appearance, not a compile error.
+            .environment(model)
+        }
+    }
+
+    private func openParentDoor() {
+        // A child may be mid-word; a parent opening this is not a reason to keep
+        // talking over the keypad.
+        model.speech.cancelAll()
+        isGateShowing = true
     }
 
     private func select(_ next: AppMode) {

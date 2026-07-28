@@ -69,6 +69,29 @@ final class AppModel {
         }
     }
 
+    /// Every language, enabled or not. **Settings only** — it is the one screen
+    /// that has to show a parent what they have switched off, so it is the one
+    /// screen that reads past the filter. Anything else using this is a bug.
+    var allLanguages: [LanguageMeta] { repository.languages }
+
+    /// Every real category, enabled or not, without the "All" tab — "All" is a
+    /// view of the grid, not something a parent can switch off.
+    var allCategories: [CategoryTab] {
+        repository.categories.filter { $0.category != nil }
+    }
+
+    /// False when this is the only language left on. `SettingsStore` treats an
+    /// empty set as "all of them", which is the right invariant and a baffling
+    /// thing for a parent to watch happen — five switches snapping back on after
+    /// they turned the last one off. Settings greys the switch instead.
+    func canDisableLanguage(_ id: Language) -> Bool {
+        settings.enabledLanguages != [id]
+    }
+
+    func canDisableCategory(_ id: Category) -> Bool {
+        settings.enabledCategories != [id]
+    }
+
     /// `nil` means the "all" tab.
     ///
     /// The enabled check comes first and applies even when an explicit category

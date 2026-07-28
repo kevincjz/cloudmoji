@@ -47,15 +47,29 @@ final class WordsModeUITests: XCTestCase {
 
     /// Launches the app in a known state.
     ///
-    /// The language and mute flags go through `NSArgumentDomain`, which outranks
-    /// anything `SettingsStore` previously wrote to the app domain. Without them
-    /// these tests inherit whatever `UserDefaults` the last run left on the
-    /// simulator: a leftover `cm_lang` of `ja` makes every word assertion below
-    /// fail, and a leftover `cm_muted` of `YES` removes `replay-btn` from the row
-    /// entirely, because a button that cannot do anything is a failure state.
+    /// Every setting this suite depends on goes through `NSArgumentDomain`, which
+    /// outranks anything `SettingsStore` previously wrote to the app domain.
+    /// Without them these tests inherit whatever `UserDefaults` the last run left
+    /// on the simulator: a leftover `cm_lang` of `ja` makes every word assertion
+    /// below fail, and a leftover `cm_muted` of `YES` removes `replay-btn` from
+    /// the row entirely, because a button that cannot do anything is a failure
+    /// state.
+    ///
+    /// The two content keys were added when `ParentalGateUITests` arrived and
+    /// every one of the sixteen tests here went red at once: that suite switches
+    /// Fruits off through the real Settings panel, `SettingsStore` persists it,
+    /// and the next launch without an override has no 🍎 in the grid — so the
+    /// `launch()` precondition failed and nothing below it ran. Pinning the
+    /// content the same way the language was already pinned makes this suite
+    /// hermetic against any test, or any hand-fiddling, that came before it.
     private func launch() -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["-cm_lang", "en", "-cm_muted", "NO"]
+        app.launchArguments = [
+            "-cm_lang", "en",
+            "-cm_muted", "NO",
+            "-cm_enabled_langs", "(en,zh,ms,ja,tl)",
+            "-cm_enabled_cats", "(fruits,food,animals,vehicles,nature,objects,people,faces)",
+        ]
         app.launch()
         XCTAssertTrue(
             app.buttons["emoji-🍎"].waitForExistence(timeout: 30),

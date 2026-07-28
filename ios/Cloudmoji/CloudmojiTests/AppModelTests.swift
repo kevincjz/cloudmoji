@@ -191,4 +191,70 @@ struct AppModelTests {
         model.settings.countRange = 3...5
         #expect(model.countRange == 3...5)
     }
+
+    // MARK: - What Settings edits
+
+    /// Settings is the one screen that must show what is switched **off**, so it
+    /// reads the unfiltered lists. Everything else in the app reads the filtered
+    /// ones — that is the whole point of filtering in the model.
+    ///
+    /// Mutation: point `allLanguages` at `availableLanguages`. The second
+    /// expectation fails and a parent can never switch a language back on.
+    @Test("Settings sees every language and category, including the disabled ones")
+    func settingsSeesEverything() {
+        let model = makeModel()
+        #expect(model.allLanguages.count == 5)
+        #expect(model.allCategories.count == 8, "8 real categories; the All tab is not one of them")
+        #expect(!model.allCategories.contains { $0.id == "all" })
+
+        model.settings.enabledLanguages = [.en]
+        model.settings.enabledCategories = [.fruits]
+        #expect(model.allLanguages.count == 5, "disabled languages vanished from Settings")
+        #expect(model.allCategories.count == 8, "disabled categories vanished from Settings")
+        #expect(model.availableLanguages.count == 1, "the rest of the app should still be narrowed")
+        #expect(model.categories.count == 2, "the child's tab strip should be All plus Fruits")
+    }
+
+    /// `SettingsStore` silently re-enables everything if the last one is switched
+    /// off — a sane invariant, and a baffling thing to watch happen. Settings asks
+    /// first and greys the switch instead.
+    ///
+    /// Mutation: return `true` unconditionally. The two "== false" expectations
+    /// fail, and a parent turning off their last language sees all five snap back on.
+    @Test("the last enabled language and category cannot be switched off")
+    func theLastOneIsProtected() {
+        let model = makeModel()
+        #expect(model.canDisableLanguage(.en))
+        #expect(model.canDisableCategory(.fruits))
+
+        model.settings.enabledLanguages = [.zh]
+        #expect(model.canDisableLanguage(.zh) == false)
+        #expect(model.canDisableLanguage(.en), "a language that is already off is not the last one on")
+
+        model.settings.enabledCategories = [.animals]
+        #expect(model.canDisableCategory(.animals) == false)
+        #expect(model.canDisableCategory(.fruits))
+    }
+
+    /// What the greying is protecting the parent from, spelled out: the store's
+    /// own recovery. Without `canDisable*` in front of it, the switch a parent
+    /// taps turns *itself* back on along with four others.
+    ///
+    /// This is the justification for the two functions above, and it belongs in a
+    /// test rather than only in a comment — `SettingsStore`'s behaviour here is
+    /// deliberate and must not be "fixed" out from under Settings.
+    ///
+    /// Mutation: delete the `isEmpty ? Set(Language.allCases)` recovery in
+    /// `SettingsStore`. Run and confirmed failing — as a trap rather than an
+    /// expectation, on `resolveLanguage`'s own precondition, which is the store
+    /// saying the same thing one layer down. Either way the app has no language
+    /// and dies, which is precisely what Settings must never be able to cause.
+    @Test("emptying the last switch is what the greying prevents")
+    func emptyingSnapsEverythingBackOn() {
+        let model = makeModel()
+        model.settings.enabledLanguages = []
+        #expect(model.availableLanguages.count == 5, "the store did not recover an empty language set")
+        model.settings.enabledCategories = []
+        #expect(model.categories.count == 9, "the store did not recover an empty category set")
+    }
 }

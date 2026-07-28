@@ -23,6 +23,9 @@ struct CountView: View {
     /// without the rail claiming Words is selected.
     var mode: AppMode = .count
     var onSelectMode: (AppMode) -> Void = { _ in }
+    /// Opens the parental gate. `ContentView` owns it, because the gate has to
+    /// cover the tab bar as well as this screen.
+    var onParent: () -> Void = {}
 
     @State private var round: CountRound?
     /// The tile counted most recently, which bounces once. Separate from the
@@ -170,7 +173,8 @@ struct CountView: View {
         ModeHeader(
             mood: mood,
             title: "Cloudculator",
-            subtitle: "🧮 " + text(Self.uiText.subtitle)
+            subtitle: "🧮 " + text(Self.uiText.subtitle),
+            onParent: onParent
         )
     }
 

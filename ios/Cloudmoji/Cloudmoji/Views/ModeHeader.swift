@@ -71,6 +71,11 @@ struct ModeHeader: View {
     /// Shown upright only; sideways there is no height for it.
     let subtitle: String
 
+    /// Opens the parental gate. Defaulted to a no-op so the previews and
+    /// `ModeHeaderTests` can build the header on its own — the real one is wired in
+    /// `ContentView`, which owns the gate.
+    var onParent: () -> Void = {}
+
     /// Which speaker the mute button shows. Static and pure because it is the one
     /// part of this control that can be silently wrong: a button that always draws
     /// 🔊 still toggles, and the parent has no way to tell whether it worked.
@@ -108,6 +113,7 @@ struct ModeHeader: View {
 
             Spacer(minLength: 0)
 
+            parentControl
             muteControl
             languagePicker
         }
@@ -120,6 +126,25 @@ struct ModeHeader: View {
         .padding(.bottom, isCompact
                  ? ModeHeaderMetrics.compactBottomPadding
                  : ModeHeaderMetrics.bottomPadding)
+    }
+
+    /// The one door to the parent's half of the app. Everything behind it is
+    /// gated: the web's ungated `About` button and its five-tap gesture on the
+    /// wordmark are both replaced by this, because a gesture is something a parent
+    /// has to be told about and the only place to tell them is behind it — and
+    /// because Kids Category review looks for a gate in front of anything that is
+    /// not the game.
+    private var parentControl: some View {
+        ModeHeaderControl(
+            // A colour emoji, so it keeps its own colours rather than taking
+            // the button's accent tint the way a text symbol would.
+            glyph: "⚙️",
+            label: "Grown-ups only",
+            identifier: "parent-btn",
+            tint: Theme.teal,
+            isOn: false,
+            action: onParent
+        )
     }
 
     /// The control that was 90% built and unreachable: `SettingsStore.muted`

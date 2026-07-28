@@ -19,6 +19,9 @@ struct WordsView: View {
     /// `WordsViewTests` and the previews can build the screen on its own.
     var mode: AppMode = .words
     var onSelectMode: (AppMode) -> Void = { _ in }
+    /// Opens the parental gate. `ContentView` owns it, because the gate has to
+    /// cover the tab bar as well as this screen.
+    var onParent: () -> Void = {}
 
     @State private var category: String = "all"
     @State private var typed: [TypedEmoji] = []
@@ -168,7 +171,8 @@ struct WordsView: View {
         ModeHeader(
             mood: mood,
             title: "Cloudmoji",
-            subtitle: "Tap. Listen. Learn!"
+            subtitle: "Tap. Listen. Learn!",
+            onParent: onParent
         )
     }
 

@@ -59,10 +59,10 @@ struct ModeHeaderTests {
     /// 60pt" and passed with the language picker **deleted outright**: with the
     /// picker gone the mute button simply slides right into that band and lights
     /// it. And the brief predicts the picker gets pushed off the right-hand edge;
-    /// it does not. Adding four more 44pt controls squeezes the wordmark from 93
-    /// columns down to 7 — `lineLimit(1)` truncates "Cloudmoji" to a sliver — and
-    /// every control stays politely on screen. Nothing is ever clipped, so nothing
-    /// aimed at the edges can catch it.
+    /// it does not. Adding five more 44pt controls squeezes the wordmark from 86
+    /// columns down to 48 and finally clips the mascot at x=0 — the controls
+    /// themselves stay politely on screen throughout, so nothing aimed at the
+    /// right-hand edge can catch any of it.
     ///
     /// So each assertion below is aimed at a different, measured failure, and none
     /// of them is satisfied by one control impersonating another:
@@ -70,12 +70,12 @@ struct ModeHeaderTests {
     /// * neither edge is clipped, which is the one shape an overflow can take;
     /// * the wordmark still occupies the space between the mascot and the controls
     ///   — this is what actually breaks first, and it breaks silently;
-    /// * both right-hand controls are drawn, as two separate clusters of lit
+    /// * all three right-hand controls are drawn, as three separate clusters of lit
     ///   columns. This is the one that fails when the picker leaves.
     ///
-    /// Mutation: delete `languagePicker` from the body (two clusters become one);
-    /// or add four more `muteControl`s (the wordmark collapses to 7 columns).
-    @Test("the header fits the mascot, the wordmark and both controls at 375pt")
+    /// Mutation: delete `languagePicker` from the body (three clusters become two);
+    /// or add four more `muteControl`s (the wordmark collapses to a sliver).
+    @Test("the header fits the mascot, the wordmark and all three controls at 375pt")
     func headerKeepsThePickerOnANarrowPhone() async {
         let width = 375
         let bitmap = await Bitmap.of(
@@ -98,19 +98,21 @@ struct ModeHeaderTests {
         )
 
         // The wordmark's own band: right of the 14 + 64 mascot, left of the
-        // controls, which start at 247 in a healthy layout. It draws 93 of these
-        // 120 columns when it fits and 7 when it has been squeezed to a sliver.
-        let wordmark = litColumnCount(bitmap, threshold: 150, in: 80..<200)
+        // controls. Three 44pt-ish controls and their gaps start at roughly x=195
+        // in a healthy layout, so the band stops short of that rather than at the
+        // 200 it could use when there were only two controls.
+        let wordmark = litColumnCount(bitmap, threshold: 150, in: 80..<190)
         #expect(
-            wordmark >= 60,
-            "the wordmark occupies only \(wordmark) of the 120 columns between the mascot and the controls — it has been squeezed to a sliver"
+            wordmark >= Self.wordmarkFloor,
+            "the wordmark occupies only \(wordmark) of the 110 columns between the mascot and the controls — it has been squeezed to a sliver"
         )
 
-        // Right of the wordmark there must be two things, not one.
-        let controls = columns.filter { $0.start >= 200 }
+        // Right of the wordmark there must be three things: the gate button, the
+        // mute button and the language picker.
+        let controls = columns.filter { $0.start >= 190 }
         #expect(
-            controls.count >= 2,
-            "only \(controls.count) control cluster(s) right of x=200: \(controls) — the mute button and the language picker are not both on screen"
+            controls.count >= 3,
+            "only \(controls.count) control cluster(s) right of x=190: \(controls) — the gate button, the mute button and the language picker are not all on screen"
         )
     }
 
@@ -164,6 +166,79 @@ struct ModeHeaderTests {
         if let run = current { clusters.append(run) }
         return clusters
     }
+
+    /// The worst case for the width budget: the longer of the two wordmarks, and
+    /// every control present. `Cloudculator` is three glyphs longer than
+    /// `Cloudmoji` and the ⚙️ is 44pt of new fixed width plus an 8pt gap, so if the
+    /// strip survives this it survives everything.
+    ///
+    /// The assertions are the same three the two-control test above uses, and for
+    /// the same measured reason: nothing here is ever clipped, so a test aimed at
+    /// the right-hand edge catches nothing — with a control deleted the remaining
+    /// ones simply slide right and light the band it was watching. What actually
+    /// degrades is the wordmark, silently, and what actually disappears is one of
+    /// the three clusters.
+    ///
+    /// Mutation: delete `parentControl` from the body — three clusters become two,
+    /// and Settings is unreachable exactly the way mute was unreachable for the
+    /// whole of stage 2a. Run and confirmed failing.
+    ///
+    /// The brief proposed watching the last 60pt of the strip instead, and
+    /// predicted that removing `.minimumScaleFactor` would push the picker off the
+    /// edge. Both were tried. Nothing is ever clipped by an extra control — the
+    /// others just slide right and light whatever band is being watched — and
+    /// removing `.minimumScaleFactor` changes nothing this test can see, because
+    /// `lineLimit(1)` truncates the wordmark on its own.
+    @Test("the header keeps every control and its wordmark with the gate button added")
+    func headerSurvivesTheWorstCase() async {
+        let width = 375
+        let widest = ModeHeader(
+            mood: .happy, title: "Cloudculator", subtitle: "🧮 Let's count!", onParent: {}
+        )
+        .environment(makeModel())
+        .frame(width: CGFloat(width))
+
+        let bitmap = await Bitmap.of(widest, width: CGFloat(width), height: 90)
+        let columns = litColumns(bitmap, threshold: 150)
+        #expect(!columns.isEmpty, "the header drew nothing at all")
+        guard let first = columns.first, let last = columns.last else { return }
+
+        let padding = Int(ModeHeaderMetrics.horizontalPadding)
+        #expect(
+            first.start >= 8,
+            "content starts at x=\(first.start) — the mascot is clipped, so the strip overflowed"
+        )
+        #expect(
+            last.end - 1 <= width - padding,
+            "content reaches x=\(last.end - 1), past the \(padding)pt inset — the strip overflowed"
+        )
+
+        // Three controls at 44 + 8 + 44 + 8 + ~62, inset 14, leaves the wordmark
+        // the band between the 14 + 64 mascot and roughly x=195.
+        let wordmark = litColumnCount(bitmap, threshold: 150, in: 80..<190)
+        #expect(
+            wordmark >= Self.wordmarkFloor,
+            "the wordmark occupies only \(wordmark) of the 110 columns between the mascot and the controls — it has been squeezed to a sliver"
+        )
+
+        let controls = columns.filter { $0.start >= 190 }
+        #expect(
+            controls.count >= 3,
+            "only \(controls.count) control cluster(s) right of x=190: \(controls) — the gate button, the mute button and the language picker are not all three on screen"
+        )
+    }
+
+    /// Measured on this simulator, not guessed: "Cloudmoji" draws 86 of the 110
+    /// columns in its band and "Cloudculator" 88. Crowding the strip with five
+    /// more 44pt controls takes both to 48. 65 sits between the two with room on
+    /// either side.
+    ///
+    /// Deleting `.minimumScaleFactor(0.8)` does **not** move this number and does
+    /// not fail either test — `lineLimit(1)` truncates on its own, so the strip
+    /// still lays out and the wordmark still fills its band with a shorter string.
+    /// That mutation was tried and survived; it is recorded here so the next
+    /// person does not re-derive it from the comment that used to claim otherwise.
+    private static let wordmarkFloor = 65
 
     /// Mutation: return a constant from `muteGlyph`. One of the two fails, and the
     /// parent has no way to tell whether the app is silenced.
