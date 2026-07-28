@@ -10,6 +10,26 @@ enum MascotMood: String, CaseIterable, Hashable {
     case happy, excited, speaking, beaming
 }
 
+extension MascotMood {
+    /// A milestone or round-completion celebration outranks everything.
+    ///
+    /// `CLAUDE.md` rule 11. Without it the very tap that *earns* the celebration —
+    /// and the speech finishing right after it — pull the beaming face straight
+    /// back off, and the reward the whole thing exists for is a flicker.
+    ///
+    /// It lives on the mood rather than on a screen because both screens celebrate
+    /// and the rule is the same one. It was `WordsView.arbitrate`; a second copy on
+    /// `CountView` is how two implementations of one rule drift apart.
+    ///
+    /// Every mood change on either screen goes through here. The only assignment
+    /// that does not is a celebration ending its own hold — nothing else is allowed
+    /// to lower that flag.
+    static func arbitrate(current: MascotMood, requested: MascotMood) -> MascotMood {
+        if current == .beaming && requested != .beaming { return current }
+        return requested
+    }
+}
+
 // MARK: - Motion
 
 /// The three `@keyframes` the web mascot cycles between, ported from

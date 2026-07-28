@@ -57,18 +57,6 @@ struct WordsView: View {
         Array((typed + [item]).suffix(TypingRow.maxTyped))
     }
 
-    /// The web's `safeMood`: a milestone celebration outranks everything.
-    ///
-    /// `CLAUDE.md` rule 11. Without it the tap that *earns* the milestone — and
-    /// the speech finishing right after it — pull the beaming face straight back
-    /// off again, and the reward the whole counter exists for is a flicker.
-    /// Every mood change on this screen goes through here; the only assignment
-    /// that does not is the celebration ending its own three seconds.
-    static func arbitrate(current: MascotMood, requested: MascotMood) -> MascotMood {
-        if current == .beaming && requested != .beaming { return current }
-        return requested
-    }
-
     // MARK: - Timings
     //
     // From `src/components/WordsMode.tsx` and `CLAUDE.md`.
@@ -280,7 +268,7 @@ struct WordsView: View {
         guard !model.settings.muted else {
             // Nothing will report finishing, so the excited face needs its own
             // way home or the mascot keeps star eyes for the rest of the day.
-            moodTask = after(Self.excitedHold) { setMood(.happy) }
+            moodTask = afterDelay(Self.excitedHold) { setMood(.happy) }
             return
         }
 
@@ -288,7 +276,7 @@ struct WordsView: View {
         // is actually still being said (rule 9). `SpeechController` has no
         // "started" callback, so the handover is the 600ms the design already
         // specifies for the excited face rather than a guess.
-        moodTask = after(Self.excitedHold) { setMood(.speaking) }
+        moodTask = afterDelay(Self.excitedHold) { setMood(.speaking) }
 
         // The mouth must close even if nothing ever reports finishing.
         //
@@ -301,7 +289,7 @@ struct WordsView: View {
         // button to make that silence legible. The web never had this hole — it
         // returns to happy on a timer regardless of TTS.
         speechFallback?.cancel()
-        speechFallback = after(Self.speechCeiling) { setMood(.happy) }
+        speechFallback = afterDelay(Self.speechCeiling) { setMood(.happy) }
 
         model.speech.speak(word, in: model.settings.language) {
             moodTask?.cancel()
@@ -326,7 +314,7 @@ struct WordsView: View {
                     // early and the next item opens it again — a blink, not a
                     // failure state.
                     moodTask?.cancel()
-                    moodTask = after(Self.bubbleHold) { setMood(.happy) }
+                    moodTask = afterDelay(Self.bubbleHold) { setMood(.happy) }
                 }
             },
             in: model.settings.language
@@ -336,13 +324,13 @@ struct WordsView: View {
     private func bounce(_ id: String) {
         bounceTask?.cancel()
         bouncingID = id
-        bounceTask = after(Self.bounceHold) { bouncingID = nil }
+        bounceTask = afterDelay(Self.bounceHold) { bouncingID = nil }
     }
 
     private func showBubble(_ item: TypedEmoji) {
         bubble = item
         bubbleTask?.cancel()
-        bubbleTask = after(Self.bubbleHold) { bubble = nil }
+        bubbleTask = afterDelay(Self.bubbleHold) { bubble = nil }
     }
 
     private func celebrate() {
@@ -361,7 +349,7 @@ struct WordsView: View {
     }
 
     private func setMood(_ requested: MascotMood) {
-        mood = Self.arbitrate(current: mood, requested: requested)
+        mood = MascotMood.arbitrate(current: mood, requested: requested)
     }
 
     /// A language or mute change stops the audio and puts the face back.
@@ -370,16 +358,6 @@ struct WordsView: View {
         model.speech.cancelAll()
         moodTask?.cancel()
         setMood(.happy)
-    }
-
-    /// One shape for every delayed effect on this screen, so none of them can
-    /// forget the cancellation check.
-    private func after(_ delay: Duration, _ work: @escaping @MainActor () -> Void) -> Task<Void, Never> {
-        Task {
-            try? await Task.sleep(for: delay)
-            guard !Task.isCancelled else { return }
-            work()
-        }
     }
 }
 

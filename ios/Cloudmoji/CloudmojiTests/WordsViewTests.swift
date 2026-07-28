@@ -90,7 +90,7 @@ struct WordsViewTests {
     func beamingIsNotInterrupted() {
         for requested: MascotMood in [.happy, .excited, .speaking] {
             #expect(
-                WordsView.arbitrate(current: .beaming, requested: requested) == .beaming,
+                MascotMood.arbitrate(current: .beaming, requested: requested) == .beaming,
                 "\(requested) was allowed to interrupt the celebration"
             )
         }
@@ -103,12 +103,12 @@ struct WordsViewTests {
     func nonBeamingMoodsAreReplaced() {
         for current: MascotMood in [.happy, .excited, .speaking] {
             for requested: MascotMood in MascotMood.allCases {
-                #expect(WordsView.arbitrate(current: current, requested: requested) == requested)
+                #expect(MascotMood.arbitrate(current: current, requested: requested) == requested)
             }
         }
         // The celebration has to be able to start from anywhere, including from
         // the excited face the milestone tap just set.
-        #expect(WordsView.arbitrate(current: .beaming, requested: .beaming) == .beaming)
+        #expect(MascotMood.arbitrate(current: .beaming, requested: .beaming) == .beaming)
     }
 
     /// `CLAUDE.md` rule 10, as literals. Reading the set back out of
