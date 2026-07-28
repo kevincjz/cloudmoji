@@ -1,0 +1,327 @@
+import SwiftUI
+
+/// FAQ, privacy and version history.
+///
+/// Pushed from `SettingsView`, so it is already behind the parental gate. The web
+/// reaches its About panel from the header and hides a five-tap gesture for the
+/// grown-ups bits; here the whole thing sits behind the arithmetic question, which
+/// is one fewer secret to remember and one fewer way for a toddler to land on a wall
+/// of text.
+///
+/// There are **no outbound links** — the web's Ko-fi button is deliberately absent,
+/// because monetisation is a v1 non-goal and an external link is the riskiest single
+/// item in a Kids Category review. Nothing in this file calls
+/// `UIApplication.shared.open`, and `AboutViewTests` fails if a URL appears in the
+/// copy.
+///
+/// The privacy text is **rewritten, not ported**. Every sentence in it is a claim
+/// about this binary and was checked against the source before it was written: the
+/// app imports only AVFoundation, CoreText, Foundation, Observation and SwiftUI, the
+/// package has no dependencies, there is no `URLSession` anywhere in the target, and
+/// `SettingsStore` writes exactly six `UserDefaults` keys. Shipping the web's
+/// wording instead would attach an inaccurate disclosure to a listing whose
+/// nutrition label says "Data Not Collected".
+struct AboutView: View {
+
+    struct Entry: Identifiable {
+        /// Explicit rather than derived from `question`, so the accessibility
+        /// identifier a UI test looks up is stable when the wording is edited —
+        /// and so it stays plain ASCII, which a slug of "v1.0 — Cloudmoji for
+        /// iPhone and iPad" would not.
+        let id: String
+        let question: String
+        let answer: String
+    }
+
+    static let faq: [Entry] = [
+        Entry(
+            id: "how-to-use",
+            question: "How do we use Cloudmoji?",
+            answer: """
+                Cloudmoji has two modes — switch between them with the tabs at the bottom.
+
+                🗣️ Words — tap any emoji to hear the word spoken aloud. The row along the top \
+                keeps what your little one has tapped, and the 🔊 button replays the lot.
+
+                🧮 Count — tap the emojis one at a time to count them. Cloudmoji says the \
+                running number out loud and the dots track how far along the round is.
+
+                We run it in Guided Access, which locks the phone to Cloudmoji so a small \
+                person can tap freely without leaving the app.
+                """
+        ),
+        Entry(
+            id: "guided-access",
+            question: "How do I turn on Guided Access?",
+            answer: """
+                1. Settings → Accessibility → Guided Access → turn it on.
+                2. Set a passcode.
+                3. Open Cloudmoji, then triple-click the side button.
+                4. Tap Start in the top right.
+                5. To leave: triple-click the side button again and enter your passcode.
+                """
+        ),
+        Entry(
+            id: "languages",
+            question: "Which languages are supported?",
+            answer: """
+                Five: English, Mandarin Chinese (中文), Bahasa Melayu (BM), Japanese (日本語) \
+                and Tagalog (TL). Tap the language button in the top right to switch.
+
+                Japanese uses hiragana and katakana only — no kanji — which matches what \
+                Japanese children learn first. Counting uses the ～つ counter (ひとつ, ふたつ, \
+                みっつ), the first counting system Japanese children are taught.
+
+                In the grown-ups screen you can switch off the languages your family does not \
+                use, so the picker only offers the ones you want.
+                """
+        ),
+        Entry(
+            id: "make-it-simpler",
+            question: "Can I make it simpler for a younger child?",
+            answer: """
+                Yes. Tap the ⚙️ button in the top right, answer the grown-ups question, and you \
+                can switch off whole categories of emoji and choose how high Count mode goes. \
+                Narrowing it to two categories and counting to three is a good place to start \
+                with a toddler; widen it as they get older.
+                """
+        ),
+        Entry(
+            id: "tagalog-voice",
+            question: "The Tagalog voice sounds wrong. Can I fix it?",
+            answer: """
+                Most devices ship without a Filipino voice, so Cloudmoji falls back to the Malay \
+                one — the two languages share the same five vowels and the same "ng" sound, so \
+                it is much closer than English would be.
+
+                To get the real thing: Settings → Accessibility → Spoken Content → Voices → \
+                Filipino. Cloudmoji uses it the next time you open the app.
+                """
+        ),
+        Entry(
+            id: "offline",
+            question: "Does it work offline?",
+            answer: """
+                Always, and there is no "first time online" either. Every word in all five \
+                languages is inside the app you downloaded, and the speech comes from your \
+                device's own voices. Cloudmoji works in a plane, in a car park and on a train \
+                through a tunnel.
+                """
+        ),
+        Entry(
+            id: "data",
+            question: "Is my child's data collected?",
+            answer: """
+                No. There are no accounts, no tracking and no personal data of any kind, and the \
+                app never connects to the internet. See the privacy policy below for the details.
+                """
+        ),
+    ]
+
+    static let legal: [Entry] = [
+        Entry(
+            id: "privacy",
+            question: "Privacy Policy",
+            answer: """
+                Cloudmoji for iPhone and iPad collects nothing, and its App Store privacy label \
+                says so: Data Not Collected.
+
+                IT MAKES NO CONNECTIONS
+                There are no network connections of any kind — no analytics, no advertising, no \
+                crash reporting, and no third-party code inside the app. Nothing about your \
+                child is uploaded because there is nowhere for it to go: the word lists for all \
+                five languages are inside the download, the emoji are drawn by iOS itself, and \
+                the one typeface we ship travels with the app.
+
+                WHAT IS STORED, AND WHERE
+                Six small settings are kept on this device by iOS: the chosen language, which \
+                languages are switched on, which categories are switched on, the lowest and the \
+                highest number Count mode uses, and whether Cloudmoji is muted. That is the \
+                whole list. They never leave the device, and deleting the app deletes them.
+
+                SPEECH
+                Words are spoken by your device's own text-to-speech. Cloudmoji hands iOS a word \
+                and iOS makes a sound; nothing is recorded, nothing is saved and nothing is sent \
+                anywhere. Cloudmoji never asks for the microphone. If you add a voice from iOS \
+                Settings, iOS fetches that voice — that is the system doing it, not this app.
+
+                NO ACCOUNTS, NO PURCHASES, NO LINKS OUT
+                There is nothing to sign in to, nothing to buy, and no button anywhere in \
+                Cloudmoji that opens a browser or another app.
+
+                We are parents, not lawyers. This describes what the app actually does rather \
+                than being a legal certification, and we have aimed at what COPPA and \
+                Singapore's PDPA ask for.
+                """
+        ),
+        Entry(
+            id: "terms",
+            question: "Terms of Use",
+            answer: """
+                • Cloudmoji is provided as is, without warranty of any kind.
+                • It is intended for use by children under adult supervision.
+                • We recommend Guided Access to keep a small person safely inside the app.
+                • Speech quality depends on the voices installed on your device and varies \
+                between them.
+                • We may update or discontinue Cloudmoji at any time.
+                • Cloudmoji is a personal project by Kevin and PQ, not a commercial product.
+
+                Last updated: July 2026.
+                """
+        ),
+    ]
+
+    /// What **this** app has shipped, not the web app's changelog. The web's own
+    /// history is summarised in one entry below rather than reprinted release by
+    /// release: a parent holding the iPhone app does not need five dated bullets
+    /// about a website, and half of them describe things that were never in this
+    /// build.
+    static let history: [Entry] = [
+        Entry(
+            id: "v1-0-ios",
+            question: "v1.0 — Cloudmoji for iPhone and iPad",
+            answer: """
+                • The first native release: 200 emojis across 8 categories, in English, \
+                Mandarin, Malay, Japanese and Tagalog
+                • Count mode with 84 things to count, rounds of 2 to 10, and the correct \
+                counting grammar in every language — Chinese measure words, Malay penjodoh \
+                bilangan, the Japanese ～つ counter with the noun first, and the Tagalog number \
+                linker
+                • A grown-ups screen behind an arithmetic gate: choose which languages appear, \
+                which categories your child sees, and how high Count mode goes — and it is \
+                remembered between sessions
+                • A landscape layout that moves the tabs into a side rail instead of squeezing \
+                the grid
+                • Tagalog falls back to the Malay voice rather than the English one on the many \
+                devices with no Filipino voice installed
+                • Everything ships inside the app — no network connection is ever made
+                """
+        ),
+        Entry(
+            id: "web-history",
+            question: "The web app so far — cloudmoji.app",
+            answer: """
+                v1.4 (July 2026) — 40 new emojis, taking the app from 160 to 200, and 30 new \
+                things to count, taking Count mode from 54 to 84. Every new word had a native \
+                speaker pass in all five languages.
+
+                v1.3 (July 2026) — Japanese and Tagalog added, hiragana and katakana only, with \
+                the ～つ counter and the correct Tagalog linker. The language button became a \
+                picker. Landscape stopped squeezing the grid to under two rows.
+
+                v1.2 (April 2026) — 27 new emojis and 27 new countables. Chinese counting fixed \
+                to use 两 rather than 二 with a measure word. English irregular plurals fixed. \
+                Malay classifiers added.
+
+                v1.1 (March 2026) — Count mode, and the tab bar to reach it.
+
+                v1.0 (March 2026) — 121 emojis, three languages, the cloud mascot, the typing \
+                row and milestone celebrations.
+                """
+        ),
+    ]
+
+    /// Read from the bundle rather than written down, so the panel cannot drift from
+    /// the build a parent is actually holding.
+    static func versionText(from info: [String: Any]?) -> String {
+        guard let version = info?["CFBundleShortVersionString"] as? String else { return "Cloudmoji" }
+        return "Cloudmoji v\(version)"
+    }
+
+    /// Parent-facing chrome throughout, so the 44pt iOS HIG floor rather than the
+    /// app's usual 64pt child minimum. A 64pt row in a `List` looks broken, and no
+    /// child ever reaches this screen.
+    private static let rowHeight: CGFloat = 44
+
+    var body: some View {
+        // A `List`, not a `ScrollView`: a bare `ScrollView` top-pins its content and
+        // would leave the sections stacked against the nav bar with dead space
+        // below on an iPad, and `List` gives the disclosure rows their separators
+        // and their scroll recycling for free.
+        List {
+            Section {
+                VStack(spacing: 14) {
+                    CloudMascot(mood: .happy, size: 120)
+                        .padding(.top, 8)
+
+                    Text("Made with love by Kevin and PQ for our son Cloud.")
+                        .font(Theme.body(14, .bold))
+                        .foregroundStyle(Theme.textPrimary)
+
+                    Text("""
+                        One day Cloud picked up a locked iPhone, started typing emojis, and said \
+                        the words out loud — all on his own. We wondered what would happen if we \
+                        turned that into a safe place to learn words in more than one language.
+                        """)
+                        .font(Theme.body(13, .bold))
+                        .foregroundStyle(Theme.textTertiary)
+                }
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+                .listRowBackground(Color.clear)
+            }
+
+            section("FAQ", Self.faq)
+            section("Legal", Self.legal)
+            section("Version history", Self.history)
+
+            Section {
+                Text(Self.versionText(from: Bundle.main.infoDictionary))
+                    .font(Theme.body(11, .heavy))
+                    .foregroundStyle(Theme.textSecondary)
+                    .frame(maxWidth: .infinity)
+                    .listRowBackground(Color.clear)
+                    .accessibilityIdentifier("about-version")
+            }
+        }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(Theme.background.ignoresSafeArea())
+        // A `List` otherwise renders in the system light palette on a light device
+        // and the whole panel comes out white — the same reason `SettingsView` sets
+        // it.
+        .preferredColorScheme(.dark)
+        .navigationTitle("About Cloudmoji")
+        .navigationBarTitleDisplayMode(.inline)
+        // Insurance, and honestly labelled as such. An identifier on a plain
+        // container (a `VStack`, an `HStack`, a `ZStack`) propagates down and
+        // overwrites its children's — that is what made the typing row's three
+        // controls unreachable in stage 2a and the gate's six UI tests red in the
+        // task before this one. A `List` is **not** that: its rows are table cells
+        // and each publishes its own element, so `about-privacy` and the rest
+        // survive without this line. That was measured, not assumed — removing it
+        // and re-running `AboutUITests` leaves both tests green. It stays because
+        // the cost is nothing and the day this `List` becomes a `ScrollView` of
+        // `VStack`s the trap is live again.
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("about-panel")
+    }
+
+    private func section(_ title: String, _ entries: [Entry]) -> some View {
+        Section(title) {
+            ForEach(entries) { entry in
+                DisclosureGroup {
+                    Text(entry.answer)
+                        .font(Theme.body(13, .bold))
+                        .foregroundStyle(Theme.textTertiary)
+                        // Long copy in a list row otherwise truncates to one line
+                        // and the disclosure looks broken.
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.vertical, 4)
+                } label: {
+                    Text(entry.question)
+                        .font(Theme.body(14, .bold))
+                        .foregroundStyle(Theme.textPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(minHeight: Self.rowHeight, alignment: .leading)
+                }
+                .tint(Theme.teal)
+                .accessibilityIdentifier("about-\(entry.id)")
+            }
+        }
+    }
+}
+
+#Preview("About") {
+    NavigationStack { AboutView() }
+}

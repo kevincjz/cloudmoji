@@ -107,6 +107,22 @@ struct SettingsView: View {
             } footer: {
                 Text("Rounds step up through this range. Two is the smallest group that reads as counting, and ten is as far as the Japanese ～つ counter goes.")
             }
+
+            Section {
+                // Pushed rather than presented: About is a second page of the same
+                // parent panel, and a sheet on top of a sheet loses the Done button
+                // this stack already has.
+                NavigationLink {
+                    AboutView()
+                } label: {
+                    Label("About Cloudmoji", systemImage: "info.circle")
+                        .font(Theme.body(15, .bold))
+                        .frame(minHeight: Self.rowHeight)
+                }
+                .accessibilityIdentifier("settings-about-row")
+            } footer: {
+                Text("How to use Cloudmoji, what it does with your data, and what has changed.")
+            }
         }
         .font(Theme.body(15, .bold))
         .tint(Theme.teal)
