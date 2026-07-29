@@ -3,7 +3,9 @@ import SwiftUI
 /// Every number the readout is drawn from, from `src/components/CountMode.tsx`.
 enum CountReadoutMetrics {
     static let dotSide: CGFloat = 10
+    static let padDotSide: CGFloat = 14
     static let dotSpacing: CGFloat = 6
+    static let padDotSpacing: CGFloat = 8
     /// A counted dot swells slightly, so progress reads at a glance rather than
     /// only by colour — which matters on a phone held at arm's length by a
     /// two-year-old.
@@ -16,6 +18,7 @@ enum CountReadoutMetrics {
     /// pre-reader is meant to look at.
     static let numeralSize: CGFloat = 64
     static let compactNumeralSize: CGFloat = 34
+    static let padNumeralSize: CGFloat = 88
     /// `text-shadow: 0 0 30px rgba(78,205,196,0.5)`. CSS blur radius is roughly
     /// twice SwiftUI's.
     static let numeralGlowRadius: CGFloat = 15
@@ -23,6 +26,7 @@ enum CountReadoutMetrics {
     /// The spoken phrase, under the numeral: "three dogs", "三只狗", "いぬ みっつ".
     static let phraseSize: CGFloat = 18
     static let compactPhraseSize: CGFloat = 13
+    static let padPhraseSize: CGFloat = 23
     static let phraseTopPadding: CGFloat = 4
 
     /// The whole block, reserved whether or not anything has been counted.
@@ -34,6 +38,10 @@ enum CountReadoutMetrics {
         compact ? 72 : 112
     }
 
+    static func height(compact: Bool, expandedPad: Bool) -> CGFloat {
+        expandedPad ? 154 : height(compact: compact)
+    }
+
     /// What is left for the numeral and phrase once the dot row has had its share.
     ///
     /// `dotSide`, **not** `dotSide * dotCountedScale`: `scaleEffect` is a drawing
@@ -43,6 +51,12 @@ enum CountReadoutMetrics {
     /// test asserts.
     static func numberBlockHeight(compact: Bool) -> CGFloat {
         height(compact: compact) - dotSide - dotRowBottomPadding
+    }
+
+    static func numberBlockHeight(compact: Bool, expandedPad: Bool) -> CGFloat {
+        height(compact: compact, expandedPad: expandedPad)
+            - (expandedPad ? padDotSide : dotSide)
+            - dotRowBottomPadding
     }
 }
 
@@ -62,6 +76,7 @@ struct CountReadout: View {
     let phrase: String
 
     @Environment(\.cloudmojiIsCompact) private var isCompact
+    @Environment(\.cloudmojiLayout) private var layout
 
     var body: some View {
         VStack(spacing: 0) {
@@ -74,13 +89,22 @@ struct CountReadout: View {
             // on every shuffle. A real, invisible view with the block hung off it
             // is what actually holds the space.
             Color.clear
-                .frame(height: CountReadoutMetrics.numberBlockHeight(compact: isCompact))
+                .frame(
+                    height: CountReadoutMetrics.numberBlockHeight(
+                        compact: isCompact,
+                        expandedPad: layout.isExpandedPad
+                    )
+                )
                 .overlay { numberBlock }
         }
     }
 
     private var dots: some View {
-        HStack(spacing: CountReadoutMetrics.dotSpacing) {
+        HStack(
+            spacing: layout.isExpandedPad
+                ? CountReadoutMetrics.padDotSpacing
+                : CountReadoutMetrics.dotSpacing
+        ) {
             ForEach(0..<max(target, 0), id: \.self) { index in
                 let isLit = index < progress
                 Circle()
@@ -91,7 +115,14 @@ struct CountReadout: View {
                             lineWidth: CountReadoutMetrics.dotBorderWidth
                         )
                     )
-                    .frame(width: CountReadoutMetrics.dotSide, height: CountReadoutMetrics.dotSide)
+                    .frame(
+                        width: layout.isExpandedPad
+                            ? CountReadoutMetrics.padDotSide
+                            : CountReadoutMetrics.dotSide,
+                        height: layout.isExpandedPad
+                            ? CountReadoutMetrics.padDotSide
+                            : CountReadoutMetrics.dotSide
+                    )
                     .scaleEffect(isLit ? CountReadoutMetrics.dotCountedScale : 1)
                     .animation(.easeOut(duration: 0.3), value: isLit)
             }
@@ -105,18 +136,31 @@ struct CountReadout: View {
         if !numeral.isEmpty {
             VStack(spacing: 0) {
                 Text(numeral)
-                    .font(Theme.display(isCompact
-                                        ? CountReadoutMetrics.compactNumeralSize
-                                        : CountReadoutMetrics.numeralSize))
+                    .font(
+                        Theme.display(
+                            layout.isExpandedPad
+                                ? CountReadoutMetrics.padNumeralSize
+                                : (isCompact
+                                   ? CountReadoutMetrics.compactNumeralSize
+                                   : CountReadoutMetrics.numeralSize)
+                        )
+                    )
                     .foregroundStyle(Theme.textPrimary)
                     .shadow(color: Theme.teal.opacity(0.5),
                             radius: CountReadoutMetrics.numeralGlowRadius)
                     .accessibilityIdentifier("count-readout")
 
                 Text(phrase)
-                    .font(Theme.body(isCompact
-                                     ? CountReadoutMetrics.compactPhraseSize
-                                     : CountReadoutMetrics.phraseSize, .black))
+                    .font(
+                        Theme.body(
+                            layout.isExpandedPad
+                                ? CountReadoutMetrics.padPhraseSize
+                                : (isCompact
+                                   ? CountReadoutMetrics.compactPhraseSize
+                                   : CountReadoutMetrics.phraseSize),
+                            .black
+                        )
+                    )
                     .foregroundStyle(Theme.textTertiary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)

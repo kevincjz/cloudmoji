@@ -11,17 +11,31 @@ enum LauncherTileMetrics {
     /// cell remains the much larger child-facing target.
     static let iconSide: CGFloat = 76
     static let compactIconSide: CGFloat = 68
+    static let padIconSide: CGFloat = 118
+    static let padLandscapeIconSide: CGFloat = 164
     static let cellHeight: CGFloat = 112
     static let compactCellHeight: CGFloat = 94
+    static let padCellHeight: CGFloat = 164
+    static let padLandscapeCellHeight: CGFloat = 214
+    /// A fixed iPad cell keeps the 118pt artwork and every supported caption
+    /// inside its own column. This must never be smaller than `padIconSide`.
+    static let padCellWidth: CGFloat = 140
+    /// Landscape has enough width to make the launcher feel deliberately
+    /// tablet-sized instead of leaving the portrait grid floating in space.
+    static let padLandscapeCellWidth: CGFloat = 210
 
     /// `CLAUDE.md` rule 2, the floor between adjacent child-facing targets.
     /// Doubles as the grid's row and column spacing.
     static let spacing: CGFloat = 10
+    static let padSpacing: CGFloat = 20
+    static let padLandscapeSpacing: CGFloat = 30
 
     static let cornerRadius: CGFloat = 22
 
     static let labelSize: CGFloat = 13
     static let compactLabelSize: CGFloat = 12
+    static let padLabelSize: CGFloat = 17
+    static let padLandscapeLabelSize: CGFloat = 20
 
     /// Design system Active States: tabs `scale(0.9)`. A launcher tile is the
     /// tab bar's successor, so it takes the tab's number rather than inventing
@@ -41,14 +55,32 @@ struct LauncherTile: View {
     /// not read settings, the same way no other tile in this app does.
     let label: String
     var isCompact: Bool = false
+    var isExpandedPad: Bool = false
+    var isLandscapePad: Bool = false
     let onTap: () -> Void
 
     private var iconSide: CGFloat {
-        isCompact ? LauncherTileMetrics.compactIconSide : LauncherTileMetrics.iconSide
+        if isLandscapePad { return LauncherTileMetrics.padLandscapeIconSide }
+        if isExpandedPad { return LauncherTileMetrics.padIconSide }
+        return isCompact ? LauncherTileMetrics.compactIconSide : LauncherTileMetrics.iconSide
     }
 
     private var cellHeight: CGFloat {
-        isCompact ? LauncherTileMetrics.compactCellHeight : LauncherTileMetrics.cellHeight
+        if isLandscapePad { return LauncherTileMetrics.padLandscapeCellHeight }
+        if isExpandedPad { return LauncherTileMetrics.padCellHeight }
+        return isCompact ? LauncherTileMetrics.compactCellHeight : LauncherTileMetrics.cellHeight
+    }
+
+    private var labelSize: CGFloat {
+        if isLandscapePad { return LauncherTileMetrics.padLandscapeLabelSize }
+        if isExpandedPad { return LauncherTileMetrics.padLabelSize }
+        return isCompact ? LauncherTileMetrics.compactLabelSize : LauncherTileMetrics.labelSize
+    }
+
+    private var cellWidth: CGFloat? {
+        if isLandscapePad { return LauncherTileMetrics.padLandscapeCellWidth }
+        if isExpandedPad { return LauncherTileMetrics.padCellWidth }
+        return nil
     }
 
     var body: some View {
@@ -58,13 +90,11 @@ struct LauncherTile: View {
             Haptics.tap()
             onTap()
         } label: {
-            VStack(spacing: isCompact ? 4 : 7) {
+            VStack(spacing: isLandscapePad ? 12 : (isExpandedPad ? 10 : (isCompact ? 4 : 7))) {
                 LauncherAppIcon(app: app, side: iconSide)
 
                 Text(label)
-                    .font(Theme.body(isCompact
-                                     ? LauncherTileMetrics.compactLabelSize
-                                     : LauncherTileMetrics.labelSize, .black))
+                    .font(Theme.body(labelSize, .black))
                     // Text, so it takes the button's accent tint — the system
                     // blue — unless this says otherwise. The glyph above is a
                     // colour emoji and is unaffected.
@@ -74,6 +104,7 @@ struct LauncherTile: View {
                     .shadow(color: Theme.bgPrimary.opacity(0.9), radius: 2, y: 1)
             }
             .frame(maxWidth: .infinity, minHeight: cellHeight)
+            .frame(width: cellWidth)
             .contentShape(Rectangle())
         }
         .buttonStyle(PressScale(scale: LauncherTileMetrics.pressedScale))

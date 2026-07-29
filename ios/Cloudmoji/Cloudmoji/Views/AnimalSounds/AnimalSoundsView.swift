@@ -25,6 +25,7 @@ import CloudmojiCore
 struct AnimalSoundsView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.cloudmojiIsCompact) private var isCompact
+    @Environment(\.cloudmojiLayout) private var layout
 
     @State private var mood: MascotMood = .happy
     @State private var bouncingID: String?
@@ -83,8 +84,13 @@ struct AnimalSoundsView: View {
     /// prevent.
     private var isUnavailable: Bool { animals.isEmpty }
 
+    static func columns(compact: Bool, expandedPad: Bool, landscape: Bool) -> Int {
+        if expandedPad { return landscape ? 4 : 3 }
+        return compact ? 4 : 2
+    }
+
     var body: some View {
-        VStack(spacing: isCompact ? 6 : 10) {
+        VStack(spacing: layout.isExpandedPad ? 18 : (isCompact ? 6 : 10)) {
             animalStageHeader
 
             if isUnavailable {
@@ -102,7 +108,11 @@ struct AnimalSoundsView: View {
                 LazyVGrid(
                     columns: Array(
                         repeating: GridItem(.flexible(minimum: 96), spacing: AnimalCardMetrics.spacing),
-                        count: isCompact ? 4 : 2
+                        count: Self.columns(
+                            compact: isCompact,
+                            expandedPad: layout.isExpandedPad,
+                            landscape: layout.isLandscape
+                        )
                     ),
                     spacing: AnimalCardMetrics.spacing
                 ) {
@@ -113,12 +123,15 @@ struct AnimalSoundsView: View {
                             tint: AnimalCardMetrics.tint(index),
                             isPlaying: bouncingID == entry.id,
                             isCompact: isCompact,
+                            isExpandedPad: layout.isExpandedPad,
                             onTap: { tap(entry) }
                         )
                     }
                 }
-                .padding(.horizontal, isCompact ? 10 : 14)
+                .frame(maxWidth: layout.isExpandedPad ? 1080 : .infinity)
+                .padding(.horizontal, layout.isExpandedPad ? 26 : (isCompact ? 10 : 14))
                 .padding(.bottom, 14)
+                .frame(maxWidth: .infinity)
             }
             }
         }
@@ -139,24 +152,39 @@ struct AnimalSoundsView: View {
     /// page header. The paw and waveform establish the app before any words are
     /// needed.
     private var animalStageHeader: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: layout.isExpandedPad ? 22 : 14) {
             Image(systemName: "pawprint.fill")
-                .font(.system(size: isCompact ? 20 : 24, weight: .black))
+                .font(
+                    .system(
+                        size: layout.isExpandedPad ? 31 : (isCompact ? 20 : 24),
+                        weight: .black
+                    )
+                )
                 .foregroundStyle(Theme.gold.opacity(0.82))
 
-            CloudMascot(mood: mood, size: isCompact ? 44 : 58)
+            CloudMascot(
+                mood: mood,
+                size: layout.isExpandedPad ? 82 : (isCompact ? 44 : 58)
+            )
 
             Image(systemName: "waveform")
-                .font(.system(size: isCompact ? 20 : 24, weight: .black))
+                .font(
+                    .system(
+                        size: layout.isExpandedPad ? 31 : (isCompact ? 20 : 24),
+                        weight: .black
+                    )
+                )
                 .foregroundStyle(Theme.teal.opacity(0.88))
                 .scaleEffect(mood == .speaking ? 1.18 : 1)
                 .animation(.spring(response: 0.28, dampingFraction: 0.72), value: mood)
         }
-        .padding(.horizontal, 24)
-        .frame(minHeight: isCompact ? 50 : 68)
+        .padding(.horizontal, layout.isExpandedPad ? 34 : 24)
+        .frame(
+            minHeight: layout.isExpandedPad ? 94 : (isCompact ? 50 : 68)
+        )
         .background(Theme.bgPrimary.opacity(0.46), in: Capsule())
         .overlay(Capsule().stroke(Theme.teal.opacity(0.20), lineWidth: 1))
-        .padding(.top, isCompact ? 2 : 8)
+        .padding(.top, layout.isExpandedPad ? 18 : (isCompact ? 2 : 8))
     }
 
     private func tap(_ entry: EmojiEntry) {
@@ -239,6 +267,7 @@ enum AnimalCardMetrics {
     static let spacing: CGFloat = 10
     static let height: CGFloat = 138
     static let compactHeight: CGFloat = 106
+    static let padHeight: CGFloat = 162
     static let cornerRadius: CGFloat = 26
 
     static let tints: [Color] = [
@@ -264,6 +293,7 @@ private struct AnimalSoundCard: View {
     let tint: Color
     let isPlaying: Bool
     let isCompact: Bool
+    let isExpandedPad: Bool
     let onTap: () -> Void
 
     private var shape: RoundedRectangle {
@@ -285,20 +315,34 @@ private struct AnimalSoundCard: View {
             //
             // A background is measured *after* the frame and can never push it
             // out, so the decoration can be any size it likes.
-                HStack(spacing: isCompact ? 8 : 14) {
+                HStack(spacing: isExpandedPad ? 18 : (isCompact ? 8 : 14)) {
                     Text(emoji)
-                        .font(.system(size: isCompact ? 45 : 62))
+                        .font(
+                            .system(
+                                size: isExpandedPad ? 76 : (isCompact ? 45 : 62)
+                            )
+                        )
                         .scaleEffect(isPlaying && !reduceMotion ? 1.16 : 1)
 
                     VStack(alignment: .leading, spacing: 6) {
                         Text(word)
-                            .font(Theme.body(isCompact ? 12 : 15, .black))
+                            .font(
+                                Theme.body(
+                                    isExpandedPad ? 18 : (isCompact ? 12 : 15),
+                                    .black
+                                )
+                            )
                             .foregroundStyle(Theme.textPrimary)
                             .lineLimit(1)
                             .minimumScaleFactor(0.65)
 
                         Image(systemName: "waveform")
-                            .font(.system(size: isCompact ? 17 : 20, weight: .black))
+                            .font(
+                                .system(
+                                    size: isExpandedPad ? 24 : (isCompact ? 17 : 20),
+                                    weight: .black
+                                )
+                            )
                             .foregroundStyle(tint)
                             .scaleEffect(x: isPlaying ? 1.22 : 0.86, y: 1)
                             .opacity(isPlaying ? 1 : 0.60)
@@ -306,7 +350,11 @@ private struct AnimalSoundCard: View {
                 }
                 .padding(.horizontal, 12)
             .frame(maxWidth: .infinity)
-            .frame(height: isCompact ? AnimalCardMetrics.compactHeight : AnimalCardMetrics.height)
+            .frame(
+                height: isExpandedPad
+                    ? AnimalCardMetrics.padHeight
+                    : (isCompact ? AnimalCardMetrics.compactHeight : AnimalCardMetrics.height)
+            )
             .background {
                 ZStack {
                     shape.fill(
@@ -322,13 +370,19 @@ private struct AnimalSoundCard: View {
 
                     Circle()
                         .fill(Theme.gold.opacity(0.10))
-                        .frame(width: isCompact ? 78 : 108)
-                        .offset(x: isCompact ? 48 : 68, y: isCompact ? -34 : -50)
+                        .frame(width: isExpandedPad ? 132 : (isCompact ? 78 : 108))
+                        .offset(
+                            x: isExpandedPad ? 82 : (isCompact ? 48 : 68),
+                            y: isExpandedPad ? -62 : (isCompact ? -34 : -50)
+                        )
 
                     Ellipse()
                         .fill(tint.opacity(0.13))
-                        .frame(width: 230, height: isCompact ? 48 : 62)
-                        .offset(y: isCompact ? 48 : 62)
+                        .frame(
+                            width: isExpandedPad ? 300 : 230,
+                            height: isExpandedPad ? 74 : (isCompact ? 48 : 62)
+                        )
+                        .offset(y: isExpandedPad ? 74 : (isCompact ? 48 : 62))
                 }
             }
             .clipShape(shape)

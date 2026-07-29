@@ -25,6 +25,7 @@ enum CategorySourceMetrics {
     /// that — the toddler changes categories far more often than the parent.
     /// Not the 44pt HIG minimum, which governs the header's parent-only chrome.
     static let side: CGFloat = 64
+    static let padSide: CGFloat = 72
 
     /// Minimum gap between two child-facing targets — between chips in the
     /// strip, and both between and below the icons in the rail.
@@ -40,10 +41,12 @@ enum CategorySourceMetrics {
     /// The icon reads as a bullet beside the label in the strip, and carries the
     /// whole meaning on its own in the rail — hence the jump.
     static let stripGlyphSize: CGFloat = 18
+    static let padStripGlyphSize: CGFloat = 22
     static let railGlyphSize: CGFloat = 28
 
     /// `font-size: 14; font-weight: 800` — `.heavy` is 800.
     static let labelSize: CGFloat = 14
+    static let padLabelSize: CGFloat = 16
 
     /// Inside a labelled chip: `padding: 7px 16px` with the 64pt minimum height
     /// doing the vertical work.
@@ -86,6 +89,8 @@ enum CategorySourceMetrics {
 /// deliberately only one here: the layouts differ in arrangement and in how loud
 /// an unselected chip is allowed to be, not in what a chip *is*.
 struct CategorySource: View {
+    @Environment(\.cloudmojiLayout) private var cloudmojiLayout
+
     let tabs: [CategoryTab]
     let selected: String
     let label: (CategoryTab) -> String
@@ -141,9 +146,15 @@ struct CategorySource: View {
         return Button { onSelect(tab) } label: {
             HStack(spacing: CategorySourceMetrics.chipGap) {
                 Text(tab.icon)
-                    .font(.system(size: showsLabel
-                                  ? CategorySourceMetrics.stripGlyphSize
-                                  : CategorySourceMetrics.railGlyphSize))
+                    .font(
+                        .system(
+                            size: showsLabel
+                                ? (cloudmojiLayout.isExpandedPad
+                                   ? CategorySourceMetrics.padStripGlyphSize
+                                   : CategorySourceMetrics.stripGlyphSize)
+                                : CategorySourceMetrics.railGlyphSize
+                        )
+                    )
                     // Only the rail dims its icons: in the strip the muted label
                     // already says "not selected", and a greyed-out 🍎 beside a
                     // full-colour one reads as broken rather than unselected.
@@ -151,7 +162,13 @@ struct CategorySource: View {
                     .opacity(showsLabel || isActive ? 1 : CategorySourceMetrics.inactiveOpacity)
                 if showsLabel {
                     Text(label(tab))
-                        .font(Theme.body(CategorySourceMetrics.labelSize))
+                        .font(
+                            Theme.body(
+                                cloudmojiLayout.isExpandedPad
+                                    ? CategorySourceMetrics.padLabelSize
+                                    : CategorySourceMetrics.labelSize
+                            )
+                        )
                         .lineLimit(1)
                         // `white-space: nowrap`. Without it the chip accepts a
                         // narrower proposal in the scroll view and "Kenderaan"
@@ -160,10 +177,23 @@ struct CategorySource: View {
                 }
             }
             .frame(
-                minWidth: showsLabel ? 0 : CategorySourceMetrics.side,
-                minHeight: CategorySourceMetrics.side
+                minWidth: showsLabel
+                    ? 0
+                    : (cloudmojiLayout.isExpandedPad
+                       ? CategorySourceMetrics.padSide
+                       : CategorySourceMetrics.side),
+                minHeight: cloudmojiLayout.isExpandedPad
+                    ? CategorySourceMetrics.padSide
+                    : CategorySourceMetrics.side
             )
-            .padding(.horizontal, showsLabel ? CategorySourceMetrics.chipHorizontalPadding : 0)
+            .padding(
+                .horizontal,
+                showsLabel
+                    ? (cloudmojiLayout.isExpandedPad
+                       ? 20
+                       : CategorySourceMetrics.chipHorizontalPadding)
+                    : 0
+            )
             .background(plate(isActive: isActive, showsLabel: showsLabel), in: shape)
             .overlay(
                 shape.stroke(

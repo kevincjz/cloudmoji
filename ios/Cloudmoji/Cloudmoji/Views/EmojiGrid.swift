@@ -7,6 +7,7 @@ import CloudmojiCore
 enum EmojiGridMetrics {
     /// `padding: 2px 10px 24px` on the web wrapper.
     static let horizontalPadding: CGFloat = 10
+    static let padHorizontalPadding: CGFloat = 22
     static let topPadding: CGFloat = 2
     /// Clears the tab bar so the last row is never half-hidden behind it.
     static let bottomPadding: CGFloat = 24
@@ -23,14 +24,17 @@ enum EmojiGridMetrics {
     /// `EmojiGridTests` aims a scanline at the first row of tiles by arithmetic,
     /// which is only possible if what sits above that row is a known number.
     static let headerHeight: CGFloat = 34
+    static let padHeaderHeight: CGFloat = 44
 
     /// The icon beside the section name — same size it takes on a labelled
     /// category chip, so the header and the chip that jumps to it read as the
     /// same thing.
     static let headerGlyphSize: CGFloat = 18
+    static let padHeaderGlyphSize: CGFloat = 22
     /// `Category label | Nunito | 14px | 800` from the design system's type
     /// scale. The header is that label, in the place the child has arrived at.
     static let headerLabelSize: CGFloat = 14
+    static let padHeaderLabelSize: CGFloat = 17
     static let headerGap: CGFloat = 6
     /// The rule that runs the label out to the edge of the list.
     static let headerRuleHeight: CGFloat = 1
@@ -72,6 +76,8 @@ struct SectionJump: Equatable {
 /// breakpoint. Taking the minimum from ``EmojiTileMetrics`` rather than
 /// repeating `72` is what guarantees a column is never narrower than its tile.
 struct EmojiGrid: View {
+    @Environment(\.cloudmojiLayout) private var layout
+
     let sections: [EmojiSection]
     var bouncingID: String?
     /// The word each tile announces to VoiceOver, in the chosen language. The
@@ -97,9 +103,17 @@ struct EmojiGrid: View {
     @State private var viewportHeight: CGFloat = 0
     @State private var active: String?
 
-    private let columns = [
-        GridItem(.adaptive(minimum: EmojiTileMetrics.side), spacing: EmojiTileMetrics.spacing)
-    ]
+    private var tileSide: CGFloat {
+        layout.isExpandedPad ? EmojiTileMetrics.padSide : EmojiTileMetrics.side
+    }
+
+    private var tileSpacing: CGFloat {
+        layout.isExpandedPad ? EmojiTileMetrics.padSpacing : EmojiTileMetrics.spacing
+    }
+
+    private var columns: [GridItem] {
+        [GridItem(.adaptive(minimum: tileSide), spacing: tileSpacing)]
+    }
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -118,7 +132,7 @@ struct EmojiGrid: View {
                         // `EmojiEntry.id` is "emoji|category", not the emoji
                         // alone: the same glyph may sit in two categories, and
                         // duplicate ids make SwiftUI drop rows.
-                        LazyVGrid(columns: columns, spacing: EmojiTileMetrics.spacing) {
+                        LazyVGrid(columns: columns, spacing: tileSpacing) {
                             ForEach(section.entries) { entry in
                                 EmojiTile(
                                     entry: entry,
@@ -137,7 +151,12 @@ struct EmojiGrid: View {
                         .frame(height: 0)
                         .background { offsetProbe(Self.endMarker) }
                 }
-                .padding(.horizontal, EmojiGridMetrics.horizontalPadding)
+                .padding(
+                    .horizontal,
+                    layout.isExpandedPad
+                        ? EmojiGridMetrics.padHorizontalPadding
+                        : EmojiGridMetrics.horizontalPadding
+                )
                 .padding(.top, EmojiGridMetrics.topPadding)
                 .padding(.bottom, EmojiGridMetrics.bottomPadding)
             }
@@ -164,9 +183,21 @@ struct EmojiGrid: View {
     private func header(_ section: EmojiSection) -> some View {
         HStack(spacing: EmojiGridMetrics.headerGap) {
             Text(section.tab.icon)
-                .font(.system(size: EmojiGridMetrics.headerGlyphSize))
+                .font(
+                    .system(
+                        size: layout.isExpandedPad
+                            ? EmojiGridMetrics.padHeaderGlyphSize
+                            : EmojiGridMetrics.headerGlyphSize
+                    )
+                )
             Text(label?(section.tab) ?? section.tab.label(.en))
-                .font(Theme.body(EmojiGridMetrics.headerLabelSize))
+                .font(
+                    Theme.body(
+                        layout.isExpandedPad
+                            ? EmojiGridMetrics.padHeaderLabelSize
+                            : EmojiGridMetrics.headerLabelSize
+                    )
+                )
                 .foregroundStyle(Theme.teal)
                 .lineLimit(1)
             // Runs the name out to the edge, so a section reads as a band across
@@ -175,7 +206,11 @@ struct EmojiGrid: View {
                 .fill(Theme.surfaceBorder)
                 .frame(height: EmojiGridMetrics.headerRuleHeight)
         }
-        .frame(height: EmojiGridMetrics.headerHeight)
+        .frame(
+            height: layout.isExpandedPad
+                ? EmojiGridMetrics.padHeaderHeight
+                : EmojiGridMetrics.headerHeight
+        )
         // The scroll target a chip jumps to.
         .id(section.id)
         .background { offsetProbe(section.id) }

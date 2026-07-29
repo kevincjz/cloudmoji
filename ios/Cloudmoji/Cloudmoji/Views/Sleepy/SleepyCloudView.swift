@@ -15,6 +15,7 @@ struct SleepyCloudView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(AppModel.self) private var model
     @Environment(\.cloudmojiIsCompact) private var isCompact
+    @Environment(\.cloudmojiLayout) private var layout
 
     /// `nil` is the duration picker; a number is a running session.
     @State private var minutes: Int?
@@ -95,6 +96,8 @@ struct SleepyCloudView: View {
     /// grown-up may pick the time, and every option has to answer a toddler tap.
     static let choiceHeight: CGFloat = 64
     static let choiceWidth: CGFloat = 96
+    static let padChoiceHeight: CGFloat = 78
+    static let padChoiceWidth: CGFloat = 126
 
     /// How dark the overlay gets by the end. The prototype's `progress * 0.55`.
     static let maximumDim: Double = 0.55
@@ -161,16 +164,23 @@ struct SleepyCloudView: View {
     /// a title, a caption, three 64pt buttons and a footer, with 26pt between
     /// each — overflowed it and clipped the cloud against the top edge.
     private var cloudWidth: CGFloat {
-        isCompact ? BreathingCloud.compactRenderedWidth : BreathingCloud.renderedWidth
+        if layout.isExpandedPad { return 300 }
+        return isCompact
+            ? BreathingCloud.compactRenderedWidth
+            : BreathingCloud.renderedWidth
     }
 
     private var picker: some View {
-        VStack(spacing: isCompact ? 12 : 26) {
+        VStack(spacing: layout.isExpandedPad ? 34 : (isCompact ? 12 : 26)) {
             BreathingCloud(scale: 0.85, phase: .hold, width: cloudWidth)
 
-            VStack(spacing: 2) {
+            VStack(spacing: layout.isExpandedPad ? 5 : 2) {
                 Text(text(Self.uiText.title))
-                    .font(Theme.display(isCompact ? 20 : 26))
+                    .font(
+                        Theme.display(
+                            layout.isExpandedPad ? 36 : (isCompact ? 20 : 26)
+                        )
+                    )
                     .foregroundStyle(
                         LinearGradient(
                             colors: [Theme.moonlight, Theme.lavender],
@@ -178,30 +188,35 @@ struct SleepyCloudView: View {
                         )
                     )
                 Text(text(Self.uiText.subtitle))
-                    .font(Theme.body(12, .heavy))
+                    .font(Theme.body(layout.isExpandedPad ? 16 : 12, .heavy))
                     .foregroundStyle(Theme.textSecondary)
             }
             .multilineTextAlignment(.center)
 
-            HStack(spacing: 10) {
+            HStack(spacing: layout.isExpandedPad ? 16 : 10) {
                 ForEach(BreathingSession.choices, id: \.self) { choice in
                     durationButton(choice)
                 }
             }
 
             Text(text(Self.uiText.grownUp))
-                .font(Theme.body(11, .heavy))
+                .font(Theme.body(layout.isExpandedPad ? 14 : 11, .heavy))
                 .foregroundStyle(Theme.textTertiary)
 
-            HStack(spacing: 6) {
+            HStack(spacing: layout.isExpandedPad ? 8 : 6) {
                 Image(systemName: model.settings.muted ? "speaker.slash.fill" : "waveform")
-                    .font(.system(size: 12, weight: .black))
+                    .font(
+                        .system(
+                            size: layout.isExpandedPad ? 16 : 12,
+                            weight: .black
+                        )
+                    )
                 Text(text(Self.uiText.sound))
-                    .font(Theme.body(11, .heavy))
+                    .font(Theme.body(layout.isExpandedPad ? 14 : 11, .heavy))
             }
             .foregroundStyle(Theme.moonlight.opacity(0.68))
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, layout.isExpandedPad ? 34 : 16)
     }
 
     private func durationButton(_ choice: Int) -> some View {
@@ -212,15 +227,27 @@ struct SleepyCloudView: View {
         } label: {
             VStack(spacing: 3) {
                 Image(systemName: "moon.fill")
-                    .font(.system(size: 13, weight: .black))
+                    .font(
+                        .system(
+                            size: layout.isExpandedPad ? 16 : 13,
+                            weight: .black
+                        )
+                    )
                     .foregroundStyle(Theme.lavender.opacity(0.88))
                 Text(String(format: text(Self.uiText.minutes), choice))
-                    .font(Theme.body(15, .black))
+                    .font(Theme.body(layout.isExpandedPad ? 18 : 15, .black))
                     .foregroundStyle(Theme.moonlight)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
             }
-                .frame(minWidth: Self.choiceWidth, minHeight: Self.choiceHeight)
+                .frame(
+                    minWidth: layout.isExpandedPad
+                        ? Self.padChoiceWidth
+                        : Self.choiceWidth,
+                    minHeight: layout.isExpandedPad
+                        ? Self.padChoiceHeight
+                        : Self.choiceHeight
+                )
                 .background(
                     LinearGradient(
                         colors: [Theme.moonlight.opacity(0.14), Theme.lavender.opacity(0.08)],
@@ -251,7 +278,7 @@ struct SleepyCloudView: View {
             let elapsed = startedAt.map { context.date.timeIntervalSince($0) } ?? 0
             let state = BreathingSession.state(at: elapsed, duration: totalSeconds)
 
-            VStack(spacing: isCompact ? 14 : 28) {
+            VStack(spacing: layout.isExpandedPad ? 38 : (isCompact ? 14 : 28)) {
                 BreathingCloud(
                     scale: isAsleep ? BreathingSession.asleepScale : state.scale,
                     phase: isAsleep ? .asleep : state.phase,
@@ -263,7 +290,7 @@ struct SleepyCloudView: View {
                     finished
                 } else {
                     Text(label(for: state.phase))
-                        .font(Theme.body(15, .heavy))
+                        .font(Theme.body(layout.isExpandedPad ? 19 : 15, .heavy))
                         .foregroundStyle(Theme.moonlight.opacity(0.5 - dim * 0.4))
                         .tracking(1.4)
                         // A fixed height so the cloud does not step up and down
@@ -344,16 +371,28 @@ struct SleepyCloudView: View {
             ZStack {
                 Circle()
                     .fill(Theme.moonlight.opacity(0.08))
-                    .frame(width: 156, height: 156)
-                    .blur(radius: 22)
+                    .frame(
+                        width: layout.isExpandedPad ? 236 : 156,
+                        height: layout.isExpandedPad ? 236 : 156
+                    )
+                    .blur(radius: layout.isExpandedPad ? 34 : 22)
 
                 Image(systemName: "moon.fill")
-                    .font(.system(size: 82, weight: .black))
+                    .font(
+                        .system(
+                            size: layout.isExpandedPad ? 122 : 82,
+                            weight: .black
+                        )
+                    )
                     .foregroundStyle(Theme.moonlight.opacity(0.26))
             }
             .position(
-                x: proxy.size.width * (isCompact ? 0.83 : 0.78),
-                y: proxy.size.height * (isCompact ? 0.24 : 0.16)
+                x: proxy.size.width * (
+                    layout.isExpandedPad ? 0.82 : (isCompact ? 0.83 : 0.78)
+                ),
+                y: proxy.size.height * (
+                    layout.isExpandedPad ? 0.15 : (isCompact ? 0.24 : 0.16)
+                )
             )
         }
         .opacity(1 - dim * 0.8)

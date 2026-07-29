@@ -15,14 +15,23 @@ import CloudmojiCore
 struct InstrumentPadView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.cloudmojiIsCompact) private var isCompact
+    @Environment(\.cloudmojiLayout) private var layout
 
     /// Two across upright, four across sideways — the transpose of each other,
     /// so the same eight pads fill whichever axis there is more of.
     static func columns(compact: Bool) -> Int { compact ? 4 : 2 }
 
+    static func columns(compact: Bool, expandedPad: Bool, landscape: Bool) -> Int {
+        compact || (expandedPad && landscape) ? 4 : 2
+    }
+
     var body: some View {
         GeometryReader { proxy in
-            let columns = Self.columns(compact: isCompact)
+            let columns = Self.columns(
+                compact: isCompact,
+                expandedPad: layout.isExpandedPad,
+                landscape: layout.isLandscape
+            )
             let rows = (ToneBuffer.pitches.count + columns - 1) / columns
             let side = padSide(in: proxy.size, columns: columns, rows: rows)
 
@@ -65,12 +74,15 @@ struct InstrumentPadView: View {
     }
 
     private func padSide(in size: CGSize, columns: Int, rows: Int) -> CGFloat {
-        Self.side(
+        let fitted = Self.side(
             available: size,
             columns: columns,
             rows: rows,
             spacing: InstrumentPadMetrics.spacing
         )
+        return layout.isExpandedPad
+            ? min(fitted, InstrumentPadMetrics.maximumPadSide)
+            : fitted
     }
 
     private func strike(_ index: Int) {

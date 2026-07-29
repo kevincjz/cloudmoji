@@ -49,15 +49,19 @@ struct AdaptiveShellTests {
     /// `Bitmap.of` serialises through `CaptureGate` and `EmojiGridTests` no
     /// longer builds windows of its own — so a retry here would only hide a
     /// regression of that fix.
-    func isCompact(width: CGFloat, height: CGFloat) async throws -> Bool {
-        let answer = await readProbe(width: width, height: height)
+    func isCompact(
+        width: CGFloat,
+        height: CGFloat,
+        isPad: Bool = false
+    ) async throws -> Bool {
+        let answer = await readProbe(width: width, height: height, isPad: isPad)
         return try #require(answer, "the probe drew neither layout at \(width)×\(height)")
     }
 
     /// `nil` when the render is not legible as either layout.
-    private func readProbe(width: CGFloat, height: CGFloat) async -> Bool? {
+    private func readProbe(width: CGFloat, height: CGFloat, isPad: Bool) async -> Bool? {
         let bitmap = await Bitmap.of(
-            AdaptiveShell { CompactProbe() },
+            AdaptiveShell(isPad: isPad) { CompactProbe() },
             width: width, height: height, fillsWindow: true
         )
         let runs = bitmap.runs(y: Int(height) / 2, threshold: Self.whiteThreshold)
@@ -77,8 +81,8 @@ struct AdaptiveShellTests {
         #expect(try await isCompact(width: 667, height: 375))   // iPhone SE landscape
         #expect(try await !isCompact(width: 440, height: 956))  // iPhone 17 Pro Max portrait
         #expect(try await !isCompact(width: 375, height: 667))  // iPhone SE portrait
-        #expect(try await !isCompact(width: 1024, height: 768)) // iPad landscape
-        #expect(try await !isCompact(width: 768, height: 1024)) // iPad portrait
+        #expect(try await !isCompact(width: 1024, height: 768, isPad: true)) // iPad landscape
+        #expect(try await !isCompact(width: 768, height: 1024, isPad: true)) // iPad portrait
     }
 
     /// Both halves of the condition are load-bearing, and each is invisible to

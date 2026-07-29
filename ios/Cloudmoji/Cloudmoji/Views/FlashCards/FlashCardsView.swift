@@ -7,6 +7,7 @@ enum FlashCardMetrics {
     /// of attention span — bigger is unambiguously better here.
     static let choiceSide: CGFloat = 110
     static let compactChoiceSide: CGFloat = 96
+    static let padChoiceSide: CGFloat = 148
 
     /// `CLAUDE.md` rule 2.
     static let spacing: CGFloat = 12
@@ -14,6 +15,7 @@ enum FlashCardMetrics {
     static let cornerRadius: CGFloat = 22
     static let glyphSize: CGFloat = 56
     static let compactGlyphSize: CGFloat = 46
+    static let padGlyphSize: CGFloat = 78
     static let borderWidth: CGFloat = 2
 
     /// Design system Active States: emoji tiles `scale(0.85)`.
@@ -38,6 +40,7 @@ enum FlashCardMetrics {
 struct FlashCardsView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.cloudmojiIsCompact) private var isCompact
+    @Environment(\.cloudmojiLayout) private var layout
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var round: FlashRound?
@@ -83,27 +86,30 @@ struct FlashCardsView: View {
     }
 
     private var choiceSide: CGFloat {
-        isCompact ? FlashCardMetrics.compactChoiceSide : FlashCardMetrics.choiceSide
+        if layout.isExpandedPad { return FlashCardMetrics.padChoiceSide }
+        return isCompact
+            ? FlashCardMetrics.compactChoiceSide
+            : FlashCardMetrics.choiceSide
     }
 
     var body: some View {
         Group {
-            if isCompact {
-                HStack(spacing: 18) {
+            if isCompact || (layout.isExpandedPad && layout.isLandscape) {
+                HStack(spacing: layout.isExpandedPad ? 48 : 18) {
                     promptCard
-                    VStack(spacing: 12) {
+                    VStack(spacing: layout.isExpandedPad ? 24 : 12) {
                         choices
                         replayButton
                     }
                 }
-                .padding(.horizontal, 18)
+                .padding(.horizontal, layout.isExpandedPad ? 44 : 18)
             } else {
-                VStack(spacing: 22) {
+                VStack(spacing: layout.isExpandedPad ? 34 : 22) {
                     promptCard
                     choices
                     replayButton
                 }
-                .padding(.horizontal, 12)
+                .padding(.horizontal, layout.isExpandedPad ? 36 : 12)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -157,15 +163,23 @@ struct FlashCardsView: View {
                 .rotationEffect(.degrees(mood == .beaming ? 10 : 6))
                 .offset(x: 7, y: 3)
 
-            VStack(spacing: isCompact ? 6 : 10) {
-                CloudMascot(mood: mood, size: isCompact ? 58 : 78)
+            VStack(spacing: layout.isExpandedPad ? 14 : (isCompact ? 6 : 10)) {
+                CloudMascot(
+                    mood: mood,
+                    size: layout.isExpandedPad ? 112 : (isCompact ? 58 : 78)
+                )
 
                 Text(text(Self.uiText.prompt))
-                    .font(Theme.body(13, .heavy))
+                    .font(Theme.body(layout.isExpandedPad ? 17 : 13, .heavy))
                     .foregroundStyle(Theme.textTertiary)
 
                 Text(round.map { model.word(for: $0.target) } ?? "")
-                    .font(Theme.body(isCompact ? 24 : 31, .black))
+                    .font(
+                        Theme.body(
+                            layout.isExpandedPad ? 42 : (isCompact ? 24 : 31),
+                            .black
+                        )
+                    )
                     .foregroundStyle(
                         LinearGradient(
                             colors: [Theme.gold, Theme.coral],
@@ -178,7 +192,7 @@ struct FlashCardsView: View {
                     .padding(.horizontal, 14)
                     .accessibilityIdentifier("flash-word")
             }
-            .padding(.vertical, 12)
+            .padding(.vertical, layout.isExpandedPad ? 22 : 12)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(
                 Theme.bgPrimary.opacity(0.88),
@@ -190,10 +204,12 @@ struct FlashCardsView: View {
             )
         }
         .frame(
-            width: isCompact ? 236 : nil,
-            height: isCompact ? 224 : 224
+            width: layout.isExpandedPad && layout.isLandscape
+                ? 360
+                : (isCompact ? 236 : nil),
+            height: layout.isExpandedPad ? 326 : 224
         )
-        .frame(maxWidth: isCompact ? nil : 310)
+        .frame(maxWidth: layout.isExpandedPad ? 430 : (isCompact ? nil : 310))
         .shadow(color: Theme.coral.opacity(0.16), radius: 20, y: 12)
         .animation(
             reduceMotion ? .easeOut(duration: 0.12) : .spring(response: 0.34, dampingFraction: 0.74),
@@ -222,9 +238,15 @@ struct FlashCardsView: View {
                     .offset(x: choiceSide * 0.24, y: -choiceSide * 0.22)
 
                 Text(entry.emoji)
-                    .font(.system(size: isCompact
-                                  ? FlashCardMetrics.compactGlyphSize
-                                  : FlashCardMetrics.glyphSize))
+                    .font(
+                        .system(
+                            size: layout.isExpandedPad
+                                ? FlashCardMetrics.padGlyphSize
+                                : (isCompact
+                                   ? FlashCardMetrics.compactGlyphSize
+                                   : FlashCardMetrics.glyphSize)
+                        )
+                    )
             }
                 .frame(width: choiceSide, height: choiceSide)
                 .clipShape(shape)
@@ -266,16 +288,16 @@ struct FlashCardsView: View {
             Haptics.tap()
             ask()
         } label: {
-            HStack(spacing: 6) {
+            HStack(spacing: layout.isExpandedPad ? 9 : 6) {
                 Image(systemName: "speaker.wave.2.fill")
-                    .font(.system(size: 17, weight: .bold))
+                    .font(.system(size: layout.isExpandedPad ? 22 : 17, weight: .bold))
                 Text(text(Self.uiText.replay))
-                    .font(Theme.body(14, .black))
+                    .font(Theme.body(layout.isExpandedPad ? 18 : 14, .black))
                     .lineLimit(1)
             }
             .foregroundStyle(Theme.gold)
-            .padding(.horizontal, 22)
-            .frame(minHeight: FlashCardMetrics.replaySide)
+            .padding(.horizontal, layout.isExpandedPad ? 30 : 22)
+            .frame(minHeight: layout.isExpandedPad ? 76 : FlashCardMetrics.replaySide)
             .background(Theme.gold.opacity(0.13), in: shape)
             .overlay(shape.stroke(Theme.gold.opacity(0.34), lineWidth: 2))
             .contentShape(Rectangle())

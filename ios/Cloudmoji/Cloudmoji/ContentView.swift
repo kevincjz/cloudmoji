@@ -258,6 +258,7 @@ private struct RootContent: View {
 /// where the value is actually published, is both correct and unremarkable.
 private struct HostedMiniApp<Content: View>: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.cloudmojiLayout) private var layout
 
     let app: MiniApp
     let onHome: () -> Void
@@ -289,11 +290,18 @@ private struct HostedMiniApp<Content: View>: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                 Color.clear
-                    .frame(height: HomeButtonMetrics.reservedHeight)
+                    .frame(
+                        height: HomeButtonMetrics.reservedHeight(
+                            expandedPad: layout.isExpandedPad
+                        )
+                    )
             }
 
             CloudHomeButton(accent: app.homeAccent, action: onHome)
-                .padding(.bottom, HomeButtonMetrics.inset)
+                .padding(
+                    .bottom,
+                    HomeButtonMetrics.inset(expandedPad: layout.isExpandedPad)
+                )
         }
         .overlay(alignment: .topTrailing) {
             if app.showsSoundRecovery && model.settings.muted {

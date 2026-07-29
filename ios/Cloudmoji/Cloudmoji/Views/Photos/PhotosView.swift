@@ -5,12 +5,16 @@ enum PhotoGalleryMetrics {
     /// The preferred child target. A thumbnail is tapped to make it big, which
     /// is the one gesture in this mini-app.
     static let thumbnailSide: CGFloat = 92
+    static let padThumbnailSide: CGFloat = 156
     static let spacing: CGFloat = 12
     static let cornerRadius: CGFloat = 12
     /// The camera tile is bigger than a thumbnail on purpose: it is the thing
     /// the child came here to do, and the photographs are what happened last
     /// time.
     static let cameraSide: CGFloat = 148
+    static let padCameraSide: CGFloat = 176
+    static let padContentMaxWidth: CGFloat = 1040
+    static let padCameraMaxWidth: CGFloat = 760
     static let pressedScale: CGFloat = 0.85
 }
 
@@ -26,6 +30,7 @@ enum PhotoGalleryMetrics {
 struct PhotosView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.cloudmojiIsCompact) private var isCompact
+    @Environment(\.cloudmojiLayout) private var layout
 
     @State private var store = PhotoStore()
     @State private var photos: [URL] = []
@@ -89,6 +94,18 @@ struct PhotosView: View {
         table[model.settings.language] ?? table[.en] ?? ""
     }
 
+    private var thumbnailSide: CGFloat {
+        layout.isExpandedPad
+            ? PhotoGalleryMetrics.padThumbnailSide
+            : PhotoGalleryMetrics.thumbnailSide
+    }
+
+    private var cameraSide: CGFloat {
+        layout.isExpandedPad
+            ? PhotoGalleryMetrics.padCameraSide
+            : PhotoGalleryMetrics.cameraSide
+    }
+
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 18) {
@@ -102,8 +119,10 @@ struct PhotosView: View {
                     cameraNote
                 }
             }
-            .padding(.horizontal, 14)
-            .padding(.top, isCompact ? 6 : 14)
+            .frame(maxWidth: layout.isExpandedPad ? PhotoGalleryMetrics.padContentMaxWidth : .infinity)
+            .padding(.horizontal, layout.isExpandedPad ? 30 : 14)
+            .padding(.top, layout.isExpandedPad ? 28 : (isCompact ? 6 : 14))
+            .frame(maxWidth: .infinity)
         }
         .onAppear {
             photos = store.photos
@@ -180,7 +199,10 @@ struct PhotosView: View {
                         ZStack {
                             Circle()
                                 .fill(Theme.bgPrimary)
-                                .frame(width: 76, height: 76)
+                                .frame(
+                                    width: layout.isExpandedPad ? 92 : 76,
+                                    height: layout.isExpandedPad ? 92 : 76
+                                )
                                 .overlay(Circle().stroke(Theme.moonlight.opacity(0.44), lineWidth: 3))
                             Circle()
                                 .fill(
@@ -191,7 +213,10 @@ struct PhotosView: View {
                                         endRadius: 34
                                     )
                                 )
-                                .frame(width: 50, height: 50)
+                                .frame(
+                                    width: layout.isExpandedPad ? 62 : 50,
+                                    height: layout.isExpandedPad ? 62 : 50
+                                )
                             Circle()
                                 .fill(Color.white.opacity(0.72))
                                 .frame(width: 10, height: 10)
@@ -200,19 +225,24 @@ struct PhotosView: View {
 
                         VStack(alignment: .leading, spacing: 5) {
                             Image(systemName: "camera.fill")
-                                .font(.system(size: 22, weight: .black))
+                                .font(
+                                    .system(
+                                        size: layout.isExpandedPad ? 28 : 22,
+                                        weight: .black
+                                    )
+                                )
                                 .foregroundStyle(Theme.coral)
                             Text(text(Self.uiText.takeOne))
-                                .font(Theme.body(15, .black))
+                                .font(Theme.body(layout.isExpandedPad ? 19 : 15, .black))
                                 .foregroundStyle(Theme.textPrimary)
                                 .lineLimit(2)
                                 .minimumScaleFactor(0.72)
                         }
                     }
-                    .padding(.horizontal, 24)
+                    .padding(.horizontal, layout.isExpandedPad ? 34 : 24)
                 }
                 .frame(maxWidth: .infinity)
-                .frame(height: PhotoGalleryMetrics.cameraSide)
+                .frame(height: cameraSide)
                 .clipShape(shape)
                 .overlay(shape.stroke(Color.white.opacity(0.22), lineWidth: 2))
                 .shadow(color: Theme.coral.opacity(0.18), radius: 18, y: 10)
@@ -221,6 +251,7 @@ struct PhotosView: View {
             .buttonStyle(PressScale(scale: PhotoGalleryMetrics.pressedScale))
             .accessibilityLabel(text(Self.uiText.takeOne))
             .accessibilityIdentifier("photos-camera-btn")
+            .frame(maxWidth: layout.isExpandedPad ? PhotoGalleryMetrics.padCameraMaxWidth : .infinity)
         }
     }
 
@@ -235,17 +266,25 @@ struct PhotosView: View {
         } label: {
             HStack(spacing: 16) {
                 Image(systemName: "camera.fill")
-                    .font(.system(size: 30, weight: .black))
+                    .font(
+                        .system(
+                            size: layout.isExpandedPad ? 38 : 30,
+                            weight: .black
+                        )
+                    )
                     .foregroundStyle(Theme.coral)
-                    .frame(width: 68, height: 68)
+                    .frame(
+                        width: layout.isExpandedPad ? 82 : 68,
+                        height: layout.isExpandedPad ? 82 : 68
+                    )
                     .background(Theme.coral.opacity(0.14), in: Circle())
 
                 VStack(alignment: .leading, spacing: 5) {
                     Text(text(Self.uiText.askGrownUp))
-                        .font(Theme.body(16, .black))
+                        .font(Theme.body(layout.isExpandedPad ? 20 : 16, .black))
                         .foregroundStyle(Theme.textPrimary)
                     Text(Self.uiText.cameraDenied)
-                        .font(Theme.body(12, .bold))
+                        .font(Theme.body(layout.isExpandedPad ? 15 : 12, .bold))
                         .foregroundStyle(Theme.textTertiary)
                 }
 
@@ -255,9 +294,9 @@ struct PhotosView: View {
                     .font(.system(size: 16, weight: .black))
                     .foregroundStyle(Theme.gold)
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, layout.isExpandedPad ? 28 : 20)
             .frame(maxWidth: .infinity)
-            .frame(height: PhotoGalleryMetrics.cameraSide)
+            .frame(height: cameraSide)
             .background(Theme.bgPrimary.opacity(0.72), in: shape)
             .overlay(shape.stroke(Theme.coral.opacity(0.36), lineWidth: 2))
             .contentShape(Rectangle())
@@ -265,6 +304,7 @@ struct PhotosView: View {
         .buttonStyle(PressScale(scale: PhotoGalleryMetrics.pressedScale))
         .accessibilityLabel("\(text(Self.uiText.askGrownUp)). \(Self.uiText.cameraDenied)")
         .accessibilityIdentifier("photos-camera-permission-btn")
+        .frame(maxWidth: layout.isExpandedPad ? PhotoGalleryMetrics.padCameraMaxWidth : .infinity)
     }
 
     /// Even the Simulator, where there is no camera, gets a composed empty
@@ -310,7 +350,7 @@ struct PhotosView: View {
     private var grid: some View {
         LazyVGrid(
             columns: [GridItem(
-                .adaptive(minimum: PhotoGalleryMetrics.thumbnailSide),
+                .adaptive(minimum: thumbnailSide),
                 spacing: PhotoGalleryMetrics.spacing
             )],
             spacing: PhotoGalleryMetrics.spacing
@@ -328,12 +368,12 @@ struct PhotosView: View {
             enlarged = url
         } label: {
             VStack(spacing: 6) {
-                photoImage(url, maximumPoints: PhotoGalleryMetrics.thumbnailSide)
+                photoImage(url, maximumPoints: thumbnailSide)
                     .frame(
-                        minWidth: PhotoGalleryMetrics.thumbnailSide,
+                        minWidth: thumbnailSide,
                         maxWidth: .infinity,
-                        minHeight: PhotoGalleryMetrics.thumbnailSide,
-                        maxHeight: PhotoGalleryMetrics.thumbnailSide
+                        minHeight: thumbnailSide,
+                        maxHeight: thumbnailSide
                     )
                     .clipShape(shape)
 

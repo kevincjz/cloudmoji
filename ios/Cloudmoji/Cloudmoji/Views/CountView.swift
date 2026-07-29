@@ -17,6 +17,7 @@ import CloudmojiCore
 struct CountView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.cloudmojiIsCompact) private var isCompact
+    @Environment(\.cloudmojiLayout) private var layout
 
     /// Opens the parental gate. `ContentView` owns it, because the gate has to
     /// cover the home button as well as this screen.
@@ -191,7 +192,10 @@ struct CountView: View {
         GeometryReader { proxy in
             ScrollView(showsIndicators: false) {
                 grid
-                    .frame(maxWidth: CountTileMetrics.maxGridWidth(compact: isCompact))
+                    .frame(
+                        maxWidth: CountTileMetrics.maxGridWidth(compact: isCompact)
+                            * (layout.isExpandedPad ? 1.30 : 1)
+                    )
                     .frame(maxWidth: .infinity)
                     // A top-row badge hangs 10pt above its tile and a trailing badge
                     // 10pt past it; without this both are clipped by the scroll view.
@@ -211,9 +215,11 @@ struct CountView: View {
     @ViewBuilder private var grid: some View {
         if let round {
             let columns = CountTileMetrics.columns(count: round.target, compact: isCompact)
-            let side = CountTileMetrics.side(count: round.target, compact: isCompact)
-            let glyph = CountTileMetrics.glyphSize(count: round.target, compact: isCompact)
+            let scale: CGFloat = layout.isExpandedPad ? 1.30 : 1
+            let side = CountTileMetrics.side(count: round.target, compact: isCompact) * scale
+            let glyph = CountTileMetrics.glyphSize(count: round.target, compact: isCompact) * scale
             let spacing = CountTileMetrics.gridSpacing(count: round.target, compact: isCompact)
+                * (layout.isExpandedPad ? 1.18 : 1)
 
             // Not lazy: a round is at most ten tiles, and a lazy container would
             // realise them out of order and break the badges' paint order.
@@ -399,6 +405,8 @@ struct CountView: View {
 /// Shuffle and Next. Child-facing, so 64pt — a two-year-old presses these far more
 /// often than a parent does.
 struct CountControl: View {
+    @Environment(\.cloudmojiLayout) private var layout
+
     let glyph: String
     let caption: String
     let identifier: String
@@ -415,17 +423,17 @@ struct CountControl: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 6) {
+            HStack(spacing: layout.isExpandedPad ? 9 : 6) {
                 // 🔄 and ✨ are colour emoji and keep their own colours; the caption
                 // beside them is text and would take the accent blue unaided.
-                Text(glyph).font(.system(size: 18))
+                Text(glyph).font(.system(size: layout.isExpandedPad ? 24 : 18))
                 Text(caption)
-                    .font(Theme.body(14, .black))
+                    .font(Theme.body(layout.isExpandedPad ? 18 : 14, .black))
                     .foregroundStyle(tint)
                     .lineLimit(1)
             }
-            .padding(.horizontal, 22)
-            .frame(minHeight: Self.minHeight)
+            .padding(.horizontal, layout.isExpandedPad ? 30 : 22)
+            .frame(minHeight: layout.isExpandedPad ? 78 : Self.minHeight)
             .background(tint.opacity(0.15), in: shape)
             .overlay(shape.stroke(tint.opacity(0.3), lineWidth: 2))
             .contentShape(Rectangle())

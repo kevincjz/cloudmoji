@@ -19,6 +19,7 @@ enum ModeHeaderMetrics {
     /// 64. Forcing 64 here swallows the header on a 375pt screen — the mascot,
     /// the wordmark and three controls do not fit.
     static let controlSide: CGFloat = 44
+    static let padControlSide: CGFloat = 54
 
     /// Minimum gap between adjacent targets, `CLAUDE.md` rule 2.
     static let spacing: CGFloat = 8
@@ -29,6 +30,7 @@ enum ModeHeaderMetrics {
     /// background rather than on a plate.
     static let controlBorderWidth: CGFloat = 2
     static let controlGlyphSize: CGFloat = 18
+    static let padControlGlyphSize: CGFloat = 22
 
     /// `padding: 10px 14px 6px` upright, `4px 12px 2px` sideways.
     static let horizontalPadding: CGFloat = 14
@@ -42,12 +44,16 @@ enum ModeHeaderMetrics {
     static let titleSize: CGFloat = 21
     static let compactTitleSize: CGFloat = 17
     static let subtitleSize: CGFloat = 10
+    static let padTitleSize: CGFloat = 29
+    static let padSubtitleSize: CGFloat = 13
 
     static let mascotSize: CGFloat = 64
     static let compactMascotSize: CGFloat = 42
+    static let padMascotSize: CGFloat = 86
 
     /// `font-size: 14; font-weight: 900` on the web's `LangToggle` button.
     static let languageLabelSize: CGFloat = 14
+    static let padLanguageLabelSize: CGFloat = 17
 
     /// Fixed, not intrinsic, and both halves of that are deliberate.
     ///
@@ -61,6 +67,7 @@ enum ModeHeaderMetrics {
     /// It fits the longest label with room to spare: 日本語 is three CJK glyphs at
     /// 14pt, so about 42pt inside a 58pt interior.
     static let languageControlWidth: CGFloat = 62
+    static let padLanguageControlWidth: CGFloat = 78
 
     /// Design system Active States: control buttons `scale(0.88)`.
     static let pressedScale: CGFloat = 0.88
@@ -78,6 +85,7 @@ enum ModeHeaderMetrics {
 struct ModeHeader: View {
     @Environment(AppModel.self) private var model
     @Environment(\.cloudmojiIsCompact) private var isCompact
+    @Environment(\.cloudmojiLayout) private var layout
 
     let mood: MascotMood
     /// "Cloudmoji" in Words mode, "Cloudculator" in Count mode. Chrome, not
@@ -100,19 +108,27 @@ struct ModeHeader: View {
     }
 
     var body: some View {
-        HStack(spacing: ModeHeaderMetrics.spacing) {
+        HStack(spacing: layout.isExpandedPad ? 12 : ModeHeaderMetrics.spacing) {
             CloudMascot(
                 mood: mood,
-                size: isCompact
-                    ? ModeHeaderMetrics.compactMascotSize
-                    : ModeHeaderMetrics.mascotSize
+                size: layout.isExpandedPad
+                    ? ModeHeaderMetrics.padMascotSize
+                    : (isCompact
+                       ? ModeHeaderMetrics.compactMascotSize
+                       : ModeHeaderMetrics.mascotSize)
             )
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(title)
-                    .font(Theme.display(isCompact
-                                        ? ModeHeaderMetrics.compactTitleSize
-                                        : ModeHeaderMetrics.titleSize))
+                    .font(
+                        Theme.display(
+                            layout.isExpandedPad
+                                ? ModeHeaderMetrics.padTitleSize
+                                : (isCompact
+                                   ? ModeHeaderMetrics.compactTitleSize
+                                   : ModeHeaderMetrics.titleSize)
+                        )
+                    )
                     .foregroundStyle(Theme.teal)
                     // The wordmark is the only elastic thing in a strip whose
                     // other four items are fixed. Without these it wins the
@@ -121,7 +137,14 @@ struct ModeHeader: View {
                     .minimumScaleFactor(0.8)
                 if !isCompact {
                     Text(subtitle)
-                        .font(Theme.body(ModeHeaderMetrics.subtitleSize, .heavy))
+                        .font(
+                            Theme.body(
+                                layout.isExpandedPad
+                                    ? ModeHeaderMetrics.padSubtitleSize
+                                    : ModeHeaderMetrics.subtitleSize,
+                                .heavy
+                            )
+                        )
                         .foregroundStyle(Theme.textSecondary)
                         .lineLimit(1)
                 }
@@ -133,15 +156,30 @@ struct ModeHeader: View {
             muteControl
             languageToggle
         }
-        .padding(.horizontal, isCompact
-                 ? ModeHeaderMetrics.compactHorizontalPadding
-                 : ModeHeaderMetrics.horizontalPadding)
-        .padding(.top, isCompact
-                 ? ModeHeaderMetrics.compactTopPadding
-                 : ModeHeaderMetrics.topPadding)
-        .padding(.bottom, isCompact
-                 ? ModeHeaderMetrics.compactBottomPadding
-                 : ModeHeaderMetrics.bottomPadding)
+        .padding(
+            .horizontal,
+            layout.isExpandedPad
+                ? 24
+                : (isCompact
+                   ? ModeHeaderMetrics.compactHorizontalPadding
+                   : ModeHeaderMetrics.horizontalPadding)
+        )
+        .padding(
+            .top,
+            layout.isExpandedPad
+                ? 18
+                : (isCompact
+                   ? ModeHeaderMetrics.compactTopPadding
+                   : ModeHeaderMetrics.topPadding)
+        )
+        .padding(
+            .bottom,
+            layout.isExpandedPad
+                ? 10
+                : (isCompact
+                   ? ModeHeaderMetrics.compactBottomPadding
+                   : ModeHeaderMetrics.bottomPadding)
+        )
     }
 
     /// The one door to the parent's half of the app. Everything behind it is
@@ -229,6 +267,8 @@ struct ModeHeader: View {
 /// chrome floor can be measured off a real render rather than read back out of
 /// the constant that set it.
 struct LanguageToggle: View {
+    @Environment(\.cloudmojiLayout) private var layout
+
     let label: String
     let voiceOverLabel: String
     let voiceOverValue: String
@@ -242,7 +282,10 @@ struct LanguageToggle: View {
     let action: () -> Void
 
     private var shape: RoundedRectangle {
-        RoundedRectangle(cornerRadius: ModeHeaderMetrics.controlCornerRadius, style: .continuous)
+        RoundedRectangle(
+            cornerRadius: layout.isExpandedPad ? 18 : ModeHeaderMetrics.controlCornerRadius,
+            style: .continuous
+        )
     }
 
     var body: some View {
@@ -253,11 +296,24 @@ struct LanguageToggle: View {
                 // controls beside this one get away with saying nothing only
                 // because 🔊 and ⚙️ are colour emoji.
                 .foregroundStyle(Theme.textPrimary)
-                .font(Theme.body(ModeHeaderMetrics.languageLabelSize, .black))
+                .font(
+                    Theme.body(
+                        layout.isExpandedPad
+                            ? ModeHeaderMetrics.padLanguageLabelSize
+                            : ModeHeaderMetrics.languageLabelSize,
+                        .black
+                    )
+                )
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
-                .frame(width: ModeHeaderMetrics.languageControlWidth,
-                       height: ModeHeaderMetrics.controlSide)
+                .frame(
+                    width: layout.isExpandedPad
+                        ? ModeHeaderMetrics.padLanguageControlWidth
+                        : ModeHeaderMetrics.languageControlWidth,
+                    height: layout.isExpandedPad
+                        ? ModeHeaderMetrics.padControlSide
+                        : ModeHeaderMetrics.controlSide
+                )
                 .background(Theme.surface, in: shape)
                 .overlay(
                     shape.stroke(
@@ -288,6 +344,8 @@ struct LanguageToggle: View {
 /// read back out of a constant, the same reason `TypedEmojiButton` is its own
 /// type.
 struct ModeHeaderControl: View {
+    @Environment(\.cloudmojiLayout) private var layout
+
     let glyph: String
     /// English: VoiceOver here is for the parent, not the child.
     let label: String
@@ -298,7 +356,10 @@ struct ModeHeaderControl: View {
     let action: () -> Void
 
     private var shape: RoundedRectangle {
-        RoundedRectangle(cornerRadius: ModeHeaderMetrics.controlCornerRadius, style: .continuous)
+        RoundedRectangle(
+            cornerRadius: layout.isExpandedPad ? 18 : ModeHeaderMetrics.controlCornerRadius,
+            style: .continuous
+        )
     }
 
     var body: some View {
@@ -308,9 +369,21 @@ struct ModeHeaderControl: View {
                 // symbol put in here would take the button's tint — which is the
                 // system accent blue unless it is said otherwise.
                 .foregroundStyle(Theme.textPrimary)
-                .font(.system(size: ModeHeaderMetrics.controlGlyphSize))
-                .frame(width: ModeHeaderMetrics.controlSide,
-                       height: ModeHeaderMetrics.controlSide)
+                .font(
+                    .system(
+                        size: layout.isExpandedPad
+                            ? ModeHeaderMetrics.padControlGlyphSize
+                            : ModeHeaderMetrics.controlGlyphSize
+                    )
+                )
+                .frame(
+                    width: layout.isExpandedPad
+                        ? ModeHeaderMetrics.padControlSide
+                        : ModeHeaderMetrics.controlSide,
+                    height: layout.isExpandedPad
+                        ? ModeHeaderMetrics.padControlSide
+                        : ModeHeaderMetrics.controlSide
+                )
                 .background(isOn ? tint.opacity(0.2) : Theme.surface, in: shape)
                 .overlay(
                     shape.stroke(

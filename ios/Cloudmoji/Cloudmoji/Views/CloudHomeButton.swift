@@ -12,16 +12,36 @@ enum HomeButtonMetrics {
     /// most important control in the app for a child who has opened the wrong
     /// thing, so it gets the most generous target in the app.
     static let side: CGFloat = 84
+    static let padSide: CGFloat = 104
 
     /// The mascot inside the circle. Sized so the cloud's letterboxed art
     /// (`size × size * 0.78`) sits inside the plate with a ring around it.
     static let glyphSize: CGFloat = 58
+    static let padGlyphSize: CGFloat = 72
 
     /// How far the hosting screen keeps its own content clear of the button:
     /// the button, its inset, and a little air.
     static let reservedHeight: CGFloat = 108
+    static let padReservedHeight: CGFloat = 132
 
     static let inset: CGFloat = 12
+    static let padInset: CGFloat = 16
+
+    static func side(expandedPad: Bool) -> CGFloat {
+        expandedPad ? padSide : side
+    }
+
+    static func glyphSize(expandedPad: Bool) -> CGFloat {
+        expandedPad ? padGlyphSize : glyphSize
+    }
+
+    static func reservedHeight(expandedPad: Bool) -> CGFloat {
+        expandedPad ? padReservedHeight : reservedHeight
+    }
+
+    static func inset(expandedPad: Bool) -> CGFloat {
+        expandedPad ? padInset : inset
+    }
 
     /// Design system Active States: tabs `scale(0.9)`.
     static let pressedScale: CGFloat = 0.9
@@ -38,6 +58,8 @@ enum HomeButtonMetrics {
 /// Its own type so the 64pt rule can be measured off a real render rather than
 /// read back out of the constant that set it.
 struct CloudHomeButton: View {
+    @Environment(\.cloudmojiLayout) private var layout
+
     /// The newer mini-apps tint the navigation ring with their own identity.
     /// `nil` preserves the original Words / Count treatment exactly.
     var accent: Color?
@@ -49,12 +71,15 @@ struct CloudHomeButton: View {
     }
 
     var body: some View {
+        let side = HomeButtonMetrics.side(expandedPad: layout.isExpandedPad)
+        let glyphSize = HomeButtonMetrics.glyphSize(expandedPad: layout.isExpandedPad)
+
         Button {
             Haptics.tap()
             action()
         } label: {
             ZStack(alignment: .bottomTrailing) {
-                CloudMascot(mood: .happy, size: HomeButtonMetrics.glyphSize)
+                CloudMascot(mood: .happy, size: glyphSize)
                     // Hidden, unlike every other mascot in the app.
                     //
                     // `CloudMascot` publishes `mascot-<mood>` as its identifier, and
@@ -67,15 +92,18 @@ struct CloudHomeButton: View {
                     .accessibilityHidden(true)
 
                 Image(systemName: "house.fill")
-                    .font(.system(size: 12, weight: .black))
+                    .font(.system(size: layout.isExpandedPad ? 15 : 12, weight: .black))
                     .foregroundStyle(Theme.bgPrimary)
-                    .frame(width: 26, height: 26)
+                    .frame(
+                        width: layout.isExpandedPad ? 32 : 26,
+                        height: layout.isExpandedPad ? 32 : 26
+                    )
                     .background(accent ?? Theme.teal, in: Circle())
                     .overlay(Circle().stroke(Color.white.opacity(0.55), lineWidth: 1))
                     .offset(x: 3, y: 3)
                     .accessibilityHidden(true)
             }
-                .frame(width: HomeButtonMetrics.side, height: HomeButtonMetrics.side)
+            .frame(width: side, height: side)
                 // Two layers, and the opaque one is load-bearing. The button
                 // floats over a screen that scrolls underneath it — the animal
                 // grid and the emoji grid both do — and `Theme.surface` is white

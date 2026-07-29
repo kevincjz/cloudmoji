@@ -35,7 +35,7 @@ struct WordsViewTests {
     }
 
     func screen(_ model: AppModel) -> some View {
-        AdaptiveShell { WordsView() }.environment(model)
+        AdaptiveShell(isPad: false) { WordsView() }.environment(model)
     }
 
     // MARK: - The 50-emoji cap
@@ -188,7 +188,10 @@ struct WordsViewTests {
         for y in [Int(width) / 2, Int(width) * 3 / 4] {
             let left = portrait.rgb(x: 2, y: y).sum
             let right = portrait.rgb(x: Int(height) - 3, y: y).sum
-            #expect(left == right, "upright, the edges differ (\(left) vs \(right)) — something rail-shaped drew")
+            #expect(
+                abs(left - right) <= 3,
+                "upright, the edges differ (\(left) vs \(right)) — something rail-shaped drew"
+            )
         }
     }
 

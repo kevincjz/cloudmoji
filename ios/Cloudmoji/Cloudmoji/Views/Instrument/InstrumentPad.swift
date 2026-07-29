@@ -4,6 +4,9 @@ enum InstrumentPadMetrics {
     /// The preferred child-facing size, not the 64pt floor. A pad is struck
     /// rather than aimed at, often with a whole hand.
     static let minimumSide: CGFloat = 72
+    /// Full-screen iPads have room for enormous pads, but past this point the
+    /// notes stop reading as a set and start reading as four separate panels.
+    static let maximumPadSide: CGFloat = 260
 
     /// `CLAUDE.md` rule 2, the floor between adjacent child-facing targets.
     static let spacing: CGFloat = 8

@@ -17,10 +17,12 @@ enum EmojiTileMetrics {
     /// size, and this is the surface a toddler taps more than any other.
     /// Do not shrink this to make a layout fit — add a column instead.
     static let side: CGFloat = 72
+    static let padSide: CGFloat = 92
 
     /// Minimum gap between two child-facing targets. Doubles as the grid's
     /// row and column spacing (`gap-2` on the web).
     static let spacing: CGFloat = 8
+    static let padSpacing: CGFloat = 10
 
     static let cornerRadius: CGFloat = 18
 
@@ -28,6 +30,7 @@ enum EmojiTileMetrics {
     /// Apple Color Emoji carries comfortably inside 72pt —
     /// `EmojiTileTests.glyphFitsInsideTheTile` holds that line.
     static let glyphSize: CGFloat = 40
+    static let padGlyphSize: CGFloat = 50
 
     /// The web draws 1.5px. At 6% white on a near-black background the
     /// difference is a hairline either way.
@@ -60,6 +63,8 @@ enum EmojiTileMetrics {
 /// to 72 instead would spread the leftover space *between* tiles and put the
 /// emoji somewhere other than under the finger that aimed at it.
 struct EmojiTile: View {
+    @Environment(\.cloudmojiLayout) private var layout
+
     let entry: EmojiEntry
     var isBouncing: Bool = false
     /// What VoiceOver announces. Defaults to `nil`, which reads as `entry.en`,
@@ -75,17 +80,28 @@ struct EmojiTile: View {
     let onTap: () -> Void
 
     private var shape: RoundedRectangle {
-        RoundedRectangle(cornerRadius: EmojiTileMetrics.cornerRadius, style: .continuous)
+        RoundedRectangle(
+            cornerRadius: layout.isExpandedPad ? 22 : EmojiTileMetrics.cornerRadius,
+            style: .continuous
+        )
     }
 
     var body: some View {
+        let side = layout.isExpandedPad ? EmojiTileMetrics.padSide : EmojiTileMetrics.side
+
         Button(action: onTap) {
             Text(entry.emoji)
-                .font(.system(size: EmojiTileMetrics.glyphSize))
+                .font(
+                    .system(
+                        size: layout.isExpandedPad
+                            ? EmojiTileMetrics.padGlyphSize
+                            : EmojiTileMetrics.glyphSize
+                    )
+                )
                 .frame(
-                    minWidth: EmojiTileMetrics.side,
+                    minWidth: side,
                     maxWidth: .infinity,
-                    minHeight: EmojiTileMetrics.side
+                    minHeight: side
                 )
                 .background(Theme.surface, in: shape)
                 .overlay(

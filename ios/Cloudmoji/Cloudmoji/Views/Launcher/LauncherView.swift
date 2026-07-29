@@ -10,6 +10,7 @@ import CloudmojiCore
 struct LauncherView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.cloudmojiIsCompact) private var isCompact
+    @Environment(\.cloudmojiLayout) private var layout
 
     let apps: [MiniApp]
     let onOpen: (MiniApp) -> Void
@@ -20,39 +21,70 @@ struct LauncherView: View {
     /// entitlement; a partial row stays left-aligned rather than re-centering.
     static func columns(compact _: Bool) -> Int { 4 }
 
+    static func gridItems(isExpandedPad: Bool, isLandscape: Bool) -> [GridItem] {
+        if isExpandedPad {
+            let cellWidth = isLandscape
+                ? LauncherTileMetrics.padLandscapeCellWidth
+                : LauncherTileMetrics.padCellWidth
+            let spacing = isLandscape
+                ? LauncherTileMetrics.padLandscapeSpacing
+                : LauncherTileMetrics.padSpacing
+            return Array(
+                repeating: GridItem(
+                    .fixed(cellWidth),
+                    spacing: spacing
+                ),
+                count: columns(compact: false)
+            )
+        }
+
+        return Array(
+            repeating: GridItem(
+                .flexible(minimum: 64, maximum: 102),
+                spacing: LauncherTileMetrics.spacing
+            ),
+            count: columns(compact: false)
+        )
+    }
+
     var body: some View {
+        let isLandscapePad = layout.isExpandedPad && layout.isLandscape
+
         ZStack {
             LauncherWallpaper()
 
             VStack(spacing: 0) {
                 LauncherHeaderWidget(onParent: onParent)
-                    .padding(.horizontal, isCompact ? 12 : 14)
-                    .padding(.top, isCompact ? 4 : 10)
+                    .padding(.horizontal, layout.isExpandedPad ? 34 : (isCompact ? 12 : 14))
+                    .padding(.top, layout.isExpandedPad ? 24 : (isCompact ? 4 : 10))
 
                 ScrollView(showsIndicators: false) {
                     LazyVGrid(
-                        columns: Array(
-                            repeating: GridItem(
-                                .flexible(minimum: 64, maximum: 102),
-                                spacing: LauncherTileMetrics.spacing
-                            ),
-                            count: Self.columns(compact: isCompact)
+                        columns: Self.gridItems(
+                            isExpandedPad: layout.isExpandedPad,
+                            isLandscape: layout.isLandscape
                         ),
-                        spacing: LauncherTileMetrics.spacing
+                        spacing: isLandscapePad
+                            ? LauncherTileMetrics.padLandscapeSpacing
+                            : (layout.isExpandedPad
+                                ? LauncherTileMetrics.padSpacing
+                                : LauncherTileMetrics.spacing)
                     ) {
                         ForEach(apps) { app in
                             LauncherTile(
                                 app: app,
                                 label: app.label(model.settings.language),
                                 isCompact: isCompact,
+                                isExpandedPad: layout.isExpandedPad,
+                                isLandscapePad: isLandscapePad,
                                 onTap: { onOpen(app) }
                             )
                         }
                     }
-                    .frame(maxWidth: 460)
-                    .padding(.horizontal, 12)
-                    .padding(.top, isCompact ? 6 : 18)
-                    .padding(.bottom, 24)
+                    .frame(maxWidth: isLandscapePad ? 1_030 : (layout.isExpandedPad ? 780 : 460))
+                    .padding(.horizontal, isLandscapePad ? 24 : (layout.isExpandedPad ? 26 : 12))
+                    .padding(.top, isLandscapePad ? 20 : (layout.isExpandedPad ? 42 : (isCompact ? 6 : 18)))
+                    .padding(.bottom, isLandscapePad ? 24 : (layout.isExpandedPad ? 46 : 24))
                     .frame(maxWidth: .infinity)
                 }
             }
@@ -67,22 +99,30 @@ struct LauncherView: View {
 /// the iPhone Home Screen.
 private struct LauncherHeaderWidget: View {
     @Environment(\.cloudmojiIsCompact) private var isCompact
+    @Environment(\.cloudmojiLayout) private var layout
 
     let onParent: () -> Void
 
+    private var isLandscapePad: Bool {
+        layout.isExpandedPad && layout.isLandscape
+    }
+
     var body: some View {
-        HStack(spacing: isCompact ? 7 : 9) {
-            CloudMascot(mood: .happy, size: isCompact ? 42 : 50)
+        HStack(spacing: isLandscapePad ? 16 : (layout.isExpandedPad ? 13 : (isCompact ? 7 : 9))) {
+            CloudMascot(
+                mood: .happy,
+                size: isLandscapePad ? 74 : (layout.isExpandedPad ? 66 : (isCompact ? 42 : 50))
+            )
 
             VStack(alignment: .leading, spacing: 0) {
                 Text("Cloudmoji")
-                    .font(Theme.display(isCompact ? 17 : 20))
+                    .font(Theme.display(isLandscapePad ? 31 : (layout.isExpandedPad ? 27 : (isCompact ? 17 : 20))))
                     .foregroundStyle(Theme.teal)
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
                 if !isCompact {
                     Text("Tap. Listen. Learn!")
-                        .font(Theme.body(9, .heavy))
+                        .font(Theme.body(isLandscapePad ? 14 : (layout.isExpandedPad ? 12 : 9), .heavy))
                         .foregroundStyle(Theme.textTertiary)
                         .lineLimit(1)
                 }
@@ -90,21 +130,38 @@ private struct LauncherHeaderWidget: View {
 
             Spacer(minLength: 2)
 
-            LauncherParentControl(isCompact: isCompact, action: onParent)
+            LauncherParentControl(
+                isCompact: isCompact,
+                isExpandedPad: layout.isExpandedPad,
+                isLandscapePad: isLandscapePad,
+                action: onParent
+            )
         }
-        .padding(.horizontal, isCompact ? 10 : 12)
-        .padding(.vertical, isCompact ? 6 : 9)
-        .background(Theme.headerPlate, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .padding(.horizontal, isLandscapePad ? 24 : (layout.isExpandedPad ? 20 : (isCompact ? 10 : 12)))
+        .padding(.vertical, isLandscapePad ? 14 : (layout.isExpandedPad ? 13 : (isCompact ? 6 : 9)))
+        .background(
+            Theme.headerPlate,
+            in: RoundedRectangle(
+                cornerRadius: layout.isExpandedPad ? 32 : 26,
+                style: .continuous
+            )
+        )
         .overlay(
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
+            RoundedRectangle(
+                cornerRadius: layout.isExpandedPad ? 32 : 26,
+                style: .continuous
+            )
                 .stroke(Theme.surfaceBorderStrong, lineWidth: 1)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
+            RoundedRectangle(
+                cornerRadius: layout.isExpandedPad ? 32 : 26,
+                style: .continuous
+            )
                 .stroke(Color.white.opacity(0.18), lineWidth: 1)
         )
         .shadow(color: Theme.bgPrimary.opacity(0.38), radius: 18, y: 8)
-        .frame(maxWidth: 560)
+        .frame(maxWidth: isLandscapePad ? 940 : (layout.isExpandedPad ? 720 : 560))
         .frame(maxWidth: .infinity)
     }
 }
@@ -114,26 +171,34 @@ private struct LauncherHeaderWidget: View {
 /// gated parent panel; this is the single, labelled door to them.
 private struct LauncherParentControl: View {
     let isCompact: Bool
+    let isExpandedPad: Bool
+    let isLandscapePad: Bool
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 6) {
+            HStack(spacing: isExpandedPad ? 8 : 6) {
                 Image(systemName: "lock.fill")
-                    .font(.system(size: 13, weight: .black))
+                    .font(.system(size: isLandscapePad ? 18 : (isExpandedPad ? 16 : 13), weight: .black))
                 Text(isCompact ? "Parents" : "Grown-ups")
-                    .font(Theme.body(isCompact ? 11 : 12, .black))
+                    .font(Theme.body(isLandscapePad ? 17 : (isExpandedPad ? 15 : (isCompact ? 11 : 12)), .black))
                     .lineLimit(1)
             }
             .foregroundStyle(Color.white)
-            .padding(.horizontal, isCompact ? 10 : 12)
-            .frame(minHeight: ModeHeaderMetrics.controlSide)
+            .padding(.horizontal, isLandscapePad ? 20 : (isExpandedPad ? 18 : (isCompact ? 10 : 12)))
+            .frame(minHeight: isLandscapePad ? 60 : (isExpandedPad ? 54 : ModeHeaderMetrics.controlSide))
             .background(
                 Theme.teal.opacity(0.16),
-                in: RoundedRectangle(cornerRadius: 15, style: .continuous)
+                in: RoundedRectangle(
+                    cornerRadius: isExpandedPad ? 19 : 15,
+                    style: .continuous
+                )
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 15, style: .continuous)
+                RoundedRectangle(
+                    cornerRadius: isExpandedPad ? 19 : 15,
+                    style: .continuous
+                )
                     .stroke(Theme.teal.opacity(0.34), lineWidth: 1)
             )
             .contentShape(Rectangle())
@@ -155,30 +220,30 @@ private struct LauncherWallpaper: View {
 
                 Circle()
                     .fill(Theme.coral.opacity(0.16))
-                    .frame(width: min(proxy.size.width * 0.90, 430))
-                    .blur(radius: 60)
+                    .frame(width: min(proxy.size.width * 0.90, 700))
+                    .blur(radius: min(proxy.size.width * 0.11, 92))
                     .offset(x: -proxy.size.width * 0.46, y: -proxy.size.height * 0.30)
 
                 Circle()
                     .fill(Theme.teal.opacity(0.14))
-                    .frame(width: min(proxy.size.width * 0.96, 470))
-                    .blur(radius: 68)
+                    .frame(width: min(proxy.size.width * 0.96, 760))
+                    .blur(radius: min(proxy.size.width * 0.12, 104))
                     .offset(x: proxy.size.width * 0.48, y: proxy.size.height * 0.02)
 
                 Circle()
                     .fill(Theme.gold.opacity(0.10))
-                    .frame(width: min(proxy.size.width * 0.82, 390))
-                    .blur(radius: 62)
+                    .frame(width: min(proxy.size.width * 0.82, 640))
+                    .blur(radius: min(proxy.size.width * 0.10, 88))
                     .offset(x: -proxy.size.width * 0.24, y: proxy.size.height * 0.48)
 
                 Image(systemName: "cloud.fill")
-                    .font(.system(size: min(proxy.size.width * 0.58, 250), weight: .black))
+                    .font(.system(size: min(proxy.size.width * 0.58, 430), weight: .black))
                     .foregroundStyle(Color.white.opacity(0.035))
                     .rotationEffect(.degrees(-8))
                     .offset(x: proxy.size.width * 0.34, y: proxy.size.height * 0.34)
 
                 Image(systemName: "cloud.fill")
-                    .font(.system(size: min(proxy.size.width * 0.42, 190), weight: .black))
+                    .font(.system(size: min(proxy.size.width * 0.42, 320), weight: .black))
                     .foregroundStyle(Color.white.opacity(0.025))
                     .rotationEffect(.degrees(10))
                     .offset(x: -proxy.size.width * 0.43, y: proxy.size.height * 0.08)
