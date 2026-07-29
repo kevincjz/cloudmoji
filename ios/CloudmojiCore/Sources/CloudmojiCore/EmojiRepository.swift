@@ -63,6 +63,28 @@ public struct EmojiRepository: Sendable {
     public func meta(for language: Language) -> LanguageMeta? {
         languages.first { $0.id == language }
     }
+
+    /// Every glyph that has a noise, whatever the language.
+    ///
+    /// The Animal Sounds grid is built from this, so a tile exists only where
+    /// there is something for it to say.
+    public var animalSoundGlyphs: Set<String> {
+        Set((data.animalSounds ?? [:]).keys)
+    }
+
+    /// What this animal says, in this language — "woof woof", 汪汪, ワンワン.
+    ///
+    /// `nil` when the glyph has no entry, which is how the caller knows there is
+    /// no noise rather than being handed the animal's name by mistake. There is
+    /// deliberately **no fallback to English**: a Chinese-speaking child hearing
+    /// an English voice say "woof" is worse than hearing nothing, and a missing
+    /// row is a content bug the tests catch rather than something to paper over
+    /// at runtime.
+    public func animalSound(for glyph: String, in language: Language) -> String? {
+        guard let sound = data.animalSounds?[glyph]?[language.rawValue],
+              !sound.isEmpty else { return nil }
+        return sound
+    }
 }
 
 extension EmojiRepository {
@@ -77,7 +99,7 @@ extension EmojiRepository {
     public static let empty = EmojiRepository(
         data: EmojiData(
             version: 0, languages: [], categories: [],
-            emojis: [], countables: [], numberWords: [:]
+            emojis: [], countables: [], numberWords: [:], animalSounds: [:]
         )
     )
 }

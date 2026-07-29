@@ -48,8 +48,17 @@ benefits, all observed while building the web app:
 
 ## Non-goals for v1
 
-- In-app purchases or subscriptions. Architecture must not block them; nothing ships.
-- Recorded audio. Device TTS only (see *Speech*).
+- Subscriptions, consumables, or any third-party payment SDK. **Amended
+  2026-07-28**: the play-area expansion (`PLAN.md`) adds one StoreKit 2
+  non-consumable behind the parental gate, unlocking three premium mini-apps.
+  The seam this spec asked for is `EntitlementProviding`; `StubEntitlementStore`
+  is what ships today and it moves no money. StoreKit itself is Step 7 and is
+  not built.
+- Recorded audio **for words**. Device TTS remains the only source of spoken
+  language (see *Speech*). **Amended 2026-07-28**: Animals 🔊 plays short CC0
+  animal recordings alongside the spoken word, and Music 🎹 plays tones
+  synthesised at runtime by `ToneBuffer` — neither is speech, and neither
+  replaces it.
 - A backend. `CLAUDE.md` forbids one and nothing here needs it.
 - Android. Separate decision, separate spec.
 - Sharing code with the web app beyond generated data (see *Content pipeline*).

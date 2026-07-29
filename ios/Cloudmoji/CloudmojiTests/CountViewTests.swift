@@ -229,15 +229,19 @@ struct CountViewTests {
         #expect(chrome > 1500, "only \(chrome) lit pixels in the top 60pt — the column overflowed the window")
     }
 
-    /// Sideways, Count mode gets the same left-hand rail Words mode has — with the
-    /// tabs in it and nothing else, because Count mode has no categories. The rail
-    /// lays a darker plate, so the left edge of a landscape screen is measurably
-    /// darker than the right.
+    /// Sideways, Count mode has **no** rail, and that is the assertion.
     ///
-    /// Mutation: drop `SideRail` from `CountView.landscape`. The two edges match
-    /// and this fails.
-    @Test("sideways, Count mode shows the tab rail")
-    func landscapeShowsTheRail() async {
+    /// It used to have one, holding the mode tabs and nothing else — Count mode
+    /// has no categories. The launcher retired the tabs, so a 136pt darker strip
+    /// down the left edge would now be an empty panel eating a fifth of a
+    /// landscape phone's width. The previous version of this test asserted the
+    /// opposite; it is inverted rather than deleted, because "the rail is gone"
+    /// is a promise worth keeping and the measurement is the same one.
+    ///
+    /// Mutation: put `SideRail { EmptyView() }` back in front of `column`. The
+    /// left edge goes darker than the right and this fails.
+    @Test("sideways, Count mode has no rail down the left edge")
+    func landscapeHasNoRail() async {
         let width: CGFloat = 956
         let height: CGFloat = 440
         let bitmap = await Bitmap.of(
@@ -247,7 +251,7 @@ struct CountViewTests {
         for y in [Int(height) / 2, Int(height) * 3 / 4] {
             let left = bitmap.rgb(x: 2, y: y).sum
             let right = bitmap.rgb(x: Int(width) - 3, y: y).sum
-            #expect(left < right, "at y=\(y) the left edge (\(left)) is not darker than the right (\(right))")
+            #expect(left == right, "at y=\(y) the edges differ (\(left) vs \(right)) — something rail-shaped drew")
         }
     }
 }

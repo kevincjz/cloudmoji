@@ -38,13 +38,25 @@ struct AboutView: View {
             id: "how-to-use",
             question: "How do we use Cloudmoji?",
             answer: """
-                Cloudmoji has two modes — switch between them with the tabs at the bottom.
+                Cloudmoji opens on a grid of mini-apps. Tap one to go in; tap the big cloud along \
+                the bottom of the screen to come back out.
 
                 🗣️ Words — tap any emoji to hear the word spoken aloud. The row along the top \
                 keeps what your little one has tapped, and the 🔊 button replays the lot.
 
                 🧮 Count — tap the emojis one at a time to count them. Cloudmoji says the \
                 running number out loud and the dots track how far along the round is.
+
+                ⚡ Flash Cards — Cloudmoji says a word and your child finds it among three.
+
+                🎹 Music — eight pads, eight notes, no wrong ones.
+
+                🔊 Animals — tap a creature to hear it, then hear its name.
+
+                📷 Photos — your child takes pictures, and they stay inside the app.
+
+                🌙 Sleepy Cloud — a breathing exercise with a soft calming sound for winding \
+                down. You or your child can pick two, five or ten minutes; the screen dims as it goes.
 
                 We run it in Guided Access, which locks the phone to Cloudmoji so a small \
                 person can tap freely without leaving the app.
@@ -66,7 +78,8 @@ struct AboutView: View {
             question: "Which languages are supported?",
             answer: """
                 Five: English, Mandarin Chinese (中文), Bahasa Melayu (BM), Japanese (日本語) \
-                and Tagalog (TL). Tap the language button in the top right to switch.
+                and Tagalog (TL). Choose the starting language in the grown-ups screen. Words \
+                and Count also have a quick language button in their top bar.
 
                 Japanese uses hiragana and katakana only — no kanji — which matches what \
                 Japanese children learn first. Counting uses the ～つ counter (ひとつ, ふたつ, \
@@ -80,7 +93,7 @@ struct AboutView: View {
             id: "make-it-simpler",
             question: "Can I make it simpler for a younger child?",
             answer: """
-                Yes. Tap the ⚙️ button in the top right, answer the grown-ups question, and you \
+                Yes. Tap the locked Grown-ups button on Home, answer the grown-ups question, and you \
                 can switch off whole categories of emoji and choose how high Count mode goes. \
                 Narrowing it to two categories and counting to three is a good place to start \
                 with a toddler; widen it as they get older.
@@ -131,24 +144,34 @@ struct AboutView: View {
                 crash reporting, and no third-party code inside the app. Nothing about your \
                 child is uploaded because there is nowhere for it to go: the word lists for all \
                 five languages are inside the download, the emoji are drawn by iOS itself, and \
-                the one typeface we ship travels with the app.
+                the two typefaces we ship travel with the app.
 
                 WHAT IS STORED, AND WHERE
-                Seven small settings are kept on this device by iOS: the chosen language, which \
+                Eight small settings are kept on this device by iOS: the chosen language, which \
                 languages are switched on, which categories are switched on, the lowest and the \
-                highest number Count mode uses, whether Cloudmoji is muted, and whether the \
-                welcome tour has been dismissed. That is the whole list. They never leave the \
-                device, and deleting the app deletes them.
+                highest number Count mode uses, whether Cloudmoji is muted, whether the welcome \
+                tour has been dismissed, and whether the extra mini-apps are unlocked. That is \
+                the whole list. They never leave the device, and deleting the app deletes them.
+
+                CAMERA
+                Photos your child takes are written inside the app's own storage on this device. \
+                They are excluded from iCloud backup, they are never added to your photo library, \
+                and you can delete them — one at a time or all at once — in the grown-ups screen. \
+                Deleting Cloudmoji deletes them too. The camera is only ever running while the \
+                camera screen is open.
 
                 SPEECH
                 Words are spoken by your device's own text-to-speech. Cloudmoji hands iOS a word \
                 and iOS makes a sound; nothing is recorded, nothing is saved and nothing is sent \
-                anywhere. Cloudmoji never asks for the microphone. If you add a voice from iOS \
-                Settings, iOS fetches that voice — that is the system doing it, not this app.
+                anywhere. Cloudmoji never asks for the microphone — the camera is used for still \
+                pictures only, with no sound recorded. If you add a voice from iOS Settings, iOS \
+                fetches that voice — that is the system doing it, not this app.
 
                 NO ACCOUNTS, NO PURCHASES, NO LINKS OUT
-                There is nothing to sign in to, nothing to buy, and no button anywhere in \
-                Cloudmoji that opens a browser or another app.
+                There is nothing to sign in to and nothing to buy. Nothing your child can \
+                reach opens a browser or another app. There is exactly one exception, and it \
+                is behind the grown-ups question: if you have refused camera access, the \
+                grown-ups screen offers to open the iOS Settings app so you can change it.
 
                 We are parents, not lawyers. This describes what the app actually does rather \
                 than being a legal certification, and we have aimed at what COPPA and \

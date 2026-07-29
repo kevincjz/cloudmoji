@@ -15,12 +15,8 @@ struct WordsView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.cloudmojiIsCompact) private var isCompact
 
-    /// Which mode is showing, for the landscape rail's tabs. Defaulted so
-    /// `WordsViewTests` and the previews can build the screen on its own.
-    var mode: AppMode = .words
-    var onSelectMode: (AppMode) -> Void = { _ in }
     /// Opens the parental gate. `ContentView` owns it, because the gate has to
-    /// cover the tab bar as well as this screen.
+    /// cover the home button as well as this screen.
     var onParent: () -> Void = {}
 
     /// Which section the list is *showing*. Set by scrolling, and by the jump a
@@ -168,7 +164,7 @@ struct WordsView: View {
         HStack(spacing: 0) {
             // The rail owns its own width and its own plate, so this screen does
             // not have to repeat either number and drift from it.
-            SideRail(mode: mode, onSelectMode: onSelectMode) {
+            SideRail {
                 CategorySource(
                     tabs: tabs, selected: activeSection ?? "",
                     label: model.label, layout: .rail, onSelect: select

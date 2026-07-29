@@ -32,6 +32,13 @@ final class AppModel {
     let settings: SettingsStore
     let speech: SpeechController
     let grammar: CountingGrammar
+    /// Whether the extra mini-apps are on. Held as an existential so StoreKit
+    /// can replace the stub without a view changing — see `EntitlementProviding`.
+    let entitlements: any EntitlementProviding
+    /// The one owner of `AVAudioSession`, and of the tone engine the instrument
+    /// pad and the animal sounds play through. Speech is not routed through it —
+    /// see `AudioDirector`.
+    let audio: AudioDirector
 
     private let repository: EmojiRepository
     private let allEmojis: [EmojiEntry]
@@ -44,8 +51,14 @@ final class AppModel {
     /// deliberately knows the engine only as a protocol, so it cannot forward this.
     private let engine: SystemSpeechEngine
 
-    init(settings: SettingsStore = SettingsStore()) {
+    init(
+        settings: SettingsStore = SettingsStore(),
+        entitlements: any EntitlementProviding = StubEntitlementStore(),
+        audio: AudioDirector = AudioDirector()
+    ) {
         self.settings = settings
+        self.entitlements = entitlements
+        self.audio = audio
         // A missing or malformed bundled resource is a build error, not a
         // runtime path — but the child must never see a crash, so an empty
         // repository is the degraded case rather than a trap.
@@ -227,6 +240,15 @@ final class AppModel {
     func word(for entry: EmojiEntry) -> String {
         entry.word(settings.language)
     }
+
+    /// What an animal *says* in the chosen language — "woof woof", 汪汪, ワンワン.
+    /// `nil` when this glyph has no noise on file. See `src/data/animalSounds.ts`.
+    func animalSound(for glyph: String) -> String? {
+        repository.animalSound(for: glyph, in: settings.language)
+    }
+
+    /// Every animal with a noise, whatever the language.
+    var animalSoundGlyphs: Set<String> { repository.animalSoundGlyphs }
 
     /// Drops the cached voice list, so the next utterance re-reads what iOS has
     /// installed. Called when the app returns to the foreground.

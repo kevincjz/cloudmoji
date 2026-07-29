@@ -62,6 +62,16 @@
 --btn-clear-bdr:  rgba(255, 107, 107, 0.30);
 ```
 
+### Sleepy Cloud (iOS only)
+Two tints used by the wind-down mini-app and by nothing else. They sit
+deliberately outside the brand trio: coral, teal and gold are the colours of a
+reward, and a screen whose whole job is to wind a child down must not use the
+palette they have learned means "well done".
+```
+--moonlight: #A8D6FF   /* the breathing cloud's halo, the phase labels, the stars */
+--lavender:  #C4B5FD   /* the far stop of the title and progress-line gradients */
+```
+
 ### Background Glow Orbs
 Three fixed-position radial gradients that animate with `bgGlow`:
 - Coral orb: top-right, 300px, 8% opacity
@@ -123,6 +133,21 @@ Either way, minimum 8px between adjacent targets.
 | Language toggle | parent | auto × 44px | 16px |
 | About / mute | parent | 44 × 44px | — |
 
+**iOS only — the launcher and the mini-apps** (the web app remains the two-mode
+product; see the scope note in `CLAUDE.md`):
+
+| Element | Who taps | Size | Border Radius |
+|---------|----------|------|---------------|
+| Launcher icon cell | child | flexible width × 112pt (94 sideways); visible icon 76pt (68 sideways) | icon squircle = 25% of side |
+| Cloud home button | child | 64 × 64pt circle | — (circle) |
+| Instrument pad | child | ≥72 × 72pt, fills its grid | 20pt |
+| Flash-card choice | child | 110 × 110pt (96 sideways) | 22pt |
+| Animal habitat card | child | flexible width × 138pt (106 sideways) | 26pt |
+| Sleepy Cloud duration | child | 96 × 64pt | 20pt |
+| Photo scrapbook thumbnail | child | ≥92 × 112pt | 15pt frame / 12pt image |
+| Camera shutter | child | 88pt circle | — (circle) |
+| Manage-photos row | parent | auto × 44pt | — |
+
 ## Border Radius
 Everything is rounded. No sharp corners anywhere.
 ```
@@ -130,9 +155,39 @@ Everything is rounded. No sharp corners anywhere.
 16px — category tabs
 16px — language toggle, typing row inner
 18px — emoji buttons
-20px — typing row container, word bubble
+20px — typing row container, word bubble, instrument pad, Sleepy Cloud duration
+22px — flash-card choice (iOS)
+22px — 76pt launcher icon (iOS); computed as 25% of the icon side
+26px — animal habitat card (iOS)
 28px — app preview card (if ever wrapped)
 ```
+
+## iOS Launcher and Mini-app Identity
+
+The launcher follows the iPhone Home Screen metaphor:
+
+- four fixed columns in both Cloudmoji layouts;
+- a 76pt layered squircle above a one-line localized caption;
+- the whole icon-and-label cell remains a child-sized target;
+- partial rows stay left-aligned, preserving empty icon positions;
+- app icons sit directly on the wallpaper;
+- the brand and one labelled Grown-ups door share the launcher's single header
+  widget; sound and language configuration stay behind the parental gate;
+- purchase markers never appear on an app the child can already open.
+
+The glass/material layer is navigation chrome only. App icons and mini-app
+content use opaque or standard translucent surfaces, not nested glass cards.
+
+Words and Count preserve the original Cloudmoji background and components. The
+five newer apps reuse the same palette with distinct compositions:
+
+| Mini-app | Atmosphere | Signature shape |
+|----------|------------|-----------------|
+| Flash Cards | indigo, coral and lavender card table | dealt card stack |
+| Music | dark stage with coral and moonlight spotlights | illuminated toy pads |
+| Animals | teal habitat with a gold sun and rolling ground | large creature portrait card |
+| Photos | coral-and-amber scrapbook | white instant-photo frame and camera lens |
+| Sleepy Cloud | moonlight-and-lavender night sky with synthesized soft-rain ambience | crescent halo and breathing cloud |
 
 ## Mascot Design Reference
 The Cloudmoji mascot is defined as an SVG in `reference/prototype.jsx` (CloudMascot component). Key specs:
@@ -170,6 +225,8 @@ Full keyframe definitions are in `reference/prototype.jsx` style block.
 Every tappable element must have an `:active` transform for tactile feedback:
 - Emoji buttons: `scale(0.85)`
 - Category tabs: `scale(0.9)`
+- Launcher icon cells: `scale(0.92)`; cloud home button: `scale(0.9)` (iOS)
+- Instrument pads and flash-card choices: `scale(0.85)` (iOS)
 - Control buttons: `scale(0.88)`
 - Language toggle: standard button feedback
 

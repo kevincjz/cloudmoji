@@ -51,6 +51,11 @@ final class AboutUITests: XCTestCase {
             // measures a sheet instead of the screen it meant to. `TutorialUITests`
             // is the one suite that leaves it off.
             "-cm_seen_tutorial", "YES",
+            // Lands directly on the mini-app this suite measures. Before the
+            // launcher there was nothing above Words mode to land on; now there is,
+            // and every assertion below would otherwise be measuring a grid of
+            // tiles. `-cm_open` is DEBUG-only — see `RootContent.init`.
+            "-cm_open", "words",
         ]
         app.launch()
         XCTAssertTrue(

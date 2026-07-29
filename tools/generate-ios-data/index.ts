@@ -1,6 +1,7 @@
 import { EMOJIS, CATEGORIES } from "../../src/data/emojis";
 import { COUNTABLES, NUMBER_WORDS } from "../../src/data/countables";
 import { LANGUAGES } from "../../src/data/languages";
+import { ANIMAL_SOUNDS } from "../../src/data/animalSounds";
 import type { IosEmojiData } from "./schema";
 
 export function build(): IosEmojiData {
@@ -37,6 +38,7 @@ export function build(): IosEmojiData {
       tl: c.tl,
     })),
     numberWords: { ...NUMBER_WORDS },
+    animalSounds: { ...ANIMAL_SOUNDS },
   };
 }
 

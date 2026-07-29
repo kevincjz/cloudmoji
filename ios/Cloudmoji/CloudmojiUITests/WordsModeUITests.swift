@@ -75,6 +75,11 @@ final class WordsModeUITests: XCTestCase {
             // measures a sheet instead of the screen it meant to. `TutorialUITests`
             // is the one suite that leaves it off.
             "-cm_seen_tutorial", "YES",
+            // Lands directly on the mini-app this suite measures. Before the
+            // launcher there was nothing above Words mode to land on; now there is,
+            // and every assertion below would otherwise be measuring a grid of
+            // tiles. `-cm_open` is DEBUG-only — see `RootContent.init`.
+            "-cm_open", "words",
         ]
         app.launch()
         XCTAssertTrue(
@@ -483,10 +488,28 @@ final class WordsModeUITests: XCTestCase {
                       "the app opened at the top of the list without lighting the first chip")
         XCTAssertFalse(app.buttons["cat-faces"].isSelected, "setup: the last chip is not lit")
 
+        // Scroll to the **actual end** of the list, not merely far enough for the
+        // last emoji to be on screen.
+        //
+        // This used to break as soon as `emoji-🥳` was hittable, and that stopped
+        // being the same thing when the launcher landed: the cloud home button
+        // reserves 88pt at the bottom of every mini-app, so the last row comes
+        // into view while the list can still scroll. The chip lights at the end
+        // of the list — which is where a child who has run out of emojis actually
+        // is — so the test has to get there. Settling on a frame that stops
+        // moving is what "the end" means to a scroll view.
+        var reachedTheEnd = false
+        let lastEmoji = app.buttons["emoji-🥳"]
         for _ in 0..<25 {
-            if app.buttons["emoji-🥳"].exists, app.buttons["emoji-🥳"].isHittable { break }
+            let before = lastEmoji.exists ? lastEmoji.frame.minY : .infinity
             grid.swipeUp()
+            let after = lastEmoji.exists ? lastEmoji.frame.minY : .infinity
+            if before.isFinite, after.isFinite, abs(after - before) < 1 {
+                reachedTheEnd = true
+                break
+            }
         }
+        XCTAssertTrue(reachedTheEnd, "swiping never reached the bottom of the list")
 
         XCTAssertTrue(app.buttons["cat-faces"].isSelected,
                       "the list is at the faces and the strip still says otherwise")

@@ -23,6 +23,23 @@ struct SettingsView: View {
 
         Form {
             Section {
+                Toggle(isOn: soundBinding) {
+                    Label(
+                        settings.muted ? "Sound is off" : "Sound is on",
+                        systemImage: settings.muted ? "speaker.slash.fill" : "speaker.wave.2.fill"
+                    )
+                    .font(Theme.body(15, .bold))
+                }
+                .tint(Theme.teal)
+                .frame(minHeight: Self.rowHeight)
+                .accessibilityIdentifier("settings-sound")
+            } header: {
+                Text("Sound")
+            } footer: {
+                Text("Controls speech, Music, animal sounds and the calming sound in Sleepy Cloud. Sound-based mini-apps also show a large way to turn sound back on.")
+            }
+
+            Section {
                 ForEach(model.allLanguages) { meta in
                     Toggle(isOn: languageBinding(meta.id)) {
                         HStack(spacing: 10) {
@@ -109,6 +126,46 @@ struct SettingsView: View {
             }
 
             Section {
+                if model.entitlements.isUnlocked {
+                    Label("Full Cloudmoji unlocked ✓", systemImage: "checkmark.seal")
+                        .font(Theme.body(15, .bold))
+                        .frame(minHeight: Self.rowHeight)
+                        .accessibilityIdentifier("settings-unlocked-row")
+
+                    NavigationLink {
+                        ManagePhotosView()
+                    } label: {
+                        Label("Manage photos", systemImage: "photo.on.rectangle")
+                            .font(Theme.body(15, .bold))
+                            .frame(minHeight: Self.rowHeight)
+                    }
+                    .accessibilityIdentifier("settings-manage-photos-row")
+                } else {
+                    Button {
+                        Task { _ = await model.entitlements.purchase() }
+                    } label: {
+                        Label(unlockLabel, systemImage: "sparkles")
+                            .font(Theme.body(15, .bold))
+                            .frame(minHeight: Self.rowHeight)
+                    }
+                    .accessibilityIdentifier("settings-unlock-btn")
+
+                    Button {
+                        Task { _ = await model.entitlements.restore() }
+                    } label: {
+                        Label("Restore purchase", systemImage: "arrow.clockwise")
+                            .font(Theme.body(15, .bold))
+                            .frame(minHeight: Self.rowHeight)
+                    }
+                    .accessibilityIdentifier("settings-restore-btn")
+                }
+            } header: {
+                Text("More mini-apps")
+            } footer: {
+                Text("Flash Cards, Animals and Photos are the extra three. Everything else — Words, Count, Music and Sleepy Cloud — is always included.")
+            }
+
+            Section {
                 // The whole point of the tour being reopenable. It shows itself
                 // once, on first launch, and the person holding the phone then
                 // may well be the toddler — so there has to be a way back to it,
@@ -164,6 +221,16 @@ struct SettingsView: View {
         .accessibilityIdentifier("settings-panel")
     }
 
+    /// "Unlock the extra mini-apps", plus a price when there is one to show.
+    ///
+    /// `priceText` is `nil` until StoreKit lands — the stub deliberately quotes
+    /// no number, because a price written down in the app and not agreed in App
+    /// Store Connect is a promise nobody can keep.
+    private var unlockLabel: String {
+        guard let price = model.entitlements.priceText else { return "Unlock the extra mini-apps" }
+        return "Unlock the extra mini-apps — \(price)"
+    }
+
     // MARK: Bindings
     //
     // Set-membership toggles, written out rather than derived: `Binding` has no
@@ -193,6 +260,13 @@ struct SettingsView: View {
                 if isOn { next.insert(category) } else { next.remove(category) }
                 model.settings.enabledCategories = next
             }
+        )
+    }
+
+    private var soundBinding: Binding<Bool> {
+        Binding(
+            get: { !model.settings.muted },
+            set: { model.settings.muted = !$0 }
         )
     }
 

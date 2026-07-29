@@ -41,9 +41,9 @@ struct TutorialView: View {
         let detail: String
     }
 
-    /// Five steps, and no more. This is a toddler app, not an enterprise
-    /// onboarding flow — a parent who reads the first line has already learnt
-    /// the whole product, and the other four exist only because they cover
+    /// Six steps, and no more. This is a toddler app, not an enterprise
+    /// onboarding flow — a parent who reads the first two lines has already
+    /// learnt the whole product, and the rest exist only because they cover
     /// things that cannot be discovered by tapping.
     static let steps: [Step] = [
         Step(
@@ -52,19 +52,31 @@ struct TutorialView: View {
             title: "Tap an emoji, hear the word",
             detail: """
                 That is the whole app. Tap anything in the grid and Cloudmoji says \
-                it out loud. Change the language any time with the button in the \
-                top right.
+                it out loud. A grown-up chooses the learning languages; Words and \
+                Count also keep a quick language button in their top bar.
                 """
         ),
         Step(
-            id: "modes",
+            id: "launcher",
             glyph: "🗣️",
-            title: "Two modes, along the bottom",
+            title: "Seven mini-apps on the home screen",
             detail: """
-                Words is the emoji grid. Count gives your little one a group of \
-                things to tap one at a time while Cloudmoji says the running \
-                number. Switch between them with the tabs at the bottom — they \
-                move to the side when you turn the phone sideways.
+                Words is the emoji grid. Count gives them a group of things to tap \
+                one at a time. Flash Cards asks them to find a word they have just \
+                heard. Music is eight pads with no wrong notes. Animals plays a \
+                creature, then names it. Photos takes pictures that stay inside the \
+                app. Sleepy Cloud is a breathing exercise with a soft, calming \
+                sound for bedtime.
+                """
+        ),
+        Step(
+            id: "home",
+            glyph: "☁️",
+            title: "The cloud brings you home",
+            detail: """
+                Inside a mini-app there is a big cloud with a small house along the \
+                bottom. Tapping it goes home. It is always in the same place, and \
+                it is the only way out.
                 """
         ),
         Step(
@@ -82,10 +94,9 @@ struct TutorialView: View {
             glyph: "🔊",
             title: "Mute lives in the app",
             detail: """
-                Cloudmoji plays through the phone's silent switch on purpose, so \
-                that handing over a silenced phone still works. That means the \
-                silent switch will not quieten it — the 🔊 button in the top \
-                right is the way to do that.
+                Cloudmoji plays through the phone's silent switch on purpose. Sound \
+                is controlled in the grown-ups screen; if it is off, sound-based \
+                mini-apps show a large 🔊 button to turn it back on.
                 """
         ),
         Step(
@@ -93,10 +104,11 @@ struct TutorialView: View {
             glyph: "⚙️",
             title: "Grown-ups settings",
             detail: """
-                The ⚙️ button in the top right opens them, behind a simple sum to \
-                keep small fingers out. Inside you can choose which languages \
-                appear, which categories of emoji your child sees, and how high \
-                Count mode goes — and get back to this page any time.
+                The locked Grown-ups button on Home opens them, behind a simple sum \
+                to keep small fingers out. Inside you can choose sound, which languages \
+                appear, which categories of emoji your child sees, how high Count \
+                mode goes, and what happens to the photos your child takes — and \
+                get back to this page any time.
                 """
         ),
     ]

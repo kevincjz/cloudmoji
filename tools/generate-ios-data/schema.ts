@@ -29,6 +29,9 @@ export interface IosCountable extends IosEmoji {
   enPlural?: string;
 }
 
+/** Glyph → what that animal says, per language. See `src/data/animalSounds.ts`. */
+export type IosAnimalSounds = Record<string, Record<Language, string>>;
+
 export interface IosEmojiData {
   version: number;
   languages: IosLanguage[];
@@ -36,4 +39,5 @@ export interface IosEmojiData {
   emojis: IosEmoji[];
   countables: Omit<IosCountable, "cat">[];
   numberWords: Record<string, string[]>;
+  animalSounds: IosAnimalSounds;
 }

@@ -1,0 +1,33 @@
+Animal sound recordings — licences
+==================================
+
+Every file in this folder must be CC0 (public domain dedication) or equivalent,
+and must have a line below naming where it came from. The same rule the bundled
+typefaces follow in ../Fonts/OFL.txt: if it ships inside the app, its licence
+ships beside it.
+
+Format, one line per file:
+
+    <file>.caf — <source URL or collection> — CC0 1.0 — retrieved <date>
+
+Conversion, so every file has the same format and size profile:
+
+    afconvert -f caff -d ima4 <input>.wav <name>.caf
+
+Requirements for a recording to be accepted:
+
+  * about one second long, and no leading silence — a child taps, the sound
+    starts;
+  * peak-normalised, so no animal is twice as loud as the one beside it or as
+    the spoken word that follows it;
+  * unambiguous to a two-year-old with the emoji in front of him.
+
+The glyph → file-name mapping lives in
+`Cloudmoji/Views/AnimalSounds/AnimalSoundCatalog.swift`. A name listed there
+with no file here is not an error: the screen falls back to speaking the
+animal's name, so tiles never go dead while the library is being filled in.
+
+Recordings
+----------
+
+(none yet — the library is being sourced; see the note above)

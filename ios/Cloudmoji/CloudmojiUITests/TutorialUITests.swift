@@ -55,6 +55,9 @@ final class TutorialUITests: XCTestCase {
         "-cm_muted", "YES",
         "-cm_enabled_langs", "(en,zh,ms,ja,tl)",
         "-cm_enabled_cats", "(fruits,food,animals,vehicles,nature,objects,people,faces)",
+        // Lands on Words mode, which is where this suite's "the child's screen"
+        // assertions look. `-cm_open` is DEBUG-only — see `RootContent.init`.
+        "-cm_open", "words",
     ]
 
     /// - Parameter tourFlag: pins `cm_seen_tutorial` through `NSArgumentDomain`.
@@ -116,7 +119,7 @@ final class TutorialUITests: XCTestCase {
 
         // The five things it has to say are actually on the sheet, not merely in
         // a static array — `TutorialViewTests` can only prove the array.
-        for id in ["tap", "modes", "typing-row", "mute", "settings"] {
+        for id in ["tap", "launcher", "home", "typing-row", "mute", "settings"] {
             XCTAssertTrue(
                 element("tutorial-step-\(id)", in: app).exists,
                 "tutorial-step-\(id) is missing, or the panel's identifier swallowed the rows"

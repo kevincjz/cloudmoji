@@ -33,6 +33,11 @@ final class ParentalGateUITests: XCTestCase {
             // measures a sheet instead of the screen it meant to. `TutorialUITests`
             // is the one suite that leaves it off.
             "-cm_seen_tutorial", "YES",
+            // Lands directly on the mini-app this suite measures. Before the
+            // launcher there was nothing above Words mode to land on; now there is,
+            // and every assertion below would otherwise be measuring a grid of
+            // tiles. `-cm_open` is DEBUG-only — see `RootContent.init`.
+            "-cm_open", "words",
         ] + extraArguments
         app.launch()
         XCTAssertTrue(
@@ -95,8 +100,23 @@ final class ParentalGateUITests: XCTestCase {
         file: StaticString = #filePath, line: UInt = #line
     ) {
         let toggle = element(identifier, in: app)
-        XCTAssertTrue(toggle.waitForExistence(timeout: 5), "\(identifier) is not on screen",
-                      file: file, line: line)
+        // Scroll until it *exists*, before worrying about where it is.
+        //
+        // A SwiftUI `Form` does not put an unrealised row in the accessibility
+        // tree at all, so a row far enough down the Categories list never appears
+        // to a `waitForExistence` no matter how long it waits — which is what
+        // this helper used to do, and why
+        // `testDisablingTheCategoryTheChildIsScrolledToLeavesAUsableList` has
+        // been red on `main` since before the launcher work. Verified by running
+        // that test against HEAD in a clean worktree: same failure, same line.
+        // `settings-cat-fruits` is near the top and has always been found, which
+        // is why only the tests reaching for a later category ever noticed.
+        if !toggle.waitForExistence(timeout: 3) {
+            for _ in 0..<8 where !toggle.exists {
+                app.swipeUp()
+            }
+        }
+        XCTAssertTrue(toggle.exists, "\(identifier) is not on screen", file: file, line: line)
         // Scroll the row properly into view first, and **do not** ask
         // `isHittable` — it says `true` for a row hanging off the bottom of the
         // screen. Measured on an iPhone 17 Pro Max: the Categories rows sit at
@@ -290,8 +310,26 @@ final class ParentalGateUITests: XCTestCase {
             "the apple is still in the grid after Fruits was switched off"
         )
         XCTAssertFalse(app.buttons["cat-fruits"].exists, "the Fruits chip survived being switched off")
+
         // The rest of the app is untouched — a narrowing, not a blanking.
-        XCTAssertTrue(app.buttons["emoji-🐶"].exists, "the dog went with the fruit")
+        //
+        // Scrolled to rather than asserted outright, because the grid is a
+        // **lazy** list: an item outside the realisation window is absent from
+        // the accessibility tree whether or not it is in the catalogue, so a bare
+        // `exists` here was really asking "did the dog happen to land near the
+        // viewport". It did until the home button reserved a band at the bottom
+        // and the grid got shorter, at which point this went red without anything
+        // about the *promise* having changed.
+        //
+        // The assertion is no weaker for it: if switching Fruits off had taken
+        // Animals with it, no amount of scrolling would find the dog and this
+        // still fails. Verified by running exactly that mutation.
+        let dog = app.buttons["emoji-🐶"]
+        let grid = app.scrollViews["emoji-grid"]
+        for _ in 0..<12 where !dog.exists {
+            grid.swipeUp()
+        }
+        XCTAssertTrue(dog.exists, "the dog went with the fruit")
         XCTAssertTrue(app.buttons["cat-animals"].exists, "the Animals chip went with the fruit")
     }
 

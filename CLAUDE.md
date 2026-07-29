@@ -5,9 +5,31 @@ Cloudmoji is a PWA where toddlers tap emojis and hear the words spoken aloud in 
 
 The cloud mascot ("Cloudmoji") is a fluffy white cloud character with a face who reacts to the child's taps — bouncing, showing star-eyes when excited, opening its mouth when speaking, and beaming with joy at milestones.
 
-This is a validation-stage product. No backend, no accounts, no payments. Ship fast, learn fast.
+This is a validation-stage product. No backend, no accounts. One optional
+purchase (StoreKit 2 only, behind the parental gate) unlocks the premium
+mini-apps. Ship fast, learn fast.
 
 Hosted on Vercel (free tier, auto-deploys from `main`) at **cloudmoji.app**.
+
+### The play area (iOS)
+The iOS app opens on a **launcher**: a four-column iPhone-style grid of seven
+layered app icons, with one labelled, gated Grown-ups control above it. Sound
+and language choices live in that parent panel. Four are always included — Words 🗣️,
+Count 🧮, Music 🎹 and Sleepy Cloud 🌙 — and three are behind a single unlock:
+Flash Cards ⚡, Animals 🔊 and Photos 📷. Available child-facing apps carry no
+purchase badge; `AppModel.visibleMiniApps` hides the premium three entirely
+while the entitlement is locked. Inside a mini-app the only navigation control
+is the **cloud home button**: 84pt, centred along the bottom, in every one of
+the seven.
+
+`StubEntitlementStore` is the entitlement today and it defaults to **unlocked** —
+there is no App Store Connect product yet, so a default of locked would hide
+three finished mini-apps behind a button that cannot do anything. StoreKit is
+Step 7 of `PLAN.md` and is not built.
+
+**Scope:** the launcher and the mini-apps are iOS-only. The web app remains the
+two-mode product and is no longer the reference for iOS structure —
+`src/data/` remains the single content source for both.
 
 ## Where Context Lives
 - `MASTER_PLAN.md` — strategy, phases, decision points
@@ -41,9 +63,13 @@ Three subtle animated glow orbs (coral, teal, gold) that drift with `bgGlow` ani
 ### Toddler UX (non-negotiable)
 1. Touch targets: **minimum 64px, prefer 72px** — this governs anything a CHILD
    taps: emoji tiles, typed emojis, replay/delete/clear, category chips, count
-   tiles, shuffle/next, the tab bar. Parent-only chrome (About, mute, language)
-   follows the iOS HIG 44px minimum instead; forcing 64px there swallows the
-   header on a 375px screen. `tests/review-fixes.spec.ts` asserts the child list.
+   tiles, shuffle/next, and on iOS the launcher tiles, the cloud home button,
+   instrument pads, flash-card choices, Sleepy Cloud's duration buttons, photo
+   thumbnails and the camera shutter. (The tab bar is retired along with the two
+   modes.) Parent-only chrome (About, mute, language, Manage Photos) follows the
+   iOS HIG 44px minimum instead; forcing 64px there swallows the header on a
+   375px screen. `tests/review-fixes.spec.ts` asserts the web half of that list;
+   `LauncherUITests` and `CountModeUITests` assert the iOS half.
 2. Gap between targets: **minimum 8px**
 3. One tap = one action = one reward
 4. **No failure states** — every tap is a success
@@ -87,7 +113,8 @@ Three subtle animated glow orbs (coral, teal, gold) that drift with `bgGlow` ani
 ### What NOT to Build
 - No user accounts or login
 - No backend or database
-- No payments or paywalls
+- No commerce except one StoreKit 2 non-consumable behind the parental gate — no
+  subscriptions, no consumables, no third-party payment SDKs
 - No animation libraries — CSS `@keyframes` only
 - No state management libraries — React `useState` is sufficient
 - No routing — single page app

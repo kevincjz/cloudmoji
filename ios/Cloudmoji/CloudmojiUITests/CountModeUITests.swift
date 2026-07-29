@@ -1,14 +1,15 @@
 import XCTest
 
-/// Count mode and the mode tab bar, driven the way a two-year-old drives them.
+/// Count mode and the cloud home button, driven the way a two-year-old drives them.
 ///
 /// Two things had no permanent coverage anywhere in the project before this file:
 ///
-/// 1. **The tab bar's 64pt guarantee.** It was measured once by hand, by a throwaway
-///    test that was deleted the same day. The web shipped this control at 42.5pt on
-///    notched phones — `box-sizing: border-box` folded the home-indicator inset into
-///    `min-height: 64px` instead of adding it below — and `ModeTabBarMetrics` carries
-///    a comment warning against exactly that. A comment is not a test.
+/// 1. **The bottom-left navigation control's 64pt guarantee.** It was measured once
+///    by hand, by a throwaway test that was deleted the same day. The web shipped
+///    the control that used to sit there at 42.5pt on notched phones —
+///    `box-sizing: border-box` folded the home-indicator inset into
+///    `min-height: 64px` instead of adding it below. The tab bar is gone and
+///    `CloudHomeButton` inherited both the corner and the obligation.
 /// 2. **Count mode's behaviour.** `CountRoundTests` covers the arithmetic of a round;
 ///    nothing drove the real screen. The state machine is the part of this app that
 ///    fails silently: a round that counts the same dog twice still looks and sounds
@@ -26,8 +27,9 @@ import XCTest
 final class CountModeUITests: XCTestCase {
 
     /// The floor for anything a **child** taps: count tiles, Shuffle, Next, and both
-    /// mode tabs. Parent-only chrome (the gear, mute, the language picker) follows the
-    /// 44pt HIG minimum instead and is checked in `WordsModeUITests`.
+    /// and the cloud home button. Parent-only chrome (the gear, mute, the language
+    /// picker) follows the 44pt HIG minimum instead and is checked in
+    /// `WordsModeUITests`.
     private static let childMinimum: CGFloat = 64
     /// `CLAUDE.md` rule 2. Two touching targets are one wide target as far as a
     /// toddler's aim is concerned.
@@ -42,7 +44,7 @@ final class CountModeUITests: XCTestCase {
 
     override func tearDown() {
         // The one rotating test would otherwise hand its orientation to whatever runs
-        // next, and the landscape layout has no bottom tab bar at all.
+        // next, and the landscape layout puts the round somewhere else entirely.
         XCUIDevice.shared.orientation = .portrait
     }
 
@@ -72,22 +74,34 @@ final class CountModeUITests: XCTestCase {
             // Without this a fresh simulator opens the first-launch tour over the app
             // and every assertion below measures a sheet instead of the screen.
             "-cm_seen_tutorial", "YES",
+            // Lands directly on the mini-app this suite measures. Before the
+            // launcher there was nothing above Words mode to land on; now there is,
+            // and every assertion below would otherwise be measuring a grid of
+            // tiles. `-cm_open` is DEBUG-only — see `RootContent.init`.
+            "-cm_open", "count",
             "-cm_count_lower", "\(countRange.lowerBound)",
             "-cm_count_upper", "\(countRange.upperBound)",
         ]
         app.launch()
         XCTAssertTrue(
-            app.buttons["tab-count"].waitForExistence(timeout: 30),
-            "the tab bar never appeared — nothing below this can mean anything"
+            app.buttons["count-item-0"].waitForExistence(timeout: 30),
+            "the app never reached Count mode — nothing below this can mean anything"
         )
         return app
     }
 
+    /// Kept as a call, not deleted, even though `-cm_open count` has already put
+    /// the app here.
+    ///
+    /// It used to tap `tab-count`; the launcher retired the tab bar, and the
+    /// navigation promise it protected — "there is a way to reach Count mode from
+    /// wherever the app opens" — moved to `LauncherUITests`. What is left is the
+    /// precondition, which every test below still depends on and which a silent
+    /// deep-link failure would otherwise let them run without.
     private func openCountMode(_ app: XCUIApplication) {
-        app.buttons["tab-count"].tap()
         XCTAssertTrue(
             app.buttons["count-item-0"].waitForExistence(timeout: 10),
-            "tapping the Count tab did not bring up a round"
+            "Count mode did not bring up a round"
         )
     }
 
@@ -179,28 +193,14 @@ final class CountModeUITests: XCTestCase {
     }
 
     // MARK: - Switching modes
-
-    /// Mutation: delete `mode = next` from `ContentView.select`.
-    func testTheTabBarSwitchesBetweenTheTwoModes() {
-        let app = launch()
-        XCTAssertTrue(app.buttons["emoji-🍎"].waitForExistence(timeout: 10), "Words mode did not open first")
-
-        openCountMode(app)
-        XCTAssertTrue(
-            app.buttons["emoji-🍎"].waitForNonExistence(timeout: 5),
-            "the Words grid is still on screen in Count mode"
-        )
-
-        app.buttons["tab-words"].tap()
-        XCTAssertTrue(
-            app.buttons["emoji-🍎"].waitForExistence(timeout: 5),
-            "the Words grid did not come back"
-        )
-        XCTAssertTrue(
-            app.buttons["count-item-0"].waitForNonExistence(timeout: 5),
-            "the round is still on screen in Words mode"
-        )
-    }
+    //
+    // `testTheTabBarSwitchesBetweenTheTwoModes` lived here. The tab bar is gone
+    // and its promise — Words and Count are both reachable, and only one of them
+    // is on screen at a time — is now
+    // `LauncherUITests.testEachTileOpensItsOwnMiniAppAndTheCloudBringsYouBack`,
+    // which checks it for all seven mini-apps rather than two. Deleted rather
+    // than left tapping an element that no longer exists, which would have been
+    // a test that could only fail for the wrong reason.
 
     // MARK: - Counting
 
@@ -400,9 +400,11 @@ final class CountModeUITests: XCTestCase {
         assertMeetsChildMinimum(
             app.buttons.matching(identifier: "count-shuffle"), named: "Shuffle button", atLeast: 1
         )
+        // The mode tabs used to be measured here. The cloud home button replaced
+        // them as the one navigation control a child taps, and it carries the
+        // same 64pt obligation.
         assertMeetsChildMinimum(
-            app.buttons.matching(NSPredicate(format: "identifier IN %@", ["tab-words", "tab-count"])),
-            named: "mode tab", atLeast: 2
+            app.buttons.matching(identifier: "home-btn"), named: "home button", atLeast: 1
         )
 
         // Rule 2, among the tiles. Only neighbours are compared: two rects sharing
@@ -435,42 +437,28 @@ final class CountModeUITests: XCTestCase {
 
     /// **The web's own 42.5pt regression, in the one place it can recur.**
     ///
-    /// `box-sizing: border-box` folded the home-indicator inset into the bar's
-    /// `min-height: 64px` instead of adding it below, and every notched phone got a
-    /// 42.5pt target. `ModeTabBar` guards against it by putting `.ignoresSafeArea` on
-    /// the plate behind the tabs and never on the row itself — which is a comment until
-    /// something measures it.
+    /// `box-sizing: border-box` folded the home-indicator inset into the bottom
+    /// bar's `min-height: 64px` instead of adding it below, and every notched
+    /// phone got a 42.5pt target. The bar is gone; the cloud home button now sits
+    /// in exactly that corner under exactly that obligation, so the regression
+    /// moved rather than disappeared and this test moved with it.
     ///
-    /// Two independent things are asserted, because neither implies the other: the tabs
-    /// are 64pt on both axes, **and** they stop short of the physical bottom edge. Both
-    /// halves were mutation-checked, and each is caught by a different edit:
+    /// Two independent things are asserted, because neither implies the other:
+    /// the button is 64pt on both axes, **and** it stops short of the physical
+    /// bottom edge. Each is caught by a different edit:
     ///
-    /// - Delete `.frame(minWidth:minHeight:)` from `ModeTabBar.tab` and the target
-    ///   collapses to **41pt** — the web's 42.5pt regression, near enough exactly.
-    ///   Caught by the size assertion; the clearance assertion still passes.
-    /// - In `AdaptiveShell`, move `.ignoresSafeArea()` off the background and onto the
-    ///   `GeometryReader` and the tabs slide down to **0pt** of clearance, over the home
-    ///   indicator, while staying 64pt. Caught by the clearance assertion only.
-    ///
-    /// Moving `.ignoresSafeArea(edges: .bottom)` from the tab bar's plate onto the row
-    /// itself — the mutation this test was originally specified against — turns out to
-    /// change **nothing** measurable: `AdaptiveShell` sizes its content to the safe area
-    /// through a `GeometryReader` frame, so a descendant cannot expand past it. Recorded
-    /// because a mutation that does not bite is worth knowing about; it is not evidence
-    /// the guard is redundant, as the two edits above demonstrate.
-    func testTheTabBarKeepsItsFullHeightAboveTheHomeIndicator() {
+    /// - Delete `.frame(width:height:)` from `CloudHomeButton` and the target
+    ///   collapses to the mascot's own art box. Caught by the size assertion; the
+    ///   clearance assertion still passes.
+    /// - In `AdaptiveShell`, move `.ignoresSafeArea()` off the background and
+    ///   onto the `GeometryReader` and the button slides down over the home
+    ///   indicator while staying 64pt. Caught by the clearance assertion only.
+    func testTheHomeButtonKeepsItsFullHeightAboveTheHomeIndicator() {
         let app = launch()
 
-        let tabs = app.buttons.matching(NSPredicate(format: "identifier IN %@", ["tab-words", "tab-count"]))
-        let frames = assertMeetsChildMinimum(tabs, named: "mode tab", atLeast: 2)
-
-        // Rule 2 between the two of them, and no overlap — a negative-width layout
-        // would satisfy the height assertion while producing one.
-        XCTAssertFalse(frames[0].intersects(frames[1]), "the two tabs overlap")
-        let gap = frames[0].minX < frames[1].minX
-            ? frames[1].minX - frames[0].maxX
-            : frames[0].minX - frames[1].maxX
-        XCTAssertGreaterThanOrEqual(gap, Self.minimumGap - Self.tolerance, "the tabs are \(gap)pt apart")
+        let frames = assertMeetsChildMinimum(
+            app.buttons.matching(identifier: "home-btn"), named: "home button", atLeast: 1
+        )
 
         // The home indicator. Its inset is not readable from the test process, so the
         // device is asked whether it has one: only a phone with a tall status bar — a
@@ -492,39 +480,11 @@ final class CountModeUITests: XCTestCase {
         for frame in frames {
             let below = window.maxY - frame.maxY
             XCTAssertGreaterThanOrEqual(
-                below, 20,
-                "a mode tab ends \(below)pt above the bottom of the screen — the "
+                below, 10,
+                "the home button ends \(below)pt above the bottom of the screen — the "
                 + "home-indicator inset must be ADDED below the 64pt target, not eaten by it"
             )
         }
-    }
-
-    /// Sideways the bar is gone and the tabs are in the rail, which is a different
-    /// layout under the same 64pt obligation. Both must never be on screen at once.
-    ///
-    /// Found without naming an element type: a SwiftUI container surfaces as an `Other`
-    /// or as a plain group depending on how many branches sit under it, so a
-    /// type-specific query is right in exactly one of the two states — which is how the
-    /// first draft of `WordsModeUITests` "proved" the typing row did not exist.
-    func testLandscapeMovesTheTabsIntoTheRail() {
-        let app = launch()
-        let bar = app.descendants(matching: .any).matching(identifier: "tab-bar").firstMatch
-        let rail = app.descendants(matching: .any).matching(identifier: "tab-rail").firstMatch
-
-        XCTAssertTrue(bar.exists, "no bottom tab bar upright")
-        XCTAssertFalse(rail.exists, "the rail's tabs are already on screen upright")
-
-        XCUIDevice.shared.orientation = .landscapeLeft
-
-        XCTAssertTrue(
-            rail.waitForExistence(timeout: 10),
-            "rotating did not move the tabs into the rail"
-        )
-        XCTAssertFalse(bar.exists, "both tab layouts are on screen at once")
-        assertMeetsChildMinimum(
-            app.buttons.matching(NSPredicate(format: "identifier IN %@", ["tab-words", "tab-count"])),
-            named: "rail tab", atLeast: 2
-        )
     }
 
     // MARK: - No failure states

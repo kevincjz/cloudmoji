@@ -25,6 +25,24 @@ public struct EmojiEntry: Codable, Sendable, Hashable, Identifiable {
     public let cat: Category
     public let en, zh, ms, ja, tl: String
 
+    /// Swift synthesises only an `internal` memberwise initialiser for a `public`
+    /// struct, so without this the app target cannot construct an `EmojiEntry` at
+    /// all — including in a test fixture. `Countable` carries the same
+    /// initialiser for the same reason. Decoding is still how real content
+    /// arrives; this exists for fixtures, and for modelling entries the shipped
+    /// catalogue does not happen to contain — two emojis sharing one word in one
+    /// language, for instance, which `FlashRound` has a rule about and the real
+    /// data is too well-behaved to exercise.
+    public init(emoji: String, cat: Category, en: String, zh: String, ms: String, ja: String, tl: String) {
+        self.emoji = emoji
+        self.cat = cat
+        self.en = en
+        self.zh = zh
+        self.ms = ms
+        self.ja = ja
+        self.tl = tl
+    }
+
     /// Stable across categories, since an emoji may appear in more than one.
     public var id: String { "\(emoji)|\(cat.rawValue)" }
 

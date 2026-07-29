@@ -6,7 +6,9 @@
 //
 
 import SwiftUI
-import AVFoundation
+// For `EntitlementProviding.startObserving` — a no-op in the stub, and the hook
+// StoreKit's `Transaction.updates` observer will land on.
+import CloudmojiCore
 
 @main
 struct CloudmojiApp: App {
@@ -61,7 +63,8 @@ struct CloudmojiApp: App {
         #if DEBUG
         Self.resetPersistedSettingsIfRequested()
         #endif
-        _model = State(initialValue: AppModel())
+        let model = AppModel()
+        _model = State(initialValue: model)
 
         BundledFonts.register()
         // Warm the Taptic Engine now rather than on the child's first tap: an
@@ -70,12 +73,11 @@ struct CloudmojiApp: App {
         Haptics.prepare()
         Self.didRegisterFontsAtLaunch = BundledFonts.allFacesAreAvailable
 
-        // `.playback` so Cloudmoji speaks even with the ringer switch off — what
-        // a parent expects when handing the phone over. A deliberate override of
-        // a system setting, recorded as such in the design spec. `.duckOthers`
-        // so a podcast or a nursery-rhyme playlist dips rather than stops.
-        try? AVAudioSession.sharedInstance().setCategory(.playback, options: [.duckOthers])
-        try? AVAudioSession.sharedInstance().setActive(true)
+        // The four session lines that used to be here now live in
+        // `AudioDirector`, which is the app's one owner of `AVAudioSession`.
+        // They moved whole: nothing about the category or the options changed.
+        model.audio.activateSession()
+        model.entitlements.startObserving()
     }
 
     @Environment(\.scenePhase) private var scenePhase
@@ -85,14 +87,12 @@ struct CloudmojiApp: App {
             ContentView().environment(model)
         }
         .onChange(of: scenePhase) { _, phase in
+            // Session re-activation on foreground, and stopping the tone engine
+            // on background, are both `AudioDirector`'s to decide — see the
+            // rationale on `handleScenePhase`.
+            model.audio.handleScenePhase(phase)
+
             guard phase == .active else { return }
-            // The session is activated once in `init` and an interruption — a
-            // phone call, Siri, a route change — deactivates it. Nothing brought
-            // it back, so the app returned from a call silent, with no mute
-            // control to make that legible and force-quit as the only recovery.
-            // Audio is the whole product here, so re-activating on every
-            // foreground is the cheap side of the trade.
-            try? AVAudioSession.sharedInstance().setActive(true)
 
             // Voices are cached on first use, and iOS installs new ones while
             // the app is backgrounded — a parent going to Settings to fetch the

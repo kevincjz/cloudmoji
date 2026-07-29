@@ -18,13 +18,8 @@ struct CountView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.cloudmojiIsCompact) private var isCompact
 
-    /// Which mode is showing, for the landscape rail's tabs. Defaulted to this
-    /// screen's own mode so `CountViewTests` and the previews can build it alone
-    /// without the rail claiming Words is selected.
-    var mode: AppMode = .count
-    var onSelectMode: (AppMode) -> Void = { _ in }
     /// Opens the parental gate. `ContentView` owns it, because the gate has to
-    /// cover the tab bar as well as this screen.
+    /// cover the home button as well as this screen.
     var onParent: () -> Void = {}
 
     @State private var round: CountRound?
@@ -98,9 +93,7 @@ struct CountView: View {
     private static let speechCeiling = Duration.seconds(8)
 
     var body: some View {
-        Group {
-            if isCompact { landscape } else { portrait }
-        }
+        column
         .task {
             // First round of the screen. Guarded, because `.task` runs again on
             // every reappearance — a rotation, or the app coming back to the
@@ -141,23 +134,15 @@ struct CountView: View {
         }
     }
 
-    // MARK: - Layouts
+    // MARK: - Layout
 
-    private var portrait: some View { column }
-
-    /// Sideways the tabs move into the rail so they stop eating the scarce vertical
-    /// axis. Count mode has no categories, so the rail holds only the tabs.
-    private var landscape: some View {
-        HStack(spacing: 0) {
-            SideRail(mode: mode, onSelectMode: onSelectMode) { EmptyView() }
-            column
-        }
-    }
-
-    /// One column, referenced by both layouts rather than transcribed into each.
-    /// The web keeps two copies of this list and three edits landed on the dead
-    /// one; while the two arrangements are identical there is no reason to give
-    /// them the chance.
+    /// One column, upright and sideways alike.
+    ///
+    /// Sideways there used to be a rail beside it, holding the mode tabs — Count
+    /// mode has no categories, so the tabs were the whole of its contents. The
+    /// launcher retired them, and a 136pt darker strip holding nothing at all is
+    /// not a layout, so the rail goes with them and the round gets the width.
+    /// The tiles themselves still read `isCompact`, through `CountTileMetrics`.
     private var column: some View {
         VStack(spacing: 0) {
             header

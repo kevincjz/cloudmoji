@@ -64,3 +64,78 @@ struct EmojiRepositoryTests {
         }
     }
 }
+
+@Suite("Animal sounds")
+struct AnimalSoundDataTests {
+
+    private var repository: EmojiRepository {
+        (try? EmojiRepository()) ?? .empty
+    }
+
+    /// Every glyph with a noise is a real animal in the catalogue. One that is
+    /// not can never be tapped — the grid is built by intersecting the two — so
+    /// it is a silent content bug.
+    ///
+    /// Mutation: add a `"🦄"` row to `src/data/animalSounds.ts` and regenerate.
+    /// This fails and names it.
+    @Test("every animal with a noise is an animal in the catalogue")
+    func soundsMapToRealAnimals() {
+        let repo = repository
+        let animals = Set(repo.emojis.filter { $0.cat == .animals }.map(\.emoji))
+        #expect(!animals.isEmpty, "no animals at all — nothing below can mean anything")
+
+        let glyphs = repo.animalSoundGlyphs
+        #expect(glyphs.count >= 15, "only \(glyphs.count) animals have a noise")
+        for glyph in glyphs {
+            #expect(animals.contains(glyph), "\(glyph) has a noise but is not an animal")
+        }
+    }
+
+    /// **Five languages or none.** A missing row is not papered over at runtime —
+    /// `animalSound(for:in:)` deliberately does not fall back to English, because
+    /// an English voice saying "woof" on a Chinese screen is worse than silence —
+    /// so a gap here is a gap a child would actually meet.
+    ///
+    /// Mutation: delete the `ja` entry for any animal and regenerate. This fails
+    /// and names the animal and the language.
+    @Test("every animal noise exists in all five languages")
+    func soundsCoverEveryLanguage() {
+        let repo = repository
+        for glyph in repo.animalSoundGlyphs {
+            for language in Language.allCases {
+                let sound = repo.animalSound(for: glyph, in: language)
+                #expect(sound?.isEmpty == false,
+                        "\(glyph) has no \(language.rawValue) noise")
+            }
+        }
+    }
+
+    /// The noise is not the name. "dog" and "woof woof" are different strings in
+    /// every language, and a table that had quietly become a second copy of the
+    /// word list would make the whole mini-app pointless while looking fine.
+    ///
+    /// Mutation: set 🐶's `en` noise to "dog". This fails.
+    @Test("an animal's noise is never just its name")
+    func noiseIsNotTheName() {
+        let repo = repository
+        let byGlyph = Dictionary(
+            repo.emojis.map { ($0.emoji, $0) }, uniquingKeysWith: { first, _ in first }
+        )
+        for glyph in repo.animalSoundGlyphs {
+            guard let entry = byGlyph[glyph] else { continue }
+            for language in Language.allCases {
+                let noise = repo.animalSound(for: glyph, in: language)
+                #expect(noise != entry.word(language),
+                        "\(glyph)'s \(language.rawValue) noise is just its name")
+            }
+        }
+    }
+
+    /// An animal with no entry answers `nil` rather than handing back something
+    /// from another language or another animal.
+    @Test("an animal with no noise says so")
+    func missingGlyphHasNoSound() {
+        #expect(repository.animalSound(for: "🍎", in: .en) == nil)
+        #expect(!repository.animalSoundGlyphs.contains("🍎"))
+    }
+}

@@ -1,6 +1,7 @@
 import SwiftUI
 import Testing
 import UIKit
+import CloudmojiCore
 @testable import Cloudmoji
 
 @Suite("TutorialView")
@@ -39,21 +40,22 @@ struct TutorialViewTests {
     }
 
     /// Where Settings is, and what is behind it — the reason this whole feature
-    /// was asked for. The ⚙️ glyph has to be printed, not described: a parent
-    /// scanning the header is matching a shape, not reading the word "gear".
-    @Test("the tour points at the gear and says what is behind it")
+    /// was asked for. The launcher now labels that door rather than presenting
+    /// three loose utility controls.
+    @Test("the tour points at the Grown-ups door and says what is behind it")
     func explainsWhereSettingsLives() {
         guard let settings = step("settings") else {
             Issue.record("there is no settings step in the tour at all")
             return
         }
         let text = settings.title + "\n" + settings.detail
-        #expect(text.contains("⚙️"), "the settings step never shows the glyph to look for")
+        #expect(text.contains("Grown-ups"), "the settings step never names the launcher control")
         // The three things `SettingsView` actually offers, so this fails if the
         // tour ever promises a panel that is not the one that ships.
         #expect(text.contains("languages"))
         #expect(text.contains("categories"))
         #expect(text.contains("Count mode"))
+        #expect(text.contains("sound"))
         // A gate a parent is not warned about reads as the app being broken.
         #expect(text.range(of: "sum", options: .caseInsensitive) != nil,
                 "the settings step never warns that a question is coming")
@@ -74,15 +76,24 @@ struct TutorialViewTests {
         }
     }
 
-    /// Both modes, by the names the tab bar prints. `AppMode.label` is `Words`
-    /// and `Count`; a tour calling them anything else sends a parent looking for
-    /// a control that is not there.
-    @Test("both modes are named exactly as the tab bar labels them")
-    func namesBothModes() {
+    /// Every mini-app, by the name printed on its own launcher tile.
+    ///
+    /// The successor to `namesBothModes`, which iterated `AppMode.allCases` back
+    /// when there were two of them and a tab bar. A tour calling a mini-app
+    /// anything other than what its tile says sends a parent looking for a
+    /// control that is not there — and with seven tiles rather than two tabs,
+    /// that is now a real risk rather than a theoretical one.
+    ///
+    /// English labels, because the tour is English (see the type's note).
+    ///
+    /// Mutation: rename any tile in `MiniApp.labels` without touching the tour.
+    /// This fails and names the one that drifted.
+    @Test("every mini-app is named exactly as its launcher tile labels it")
+    func namesEveryMiniApp() {
         let text = everyStep.map { $0.title + "\n" + $0.detail }.joined(separator: "\n")
-        for mode in AppMode.allCases {
-            #expect(text.contains(mode.label),
-                    "the tour never mentions the \(mode.label) tab")
+        for app in MiniApp.allCases {
+            #expect(text.contains(app.label(.en)),
+                    "the tour never mentions the \(app.label(.en)) mini-app")
         }
     }
 
@@ -121,6 +132,14 @@ struct TutorialViewTests {
     /// "genuinely short", and copy grows one well-meaning sentence at a time —
     /// this is the tripwire that makes that growth a decision rather than a
     /// drift.
+    ///
+    /// **Raised once, from 260, and this is the decision the tripwire asked for.**
+    /// The launcher replaced two modes with seven mini-apps, and every one of them
+    /// has to be named — `namesEveryMiniApp` holds that line — so the floor of
+    /// what must be said genuinely moved. The two new steps were written back down
+    /// afterwards (about forty words came out of the launcher and mute steps) so
+    /// the headroom is roughly what it was before, rather than the ceiling being
+    /// moved to accommodate whatever was already there.
     @Test("the tour stays short enough that a parent will read it")
     func staysShort() {
         let words = everyStep
@@ -128,7 +147,7 @@ struct TutorialViewTests {
             .joined(separator: " ")
             .split(whereSeparator: \.isWhitespace)
             .count
-        #expect(words < 260, "the tour is \(words) words — it has become documentation")
+        #expect(words < 285, "the tour is \(words) words — it has become documentation")
     }
 
     // MARK: - Layout

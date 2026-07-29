@@ -48,9 +48,30 @@ enum Theme {
     /// gold there would put a celebration colour on a destructive control.
     static let amber = Color(red: 1.0, green: 0.702, blue: 0.278)   // #FFB347
 
+    // MARK: - Sleepy Cloud
+
+    /// The two colours Sleepy Cloud is drawn in, and **only** Sleepy Cloud.
+    ///
+    /// They are deliberately outside the brand trio: coral, teal and gold are
+    /// the colours of a reward, and a screen whose whole job is to wind a child
+    /// down must not use the palette he has learned means "well done". From
+    /// `reference/breathing-cloud.jsx`.
+    static let moonlight = Color(red: 0.659, green: 0.839, blue: 1.0)   // #A8D6FF
+    static let lavender = Color(red: 0.769, green: 0.710, blue: 0.992)  // #C4B5FD
+
     // MARK: - Surface
 
     static let surface = Color.white.opacity(0.04)
+
+    /// The launcher header's plate.
+    ///
+    /// Explicitly dark rather than `.regularMaterial`. A material samples what is
+    /// behind it, and the launcher's backdrop is pale in places — so the capsule
+    /// went light, and the teal wordmark on it measured about 1.9:1, which is
+    /// well under the 4.5:1 a parent needs to read it. Every other surface in
+    /// this app is dark and its type is light; a plate that changes lightness
+    /// under the type is the anomaly, not the type's colour.
+    static let headerPlate = Color(red: 0.047, green: 0.043, blue: 0.129).opacity(0.82)
     static let surfaceBorder = Color.white.opacity(0.06)
 
     /// Twice the weight of ``surfaceBorder``. Used where the outline is doing

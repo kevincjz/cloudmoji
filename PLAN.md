@@ -134,6 +134,24 @@ have already bitten this project twice.
 
 ## §Step 1 — Launcher shell, home button, stubbed entitlement
 
+**STATUS: DONE** (2026-07-28). Step 0 was not run as a step of its own — it is
+outside this run's brief — so its two load-bearing items landed here, because
+Step 1 cannot work without them: the `-cm_open` shim in `RootContent.init`, and
+the `launch()` pin in all five UI suites. Its About "one typeface" fix landed
+here too. Its `tl` `webHidden` / Playwright items did **not** land and remain
+open.
+
+**Deviation, deliberate:** `StubEntitlementStore` defaults to *unlocked*
+(there is no App Store Connect product, so defaulting to locked would hide
+three finished mini-apps behind a button that cannot do anything), so
+`visibleMiniApps` returns all seven. Once an app is available it carries no
+commercial badge on the child launcher. The hiding logic PLAN specifies is
+still there and still tested: `-cm_premium_unlocked NO` gives exactly the
+four-tile launcher described below.
+
+Tile order follows the brief — Words, Count, Flash Cards, Music, Animals,
+Photos, Sleepy Cloud — and "Instrument Pad" is captioned **Music**.
+
 **Create**
 - `ios/Cloudmoji/Cloudmoji/Views/Launcher/MiniApp.swift` — `enum MiniApp:
   String, CaseIterable, Identifiable { case words, count, sleepy, instrument,
@@ -208,6 +226,13 @@ have already bitten this project twice.
 
 ## §Step 2 — Sleepy Cloud 🌙 (free) — port of `reference/breathing-cloud.jsx`
 
+**STATUS: DONE** (2026-07-28).
+
+**Addition beyond PLAN:** the session also turns real `UIScreen` brightness down
+and puts it back, via `ScreenDimmer` (injectable reader/writer, restored from all
+three exits). PLAN only specified the overlay dim. `ScreenAwake` owns the idle
+timer on the same balanced-pair discipline.
+
 **Create**
 - `ios/Cloudmoji/Cloudmoji/Views/Sleepy/SleepyCloudView.swift` — duration
   picker first (2/5/10 min, "Grown-up picks the time", buttons at 64pt — the
@@ -243,6 +268,18 @@ have already bitten this project twice.
   device-pass review (dimming feel judged there, not here).
 
 ## §Step 3 — AudioDirector + Instrument Pad 🎹 (free)
+
+**STATUS: DONE** (2026-07-28).
+
+**Deviation, deliberate:** no `AVAudioSession.interruptionNotification` observer.
+`AudioDirector.restartIfStalled()` checks `engine.isRunning` on every `playTone`
+/ `playSound` instead. It covers the same failure (a call ends with the app still
+foregrounded, so no scene-phase change arrives) plus the ones the notification
+misses — a media-services reset, a route change that killed the graph — with
+none of the Swift-6 isolation machinery an `NSNotification` observer needs on a
+`@MainActor` class. Cost: a few milliseconds on the first tap after an
+interruption. Covered by
+`AudioDirectorTests.playRestartsAStalledEngine`.
 
 **Create**
 - `ios/Cloudmoji/Cloudmoji/AudioDirector.swift` — `@MainActor final class`,
@@ -291,6 +328,11 @@ have already bitten this project twice.
 
 ## §Step 4 — Flash Cards ⚡ (premium)
 
+**STATUS: DONE** (2026-07-28). `EmojiEntry` gained a public memberwise
+initialiser in `CloudmojiCore` (`Countable` already had one, for the same
+reason): `FlashRound`'s distinct-word rule needs fixtures the shipped catalogue
+is too well-behaved to produce.
+
 **Create**
 - `ios/Cloudmoji/Cloudmoji/Views/FlashCards/FlashRound.swift` — pure value
   type (`CountRound` shape): `init(pool: [EmojiEntry], choices: Int = 3,
@@ -325,6 +367,23 @@ have already bitten this project twice.
 
 ## §Step 5 — Animal Sounds 🔊 (premium)
 
+**STATUS: DONE, WITH ONE ITEM OUTSTANDING** (2026-07-28).
+
+**The `.caf` recordings are not in this commit.** Sourcing third-party audio
+means downloading files, which is not something I do unprompted — so the
+catalogue, the playback path, the licence file and the tests shipped, and the
+fifteen recordings are Kevin's to drop in. `Resources/AnimalSounds/LICENSES.txt`
+carries the format, the `afconvert` line and the acceptance criteria.
+
+**That is why the screen does not shrink to the sound library.** Content is
+`model.emojis(in: .animals)` — all forty-one — and a tap plays the recording *if
+one shipped*, then the word; with no recording it goes straight to the word.
+So the mini-app is complete and usable today, no tile is ever dead
+(`CLAUDE.md` rule 4), and dropping a file in changes behaviour with no code
+change. `AnimalSoundCatalogTests.gridComesFromTheRepository` is the test that
+holds that design; `bundledRecordingsAllDecode` is vacuous until files land and
+catches a corrupt one the moment they do.
+
 **Create**
 - `ios/Cloudmoji/Cloudmoji/Views/AnimalSounds/AnimalSoundCatalog.swift` —
   `static let files: [String: String]` glyph→resource ("🐶"→"dog").
@@ -357,6 +416,18 @@ have already bitten this project twice.
 - [ ] Full suites green.
 
 ## §Step 6 — Photos + Camera 📷 (premium)
+
+**STATUS: DONE** (2026-07-28).
+
+**Deviation, deliberate:** `PrivacyInfo.xcprivacy` declares
+`NSPrivacyAccessedAPICategoryUserDefaults` / CA92.1 **only**. PLAN also listed
+FileTimestamp / C617.1; the app does not read file timestamps (photos sort on a
+millisecond stamp baked into the file *name*, precisely so it does not), and
+declaring an API you do not use with a reason code you cannot justify is the
+wrong kind of over-declaration in a review that reads them.
+
+`ManagePhotosView` is reachable at Settings → More mini-apps → Manage photos,
+behind the gate, as specified.
 
 **Create**
 - `ios/Cloudmoji/Cloudmoji/Views/Photos/PhotoStore.swift` —
@@ -423,6 +494,130 @@ to fast-boot cache with truth from `Transaction.currentEntitlements`;
 stub for UI tests; About copy softened in the same commit ("makes no
 connections of its own…"). Manual for Kevin: App Store Connect IAP + price +
 privacy label stays "Data Not Collected".
+
+---
+
+## §RUN LOG — Steps 1–6, 2026-07-28
+
+Executed end-to-end in one session. Every step above carries its own STATUS
+block; this is the summary and the list of what is still open.
+
+**Verification actually run**
+- `CloudmojiTests`: **247 passed**, 28 suites (baseline was 197 / 22).
+- `CloudmojiCore` package: **72 passed**, 7 suites (unchanged).
+- UI suites, each run individually with `-parallel-testing-enabled NO`, all
+  green: `LauncherUITests` **8** (new), `WordsModeUITests` **22**,
+  `CountModeUITests` **9**, `AboutUITests` **2**, `ParentalGateUITests` **7**,
+  `TutorialUITests` **3** — 51 in total, 0 failures.
+- Simulator screenshots of the launcher and all five new screens taken **in
+  Chinese** (`-cm_lang zh`) and reviewed: the tile captions, Sleepy Cloud's
+  copy, the Flash Cards prompt and the Photos empty state all render in 中文,
+  and the launcher shows seven tiles with 🔒 on exactly 闪卡 / 动物 / 照片.
+- App target builds with **zero warnings**. The pre-existing main-actor warnings
+  in `CloudmojiUITests` are untouched and predate this work.
+- Kids-Category sweep still clean: no `URLSession`, `NWConnection`, `WebKit` or
+  socket API anywhere in `ios/`; `Package.swift` still has zero dependencies.
+- `grep -rE "\bModeTabBar\b|\bAppMode\b" ios/Cloudmoji/` → four hits, all of them
+  comments explaining what the launcher replaced. No code. (A plain `AppMode`
+  grep matches `AppModel`, so the word boundaries are load-bearing.)
+
+**What changed structurally**
+- `ModeTabBar.swift` and `AppMode` are deleted, with `ModeTabBarTests`.
+  `SideRail` lost its tab footer and its `mode` / `onSelectMode` parameters;
+  `WordsView` and `CountView` lost the same two. Count mode's landscape rail is
+  gone entirely — with the tabs retired it held nothing, and a 136pt empty
+  strip is a fifth of a landscape phone. `CountViewTests.landscapeHasNoRail` is
+  the old rail test, inverted rather than deleted.
+- `CountModeUITests`' two tab tests became one home-button test
+  (`testTheHomeButtonKeepsItsFullHeightAboveTheHomeIndicator` — the web's 42.5pt
+  regression moved corner rather than disappearing) and one deletion; the
+  navigation promise they protected is now
+  `LauncherUITests.testEachTileOpensItsOwnMiniAppAndTheCloudBringsYouBack`,
+  which checks all seven mini-apps rather than two modes.
+- `TutorialViewTests.namesBothModes` → `namesEveryMiniApp`, iterating
+  `MiniApp.allCases`. The tour's word ceiling moved 260 → 285, with the reason
+  written into the test: seven mini-apps have to be named, and about forty words
+  came back out of the launcher and mute steps to pay for it.
+
+**Documentation updated in the same commits**
+`CLAUDE.md` (play-area section, touch-target rule 1, commerce line, iOS-only
+scope note), `docs/design/DESIGN_SYSTEM.md` (launcher/home-button/mini-app
+metrics, the moonlight + lavender tokens, radii, active states),
+`docs/superpowers/specs/2026-07-27-ios-watchos-app-design.md` (two non-goals
+amended and dated), `AboutView` (launcher FAQ, eight settings keys, CAMERA
+section, "two typefaces"), `TutorialView` (launcher + home steps).
+
+**Two layout defects found by looking at the simulator, not by a test**
+- The `hosted{}` stack sized to its widest child, so on Photos with an empty
+  gallery — a `ScrollView` around one short line — the cloud came out in the
+  *middle* of the screen. Every UI assertion about that button is about its
+  size, and it was the right size in the wrong place. Fixed by making the hosted
+  screen fill.
+- The home button's plate was `Theme.surface` (white at 4%), so over a scrolling
+  grid the cloud sat on top of a half-visible emoji. It now wears the near-opaque
+  plate the tab bar used to, at the same 0.95.
+
+**Two pre-existing test defects found and fixed on the way**
+- `ParentalGateUITests.flip` waited for a `Form` row to *exist* before scrolling.
+  SwiftUI does not put an unrealised row in the accessibility tree at all, so
+  `settings-cat-animals` — third in the Categories list — was never found.
+  `testDisablingTheCategoryTheChildIsScrolledToLeavesAUsableList` was therefore
+  **red on `main`**, which was confirmed by running it against HEAD in a clean
+  worktree before touching it. The helper now scrolls until the row exists.
+  (The helper's own comment already predicted this class of failure.)
+- `WordsModeUITests.testTheLitChipFollowsTheScrollWithNothingTapped` broke out of
+  its scroll loop as soon as the last emoji was *hittable*. The home button's
+  88pt reservation means the last row comes into view while the list can still
+  scroll, so it stopped short of the end. It now settles on a frame that stops
+  moving — a stronger assertion than the one it replaced.
+
+**Review round (external), all four P1s fixed**
+- **Camera white-out.** `CameraView` raised its flash *before* asking, and a
+  debounced `capture` never calls back — a toddler drumming the shutter left the
+  viewfinder white until the mini-app was closed. `capture` now returns whether
+  it accepted, the flash goes up only for an accepted request, and
+  `CameraController.acceptsCapture(now:lastCaptureAt:)` is pure and tested.
+- **Blank Animal Sounds.** Switching the Animals category off left the mini-app
+  with an empty grid. The launcher tile now goes away with the category
+  (`visibleMiniApps`), and the screen carries a parent-facing explanation for the
+  one remaining route in (the debug deep link).
+- **Sleepy Cloud resume.** Backgrounding released the idle timer but left the dim
+  loop running, so returning re-dimmed *without* re-acquiring it and the phone
+  could auto-lock mid-session. Modelled explicitly as `pause()` / `resume()`.
+- **Backup exclusion was best effort.** `try?` on a promise the About screen
+  makes absolutely. A photo that cannot be marked is now deleted and the error
+  thrown, and the directory mark throws too.
+- **P2, thumbnails.** `UIImage(contentsOfFile:)` decoded a full 12MP JPEG per
+  72pt thumbnail on the main actor. Replaced with `CGImageSourceCreateThumbnail…`
+  downsampling behind an `NSCache`, purged when photos are deleted.
+
+**Animal sounds: text-to-speech, not recordings (Kevin's call)**
+Sourcing was attempted and reported: a Commons survey across ~20 animals yielded
+about six usable CC0/public-domain files, one of which was a *prairie dog*; the
+good recordings are CC BY-SA, whose ShareAlike terms are not mine to accept for a
+shipping binary. Kevin's answer was better than the problem — **speak the noise
+instead of playing it**. `src/data/animalSounds.ts` holds twenty animals in five
+languages (woof woof / 汪汪 / guk guk / ワンワン / aw aw), generated into
+`EmojiData.json` like every other piece of content, exposed as
+`EmojiRepository.animalSound(for:in:)`. A tap says the noise, then the name. The
+grid is the sound table, so the giraffe and the octopus are simply not there.
+
+**The onomatopoeia needs a native-speaker pass** — the same bar the word lists
+were held to. English and Chinese I would stand behind; Malay, Japanese and
+Tagalog are researched rather than known.
+
+**Still open**
+1. **The animal recordings.** Fifteen CC0 `.caf` files and their `LICENSES.txt`
+   entries — see Step 5's status block. No code change when they land.
+2. **Step 0 leftovers:** `webHidden` on `tl` in `src/data/languages.ts`, the web
+   picker filter, and the Playwright assertion. Untouched; web-only.
+3. **Step 7 (StoreKit).** Unchanged and still needs Kevin for sandbox purchase
+   testing. `EntitlementProviding` is the seam and nothing in Steps 1–6 needs
+   rework.
+4. **Per-step simulator screenshots** were not captured; the DEVICE PASS
+   checklist below is unchanged and still owed.
+5. **`AboutView`'s "nothing to buy"** is still true and still shipping — the
+   stub moves no money. It becomes false at Step 7 and is listed there.
 
 ---
 
