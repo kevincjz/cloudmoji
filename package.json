@@ -12,7 +12,8 @@
     "test:ui": "playwright test --ui",
     "typecheck": "tsc -b --noEmit",
     "generate:ios": "tsx tools/generate-ios-data/cli.ts",
-    "verify:ios": "npm run generate:ios && git diff --exit-code ios/CloudmojiCore/Sources/CloudmojiCore/Resources/EmojiData.json"
+    "verify:ios": "npm run generate:ios && git diff --exit-code ios/CloudmojiCore/Sources/CloudmojiCore/Resources/EmojiData.json",
+    "og:image": "node tools/og-image/generate.mjs"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",
