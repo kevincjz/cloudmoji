@@ -663,3 +663,64 @@ Tagalog are researched rather than known.
 
 After Step 6 + device pass: one whole-branch review (Kids-Category sweep,
 privacy copy true sentence-by-sentence), then Step 7 scheduled with Kevin.
+
+
+---
+
+## §Apple Watch — Phase 1 (shipped 2026-07-30)
+
+A `CloudmojiWatch` watchOS app: emoji exchange over WatchConnectivity, no mic.
+
+**What shipped**
+- `SystemSpeechEngine` moved into `CloudmojiCore` (public) so the watch speaks too.
+- `CloudmojiCore/Radio.swift`: `RadioMessage` + `RadioContext`, all-String payloads
+  (Sendable across the WCSession delegate hop), pinned raw values, reject-not-guess
+  decode. Package-tested (`RadioTests`).
+- `CloudmojiWatch` target (hand-authored pbxproj, objectVersion 77 synchronized
+  folder): `PocketCloudView` (one big emoji, Crown pages, tap sends), `WatchModel`,
+  `WatchRadio`, `WatchHaptics`, `WatchTheme`. Embedded in the phone app via a new
+  Embed Watch Content phase; `plutil` confirms `WKCompanionAppBundleIdentifier`.
+- Phone: `WatchLink` (protocol seam + `WCSessionTransport`, AudioDirector pattern),
+  owned by `AppModel`, activated in `CloudmojiApp.init`. `WordsView.tap` mirrors
+  each child tap; `RootContent` flashes + speaks incoming emoji via a body-level
+  overlay (`WatchEchoBubble`). `WatchLink.presentation(active:muted:)` is the pure
+  rule — **Sleepy Cloud suppresses everything**, mute keeps the bubble drops the
+  speech. `WatchLinkTests` (10) with a fake transport.
+- Docs same commit: About gains an APPLE WATCH privacy paragraph (device-to-device,
+  no internet, no mic), pinned by `AboutViewTests`; CLAUDE.md scope note.
+
+**Deliberately out of Phase 1**
+- Voice / microphone (the walkie-talkie idea — needs the privacy-copy + App-Review
+  question resolved first).
+- Watch settings UI, watch mascot, category-narrowed watch catalogue.
+
+**Not unit-tested (by design)**: `WCSessionTransport`, all watch-side code, and the
+RootContent overlay timing — proven on the paired-simulator smoke and Kevin's
+device pass, not in CI.
+
+
+## §Apple Watch — voice messages (added 2026-07-30)
+
+Real-voice extension of the watch companion (Kevin: real voice, replayable-for-session).
+
+- Watch records via `VoiceRecorder` (AVAudioRecorder, AAC, 15s cap, mic permission
+  requested once) behind a mic button → `RecordView`. `WatchRadio.sendVoice` uses
+  `WCSession.transferFile`.
+- Phone receives in `WCSessionTransport.didReceive(file:)` — reads the bytes into
+  `Data` on the delegate queue, deletes the delivered file, hops only the Data.
+  `WatchLink` publishes `incomingVoice`; `VoiceMailbox` holds it **in memory** and
+  plays via `AVAudioPlayer(data:)` — never written to our storage. `RootContent`
+  routes it through the same `presentation(active:muted:)` rule (Sleepy Cloud
+  discards; muted holds-without-playing; else plays) and shows a persistent
+  `VoiceMessagePill` so the child can replay for the session; opening Sleepy Cloud
+  clears it.
+- Privacy copy rewritten (About): the watch uses a mic, the clip is memory-only and
+  never saved; the iPhone still never records. `AboutViewTests` pins the new claims
+  and forbids the now-false Phase-1 "watch never asks for the microphone" line. Mic
+  usage string on the watch target (`INFOPLIST_KEY_NSMicrophoneUsageDescription`).
+- Tests: WatchLink voice routing + VoiceMailbox hold/replace/clear (fakes; playback
+  itself is device-verified).
+
+**Open risk (Kevin's call, accepted):** a microphone in a Kids-Category app has an
+unknown App Review outcome — worth a guidelines check before submission. Device
+pass still owed for real record→transfer→play latency and feel.

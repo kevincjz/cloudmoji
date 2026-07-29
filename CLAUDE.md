@@ -31,6 +31,20 @@ Step 7 of `PLAN.md` and is not built.
 two-mode product and is no longer the reference for iOS structure —
 `src/data/` remains the single content source for both.
 
+**Apple Watch (Phase 1):** a `CloudmojiWatch` companion target exists. The parent
+wears the watch, Cloud holds the iPhone. It is emoji-only — the parent browses
+the catalogue with the Digital Crown and taps to send an emoji to the phone
+(shown + spoken there); the child's Words-mode taps flow back to the wrist
+(haptic + emoji + word, spoken on the watch). Transport is **WatchConnectivity**
+(`WatchLink` / `WCSessionTransport` on the phone, `WatchRadio` on the watch) —
+device-to-device, no backend, no internet; the Kids-Category greps stay clean.
+The parent can also **record a short voice message** on the watch (the mic is
+watch-only — the iPhone app still never records) that plays on the phone and is
+held only in memory for the session, never on disk. `SystemSpeechEngine` now
+lives in `CloudmojiCore` so both targets share it. Still no watch settings UI or
+mascot. **Note:** a microphone in a Kids-Category app carries an unresolved App
+Review risk — check the guidelines before submission.
+
 ## Where Context Lives
 - `MASTER_PLAN.md` — strategy, phases, decision points
 - `docs/` — product, design, content, engineering, growth, ops

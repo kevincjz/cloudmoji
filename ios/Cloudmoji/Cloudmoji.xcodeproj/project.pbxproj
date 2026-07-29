@@ -7,10 +7,19 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		840D927B3017B1F20027A8B1 /* CloudmojiCore in Frameworks */ = {isa = PBXBuildFile; productRef = 840D927A3017B1F20027A8B1 /* CloudmojiCore */; };
+		840D927F3017B1F20027A8B1 /* CloudmojiWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 840D92723017B1F20027A8B1 /* CloudmojiWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		840D92703017B1F20027A8B1 /* CloudmojiCore in Frameworks */ = {isa = PBXBuildFile; productRef = 840D926F3017B1F20027A8B1 /* CloudmojiCore */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		840D927C3017B1F20027A8B1 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 840D922F3017AFE40027A8B1 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 840D92733017B1F20027A8B1;
+			remoteInfo = CloudmojiWatch;
+		};
 		840D92453017AFE40027A8B1 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 840D922F3017AFE40027A8B1 /* Project object */;
@@ -27,13 +36,33 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		840D927E3017B1F20027A8B1 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				840D927F3017B1F20027A8B1 /* CloudmojiWatch.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		840D92723017B1F20027A8B1 /* CloudmojiWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CloudmojiWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		840D92373017AFE40027A8B1 /* Cloudmoji.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Cloudmoji.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		840D92443017AFE40027A8B1 /* CloudmojiTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CloudmojiTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		840D924E3017AFE40027A8B1 /* CloudmojiUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CloudmojiUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		840D92713017B1F20027A8B1 /* CloudmojiWatch */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = CloudmojiWatch;
+			sourceTree = "<group>";
+		};
 		840D92393017AFE40027A8B1 /* Cloudmoji */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Cloudmoji;
@@ -52,6 +81,14 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		840D92753017B1F20027A8B1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				840D927B3017B1F20027A8B1 /* CloudmojiCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		840D92343017AFE40027A8B1 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -83,6 +120,7 @@
 				840D92393017AFE40027A8B1 /* Cloudmoji */,
 				840D92473017AFE40027A8B1 /* CloudmojiTests */,
 				840D92513017AFE40027A8B1 /* CloudmojiUITests */,
+				840D92713017B1F20027A8B1 /* CloudmojiWatch */,
 				840D926E3017B1F20027A8B1 /* Frameworks */,
 				840D92383017AFE40027A8B1 /* Products */,
 			);
@@ -94,6 +132,7 @@
 				840D92373017AFE40027A8B1 /* Cloudmoji.app */,
 				840D92443017AFE40027A8B1 /* CloudmojiTests.xctest */,
 				840D924E3017AFE40027A8B1 /* CloudmojiUITests.xctest */,
+				840D92723017B1F20027A8B1 /* CloudmojiWatch.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -108,6 +147,29 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		840D92733017B1F20027A8B1 /* CloudmojiWatch */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 840D92773017B1F20027A8B1 /* Build configuration list for PBXNativeTarget "CloudmojiWatch" */;
+			buildPhases = (
+				840D92743017B1F20027A8B1 /* Sources */,
+				840D92753017B1F20027A8B1 /* Frameworks */,
+				840D92763017B1F20027A8B1 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				840D92713017B1F20027A8B1 /* CloudmojiWatch */,
+			);
+			name = CloudmojiWatch;
+			packageProductDependencies = (
+				840D927A3017B1F20027A8B1 /* CloudmojiCore */,
+			);
+			productName = CloudmojiWatch;
+			productReference = 840D92723017B1F20027A8B1 /* CloudmojiWatch.app */;
+			productType = "com.apple.product-type.application";
+		};
 		840D92363017AFE40027A8B1 /* Cloudmoji */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 840D92583017AFE40027A8B1 /* Build configuration list for PBXNativeTarget "Cloudmoji" */;
@@ -115,10 +177,12 @@
 				840D92333017AFE40027A8B1 /* Sources */,
 				840D92343017AFE40027A8B1 /* Frameworks */,
 				840D92353017AFE40027A8B1 /* Resources */,
+				840D927E3017B1F20027A8B1 /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				840D927D3017B1F20027A8B1 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				840D92393017AFE40027A8B1 /* Cloudmoji */,
@@ -198,6 +262,9 @@
 						CreatedOnToolsVersion = 26.6;
 						TestTargetID = 840D92363017AFE40027A8B1;
 					};
+					840D92733017B1F20027A8B1 = {
+						CreatedOnToolsVersion = 26.6;
+					};
 				};
 			};
 			buildConfigurationList = 840D92323017AFE40027A8B1 /* Build configuration list for PBXProject "Cloudmoji" */;
@@ -220,11 +287,19 @@
 				840D92363017AFE40027A8B1 /* Cloudmoji */,
 				840D92433017AFE40027A8B1 /* CloudmojiTests */,
 				840D924D3017AFE40027A8B1 /* CloudmojiUITests */,
+				840D92733017B1F20027A8B1 /* CloudmojiWatch */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		840D92763017B1F20027A8B1 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		840D92353017AFE40027A8B1 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -249,6 +324,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		840D92743017B1F20027A8B1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		840D92333017AFE40027A8B1 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -273,6 +355,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		840D927D3017B1F20027A8B1 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 840D92733017B1F20027A8B1 /* CloudmojiWatch */;
+			targetProxy = 840D927C3017B1F20027A8B1 /* PBXContainerItemProxy */;
+		};
 		840D92463017AFE40027A8B1 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 840D92363017AFE40027A8B1 /* Cloudmoji */;
@@ -286,6 +373,76 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		840D92783017B1F20027A8B1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 322UC75K7F;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Cloudmoji;
+				INFOPLIST_KEY_WKApplication = YES;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Record a short voice message on your watch for your child to hear on the phone. It plays on your paired phone and is never saved or sent anywhere else.";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = app.cloudmoji.Cloudmoji;
+				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.cloudmoji.Cloudmoji.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "watchos watchsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Debug;
+		};
+		840D92793017B1F20027A8B1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 322UC75K7F;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Cloudmoji;
+				INFOPLIST_KEY_WKApplication = YES;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Record a short voice message on your watch for your child to hear on the phone. It plays on your paired phone and is never saved or sent anywhere else.";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = app.cloudmoji.Cloudmoji;
+				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.cloudmoji.Cloudmoji.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "watchos watchsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Release;
+		};
 		840D92563017AFE40027A8B1 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -562,6 +719,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		840D92773017B1F20027A8B1 /* Build configuration list for PBXNativeTarget "CloudmojiWatch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				840D92783017B1F20027A8B1 /* Debug */,
+				840D92793017B1F20027A8B1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		840D92323017AFE40027A8B1 /* Build configuration list for PBXProject "Cloudmoji" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -608,6 +774,11 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		840D927A3017B1F20027A8B1 /* CloudmojiCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 840D926D3017B0EC0027A8B1 /* XCLocalSwiftPackageReference "../CloudmojiCore" */;
+			productName = CloudmojiCore;
+		};
 		840D926F3017B1F20027A8B1 /* CloudmojiCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 840D926D3017B0EC0027A8B1 /* XCLocalSwiftPackageReference "../CloudmojiCore" */;

@@ -39,6 +39,14 @@ final class AppModel {
     /// pad and the animal sounds play through. Speech is not routed through it —
     /// see `AudioDirector`.
     let audio: AudioDirector
+    /// The wrist link: mirrors a child's taps to a paired Apple Watch and
+    /// receives the emoji a parent sends back. A no-op with no watch, and the
+    /// callbacks it references arrive off-main and hop here — the isolation
+    /// decision this class's `@MainActor` was chosen for.
+    let radio: WatchLink
+    /// Holds and plays a voice message a parent sent from the watch. In memory
+    /// for the session, never on disk — see `VoiceMailbox`.
+    let voice = VoiceMailbox()
 
     private let repository: EmojiRepository
     private let allEmojis: [EmojiEntry]
@@ -59,6 +67,7 @@ final class AppModel {
         self.settings = settings
         self.entitlements = entitlements
         self.audio = audio
+        self.radio = WatchLink(settings: settings)
         // A missing or malformed bundled resource is a build error, not a
         // runtime path — but the child must never see a crash, so an empty
         // repository is the degraded case rather than a trap.

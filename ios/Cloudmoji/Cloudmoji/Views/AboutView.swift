@@ -160,11 +160,26 @@ struct AboutView: View {
                 Deleting Cloudmoji deletes them too. The camera is only ever running while the \
                 camera screen is open.
 
+                APPLE WATCH
+                If you pair an Apple Watch, Cloudmoji on the watch and Cloudmoji on the iPhone \
+                pass things between them using Apple's own device-to-device connection — the same \
+                Bluetooth-or-shared-Wi-Fi link a watch uses to talk to its phone. Everything stays \
+                between your own two devices and never touches the internet.
+
+                You can tap emoji on the watch to send to the phone, and your child's taps come \
+                back to the watch. You can also record a short voice message on the watch for your \
+                child to hear on the phone. That recording is the one place Cloudmoji uses a \
+                microphone, and it is on the watch — the grown-up's device — not the phone. A \
+                message plays on the paired phone and is kept only in memory so your child can \
+                replay it during that session; it is never saved to the phone, never added to any \
+                recordings, and never sent anywhere else. Closing the app forgets it.
+
                 SPEECH
                 Words are spoken by your device's own text-to-speech. Cloudmoji hands iOS a word \
                 and iOS makes a sound; nothing is recorded, nothing is saved and nothing is sent \
-                anywhere. Cloudmoji never asks for the microphone — the camera is used for still \
-                pictures only, with no sound recorded. If you add a voice from iOS Settings, iOS \
+                anywhere. On the iPhone, Cloudmoji never asks for the microphone — the camera is \
+                used for still pictures only, with no sound recorded (recording a voice message is \
+                the watch's job, described above). If you add a voice from iOS Settings, iOS \
                 fetches that voice — that is the system doing it, not this app.
 
                 NO ACCOUNTS, NO PURCHASES, NO LINKS OUT

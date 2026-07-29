@@ -1,26 +1,33 @@
 import AVFoundation
-import CloudmojiCore
 
 /// Binds `AVSpeechSynthesizer` to the queue protocol `CloudmojiCore` defines.
+///
+/// Lives in the package rather than the app target because both the iOS app and
+/// the watchOS companion drive it — it imports only AVFoundation, which is
+/// watchOS-clean, so nothing here is platform-specific.
 ///
 /// The synthesiser's delegate methods are not main-actor isolated, so they hop
 /// back explicitly. Only one utterance is ever in flight — `SpeechController`
 /// always stops before speaking — so a single pending callback is sufficient.
+///
+/// `@MainActor` is spelled out because the package has no
+/// `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` build setting the way the app
+/// target does; here the annotation is load-bearing, not decorative.
 @MainActor
-final class SystemSpeechEngine: NSObject, SpeechEngine {
+public final class SystemSpeechEngine: NSObject, SpeechEngine {
     private let synthesizer = AVSpeechSynthesizer()
     private var pendingFinish: (() -> Void)?
     private var cachedVoices: [AVSpeechSynthesisVoice]?
 
     /// Test seam: how many times the system voice list was actually enumerated.
-    private(set) var voiceLookupCount = 0
+    public private(set) var voiceLookupCount = 0
 
-    override init() {
+    public override init() {
         super.init()
         synthesizer.delegate = self
     }
 
-    func voices() -> [any VoiceDescribing] {
+    public func voices() -> [any VoiceDescribing] {
         if let cachedVoices { return cachedVoices }
         voiceLookupCount += 1
         let fresh = AVSpeechSynthesisVoice.speechVoices()
@@ -30,7 +37,7 @@ final class SystemSpeechEngine: NSObject, SpeechEngine {
 
     /// Call when the app returns to the foreground — a parent may have installed
     /// a voice in Settings while the app was backgrounded.
-    func invalidateVoiceCache() {
+    public func invalidateVoiceCache() {
         cachedVoices = nil
     }
 
@@ -38,9 +45,9 @@ final class SystemSpeechEngine: NSObject, SpeechEngine {
     ///
     /// Named so a test can assert the one property that matters and that the
     /// raw constant violated: this must come out **slower** than normal speech.
-    static let utteranceRate = AVSpeechUtteranceDefaultSpeechRate * SpeechController.rate
+    public static let utteranceRate = AVSpeechUtteranceDefaultSpeechRate * SpeechController.rate
 
-    func speak(_ utterance: SpeechUtterance) {
+    public func speak(_ utterance: SpeechUtterance) {
         pendingFinish = utterance.onFinish
         let u = AVSpeechUtterance(string: utterance.text)
         // `SpeechController.rate` is a fraction of normal speed, on the Web
@@ -59,7 +66,7 @@ final class SystemSpeechEngine: NSObject, SpeechEngine {
         synthesizer.speak(u)
     }
 
-    func stop() {
+    public func stop() {
         // Drop the callback before stopping: a delegate call can still arrive
         // for the utterance being cancelled, and it must not resume the queue.
         pendingFinish = nil
@@ -67,7 +74,7 @@ final class SystemSpeechEngine: NSObject, SpeechEngine {
     }
 
     /// Invoked by the delegate, and directly by tests.
-    func simulateFinish() {
+    public func simulateFinish() {
         let callback = pendingFinish
         pendingFinish = nil
         callback?()
@@ -75,14 +82,14 @@ final class SystemSpeechEngine: NSObject, SpeechEngine {
 }
 
 extension SystemSpeechEngine: AVSpeechSynthesizerDelegate {
-    nonisolated func speechSynthesizer(
+    public nonisolated func speechSynthesizer(
         _ synthesizer: AVSpeechSynthesizer,
         didFinish utterance: AVSpeechUtterance
     ) {
         Task { @MainActor in self.simulateFinish() }
     }
 
-    nonisolated func speechSynthesizer(
+    public nonisolated func speechSynthesizer(
         _ synthesizer: AVSpeechSynthesizer,
         didCancel utterance: AVSpeechUtterance
     ) {

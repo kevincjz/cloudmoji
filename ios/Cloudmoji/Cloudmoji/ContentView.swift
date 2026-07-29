@@ -64,6 +64,11 @@ private struct RootContent: View {
 
     @State private var sheet: RootSheet?
 
+    /// The emoji a parent just sent from the watch, shown over everything for a
+    /// beat. Cleared by `echoTask` after the bubble's lifetime.
+    @State private var echo: WatchLink.Echo?
+    @State private var echoTask: Task<Void, Never>?
+
     /// Preselects a mini-app from `-cm_open <raw value>`, so a UI suite can land
     /// on the screen it means to measure instead of tapping its way there.
     ///
@@ -136,6 +141,71 @@ private struct RootContent: View {
             }
         }
         .animation(.easeOut(duration: 0.2), value: isGateShowing)
+        // An emoji from the parent's watch, over the top of whatever is showing —
+        // at body level like the gate, so it lands on the launcher and every
+        // mini-app alike. It never intercepts a tap.
+        .overlay {
+            if let echo {
+                WatchEchoBubble(
+                    emoji: echo.message.emoji,
+                    word: model.word(forEmoji: echo.message.emoji)
+                )
+                .id(echo.id)
+                .transition(.opacity)
+                .allowsHitTesting(false)
+            }
+        }
+        .animation(.easeOut(duration: 0.25), value: echo)
+        // A watch emoji arrives: decide whether it may show and speak, then flash
+        // it for a beat. Sleepy Cloud swallows it whole; a muted phone shows the
+        // bubble but stays silent.
+        .onChange(of: model.radio.incoming) { _, new in
+            guard let new else { return }
+            switch WatchLink.presentation(active: active, muted: model.settings.muted) {
+            case .suppressed:
+                return
+            case .bubbleOnly:
+                showEcho(new)
+            case .bubbleAndSpeech:
+                showEcho(new)
+                if let word = model.word(forEmoji: new.message.emoji) {
+                    model.speech.speak(word, in: model.settings.language)
+                }
+            }
+        }
+        // A voice message from the parent's watch. Held for the session so the
+        // child can replay it (the pill below), and played now unless muted.
+        // Sleepy Cloud discards it whole — a recorded voice at bedtime is the
+        // last thing a wind-down wants.
+        .onChange(of: model.radio.incomingVoice) { _, new in
+            guard let new else { return }
+            switch WatchLink.presentation(active: active, muted: model.settings.muted) {
+            case .suppressed:
+                model.voice.clear()
+            case .bubbleOnly:
+                model.voice.hold(new.data)
+            case .bubbleAndSpeech:
+                model.voice.hold(new.data)
+                model.voice.play()
+            }
+        }
+        // The held message drops away the moment a child opens Sleepy Cloud.
+        .onChange(of: active) { _, now in
+            if now == .sleepy { model.voice.clear() }
+        }
+        // The replay pill: present whenever a message is held and we are not at
+        // bedtime. Tapping it replays, unless the phone is muted.
+        .overlay(alignment: .top) {
+            if model.voice.hasMessage && active != .sleepy {
+                VoiceMessagePill(isPlaying: model.voice.isPlaying) {
+                    guard !model.settings.muted else { return }
+                    model.voice.play()
+                }
+                .padding(.top, 6)
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .animation(.easeOut(duration: 0.25), value: model.voice.hasMessage)
         .sheet(item: $sheet) { which in
             switch which {
             case .tutorial:
@@ -161,6 +231,9 @@ private struct RootContent: View {
                 // at the app level is not reliably visible inside one — the
                 // failure is a crash on first appearance, not a compile error.
                 .environment(model)
+                // A language or mute change made in Settings has to reach the
+                // watch; the sheet closing is the moment those choices are final.
+                .onDisappear { model.radio.pushContext() }
             }
         }
         // First launch only, and never behind the gate: a parent installing this
@@ -195,6 +268,19 @@ private struct RootContent: View {
         case .animalSounds: AnimalSoundsView()
         case .photos: PhotosView(onCameraPermissionHelp: openCameraDoor)
         case .sleepy: SleepyCloudView()
+        }
+    }
+
+    /// Shows a watch emoji and arms its dismissal after the bubble's own
+    /// lifetime, cancelling any earlier one so a rapid pair does not clear the
+    /// second early.
+    private func showEcho(_ new: WatchLink.Echo) {
+        echo = new
+        echoTask?.cancel()
+        echoTask = Task {
+            try? await Task.sleep(for: .seconds(WordBubbleMetrics.lifetime))
+            guard !Task.isCancelled, echo?.id == new.id else { return }
+            echo = nil
         }
     }
 

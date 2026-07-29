@@ -78,6 +78,9 @@ struct CloudmojiApp: App {
         // They moved whole: nothing about the category or the options changed.
         model.audio.activateSession()
         model.entitlements.startObserving()
+        // Bring up the wrist link and tell a paired watch the current language
+        // and mute. No-op if there is no watch.
+        model.radio.activate()
     }
 
     @Environment(\.scenePhase) private var scenePhase
@@ -100,6 +103,11 @@ struct CloudmojiApp: App {
             // motivating case. `invalidateVoiceCache` shipped implemented,
             // tested, and called by nothing at all.
             model.invalidateVoiceCache()
+
+            // A parent may have changed language or mute on another device, or
+            // paired a watch, while we were away — re-push the context so the
+            // wrist is never stale.
+            model.radio.pushContext()
         }
     }
 }

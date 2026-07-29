@@ -290,6 +290,9 @@ struct WordsView: View {
         // Before anything else: the buzz should land with the finger, not after
         // the speech engine has decided what to say.
         Haptics.tap()
+        // Mirror the tap to a paired Apple Watch, so a parent's wrist sees what
+        // Cloud is playing with. A no-op with no watch.
+        model.radio.childTapped(entry.emoji)
         let word = model.word(for: entry)
         typed = Self.capped(typed, appending: TypedEmoji(emoji: entry.emoji, word: word))
         bounce(entry.id)

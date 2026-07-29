@@ -1,6 +1,5 @@
 import Testing
 import AVFoundation
-@testable import Cloudmoji
 import CloudmojiCore
 
 @MainActor

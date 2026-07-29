@@ -34,6 +34,22 @@ struct AboutViewTests {
         // The thing that *is* true, in the words the nutrition label uses.
         #expect(privacy.contains("no network connections"))
 
+        // The watch disclosure is honest and present: a paired watch exchanges
+        // emoji and voice device-to-device, no internet. Deleting the paragraph
+        // must fail here.
+        #expect(privacy.contains("Apple Watch"))
+        #expect(privacy.contains("device-to-device"))
+        #expect(privacy.range(of: "internet", options: .caseInsensitive) != nil)
+
+        // Voice recording is disclosed honestly: the watch uses a microphone, the
+        // clip stays in memory and is never saved. Adding the mic without saying
+        // so — or claiming the watch never records — must fail here.
+        #expect(privacy.range(of: "voice message", options: .caseInsensitive) != nil)
+        #expect(privacy.range(of: "microphone", options: .caseInsensitive) != nil)
+        #expect(privacy.contains("never saved") || privacy.contains("only in memory"))
+        #expect(!privacy.contains("watch never asks for the microphone"),
+                "the Phase 1 claim is now false — the watch records voice")
+
         for absent in ["Vercel", "Speed Insights", "Google Fonts", "localStorage",
                        "fonts.googleapis.com", "pageview", "ko-fi", "http"] {
             for entry in everyEntry {
