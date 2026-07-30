@@ -22,7 +22,11 @@ final class ParentalGateUITests: XCTestCase {
     /// that follow measure a state they did not set.
     private func launch(extraArguments: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
+        let entitlementPins = extraArguments.contains("-cm_premium_unlocked")
+            ? []
+            : ["-cm_premium_unlocked", "YES"]
         app.launchArguments = [
+            "-cm_use_stub_entitlements", "YES",
             "-cm_lang", "en",
             "-cm_muted", "YES",
             "-cm_enabled_langs", "(en,zh,ms,ja,tl)",
@@ -38,7 +42,7 @@ final class ParentalGateUITests: XCTestCase {
             // and every assertion below would otherwise be measuring a grid of
             // tiles. `-cm_open` is DEBUG-only — see `RootContent.init`.
             "-cm_open", "words",
-        ] + extraArguments
+        ] + entitlementPins + extraArguments
         app.launch()
         XCTAssertTrue(
             app.buttons["emoji-🍎"].waitForExistence(timeout: 30),
@@ -62,6 +66,12 @@ final class ParentalGateUITests: XCTestCase {
         XCTAssertGreaterThanOrEqual(gear.frame.width, 44 - 0.05, "the gear is \(gear.frame.width)pt wide")
         gear.tap()
 
+        return readVisibleChallenge(app)
+    }
+
+    /// Reads whichever parent doorway opened the gate. Settings and the free
+    /// launcher’s Full discovery tile deliberately share the same challenge.
+    private func readVisibleChallenge(_ app: XCUIApplication) -> (a: Int, b: Int) {
         let question = app.staticTexts["gate-question"]
         XCTAssertTrue(question.waitForExistence(timeout: 5), "the gate did not open")
         let numbers = question.label
@@ -160,6 +170,102 @@ final class ParentalGateUITests: XCTestCase {
         XCTAssertTrue(field.waitForExistence(timeout: 5), "the gate has no input field")
         field.tap()
         field.typeText(text)
+    }
+
+    /// Opens Settings through the real parental gate.
+    private func openSettings(_ app: XCUIApplication) {
+        let (a, b) = openGate(app)
+        type(String(a * b), into: app)
+        app.buttons["gate-submit"].tap()
+        XCTAssertTrue(
+            element("settings-panel", in: app).waitForExistence(timeout: 5),
+            "the correct parent answer did not open Settings"
+        )
+    }
+
+    // MARK: - Full Cloudmoji
+
+    /// The offer tells a parent both sides of the deal before they can reach
+    /// Apple's purchase sheet.
+    func testFreePlanExplainsWhatIsIncludedAndWhatThePurchaseAdds() {
+        let app = launch(extraArguments: ["-cm_premium_unlocked", "NO"])
+        openSettings(app)
+
+        XCTAssertTrue(app.staticTexts["Cloudmoji Free"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["You’re using the free version."].exists)
+        XCTAssertTrue(app.staticTexts["Included: Words and Count in English."].exists)
+        XCTAssertTrue(app.staticTexts["See the paid Full version — $9.99"].exists)
+        XCTAssertTrue(app.staticTexts["English"].exists)
+        XCTAssertTrue(app.staticTexts["Included"].exists)
+
+        element("settings-plan-row", in: app).tap()
+
+        XCTAssertTrue(
+            element("full-cloudmoji-panel", in: app).waitForExistence(timeout: 5)
+        )
+        XCTAssertTrue(app.staticTexts["Upgrade to Full Cloudmoji"].exists)
+        XCTAssertTrue(app.staticTexts["Full Cloudmoji is the paid version."].exists)
+        XCTAssertTrue(app.staticTexts["One purchase. No subscription."].exists)
+        XCTAssertTrue(app.staticTexts["Words and Count in English."].exists)
+        XCTAssertTrue(
+            app.staticTexts["You can keep using the free version for as long as you like."].exists
+        )
+        XCTAssertTrue(app.staticTexts["Five more mini-apps"].exists)
+        XCTAssertTrue(app.staticTexts["Four more languages"].exists)
+        XCTAssertTrue(app.staticTexts["Apple Watch"].exists)
+        XCTAssertTrue(app.buttons["Unlock Full Cloudmoji — $9.99"].exists)
+        XCTAssertTrue(app.buttons["Restore Purchase"].exists)
+    }
+
+    /// The additional free-launcher doorway is discoverable, but neither the
+    /// offer nor its price exists until the grown-up completes the gate.
+    func testFreeLauncherFullDoorRequiresTheGateAndOpensTheOffer() {
+        let app = launch(extraArguments: ["-cm_premium_unlocked", "NO"])
+        app.buttons["home-btn"].tap()
+
+        let doorway = app.buttons["launcher-full-cloudmoji"]
+        XCTAssertTrue(doorway.waitForExistence(timeout: 5))
+        XCTAssertFalse(element("full-cloudmoji-panel", in: app).exists)
+        XCTAssertFalse(app.buttons["full-purchase"].exists)
+
+        doorway.tap()
+        XCTAssertTrue(element("parental-gate", in: app).waitForExistence(timeout: 5))
+        XCTAssertFalse(element("full-cloudmoji-panel", in: app).exists)
+
+        let challenge = readVisibleChallenge(app)
+        type(String(challenge.a * challenge.b), into: app)
+        app.buttons["gate-submit"].tap()
+
+        XCTAssertTrue(
+            element("full-cloudmoji-panel", in: app).waitForExistence(timeout: 5),
+            "passing the grown-up check did not open the paid-version explanation"
+        )
+        XCTAssertTrue(app.staticTexts["Full Cloudmoji is the paid version."].exists)
+        XCTAssertTrue(app.buttons["Unlock Full Cloudmoji — $9.99"].exists)
+        XCTAssertTrue(app.buttons["full-done"].exists)
+    }
+
+    /// A successful result changes the one entitlement source, which reveals
+    /// every paid mini-app when the parent returns to the launcher.
+    func testPurchaseUnlocksFullAndRevealsPaidMiniApps() {
+        let app = launch(extraArguments: ["-cm_premium_unlocked", "NO"])
+        openSettings(app)
+        element("settings-plan-row", in: app).tap()
+
+        let purchase = app.buttons["full-purchase"]
+        XCTAssertTrue(purchase.waitForExistence(timeout: 5))
+        purchase.tap()
+        XCTAssertTrue(
+            element("full-unlocked", in: app).waitForExistence(timeout: 5),
+            "the successful purchase did not produce Full access"
+        )
+
+        app.navigationBars.buttons["Settings"].tap()
+        app.buttons["settings-done"].tap()
+        app.buttons["home-btn"].tap()
+
+        XCTAssertTrue(app.buttons["launcher-tile-instrument"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["launcher-tile-sleepy"].exists)
     }
 
     // MARK: - The gate

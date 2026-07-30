@@ -82,7 +82,7 @@ struct FlashCardsView: View {
     )
 
     private func text(_ table: [Language: String]) -> String {
-        table[model.settings.language] ?? table[.en] ?? ""
+        table[model.effectiveLanguage] ?? table[.en] ?? ""
     }
 
     private var choiceSide: CGFloat {
@@ -117,7 +117,7 @@ struct FlashCardsView: View {
         // A language change re-asks the same question in the new language rather
         // than throwing the round away: the emoji on screen have not changed, and
         // pulling them out from under a child mid-choice would be the failure.
-        .onChange(of: model.settings.language) {
+        .onChange(of: model.effectiveLanguage) {
             silence()
             ask()
         }
@@ -346,7 +346,7 @@ struct FlashCardsView: View {
         var generator = SystemRandomNumberGenerator()
         round = FlashRound(
             pool: model.emojis(in: nil),
-            language: model.settings.language,
+            language: model.effectiveLanguage,
             avoiding: round?.target,
             using: &generator
         )
@@ -379,7 +379,7 @@ struct FlashCardsView: View {
         speechFallback?.cancel()
         speechFallback = afterDelay(Self.speechCeiling) { setMood(.happy) }
 
-        model.speech.speak(word, in: model.settings.language) {
+        model.speech.speak(word, in: model.effectiveLanguage) {
             moodTask?.cancel()
             speechFallback?.cancel()
             // `arbitrate` refuses to lower a beaming face, so a correct answer's

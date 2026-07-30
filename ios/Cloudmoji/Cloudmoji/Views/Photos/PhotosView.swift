@@ -91,7 +91,7 @@ struct PhotosView: View {
     )
 
     private func text(_ table: [Language: String]) -> String {
-        table[model.settings.language] ?? table[.en] ?? ""
+        table[model.effectiveLanguage] ?? table[.en] ?? ""
     }
 
     private var thumbnailSide: CGFloat {

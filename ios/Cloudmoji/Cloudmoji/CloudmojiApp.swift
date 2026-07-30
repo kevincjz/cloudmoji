@@ -59,11 +59,37 @@ struct CloudmojiApp: App {
     }
     #endif
 
+    @MainActor
+    private static func makeEntitlementStore() -> any EntitlementProviding {
+        #if DEBUG
+        // A hosted unit-test process starts the app before XCTest invokes the
+        // test method. Do not touch StoreKit during that host launch: an
+        // `SKTestSession` must install its local catalog before the process's
+        // first StoreKit API call. UI tests opt into the same stub explicitly
+        // through the launch argument below.
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
+            return StubEntitlementStore(defaults: .standard)
+        }
+        if UserDefaults.standard.bool(forKey: "cm_use_stub_entitlements") {
+            return StubEntitlementStore(defaults: .standard)
+        }
+        #endif
+        return StoreEntitlementStore()
+    }
+
     init() {
         #if DEBUG
         Self.resetPersistedSettingsIfRequested()
         #endif
-        let model = AppModel()
+        let model = AppModel(entitlements: Self.makeEntitlementStore())
+        #if DEBUG
+        // Lets screenshots and UI tests exercise the launcher’s replay widget
+        // without a paired physical watch. The byte only marks a message as
+        // available; tests never ask AVAudioPlayer to decode it.
+        if UserDefaults.standard.bool(forKey: "cm_seed_voice_message") {
+            model.voice.hold(Data([0]))
+        }
+        #endif
         _model = State(initialValue: model)
 
         BundledFonts.register()
@@ -78,9 +104,8 @@ struct CloudmojiApp: App {
         // They moved whole: nothing about the category or the options changed.
         model.audio.activateSession()
         model.entitlements.startObserving()
-        // Bring up the wrist link and tell a paired watch the current language
-        // and mute. No-op if there is no watch.
-        model.radio.activate()
+        // WatchConnectivity comes up only after StoreKit has verified Full.
+        // `RootContent` handles that entitlement transition.
     }
 
     @Environment(\.scenePhase) private var scenePhase
@@ -107,7 +132,11 @@ struct CloudmojiApp: App {
             // A parent may have changed language or mute on another device, or
             // paired a watch, while we were away — re-push the context so the
             // wrist is never stale.
-            model.radio.pushContext()
+            Task {
+                await model.entitlements.refresh()
+                model.radio.activate()
+                model.radio.pushContext()
+            }
         }
     }
 }

@@ -1,7 +1,7 @@
 import SwiftUI
 import CloudmojiCore
 
-/// Home. A wallpaper, one compact parent widget, and app icons.
+/// Home. A wallpaper, compact parent controls, and app icons.
 ///
 /// The first launcher used two 150pt translucent plates. They were generous
 /// targets, but the plate was the visual object and the result read as a
@@ -15,6 +15,8 @@ struct LauncherView: View {
     let apps: [MiniApp]
     let onOpen: (MiniApp) -> Void
     var onParent: () -> Void = {}
+    var showFullCloudmojiDoor = false
+    var onFullCloudmoji: () -> Void = {}
 
     /// A stable four-column rhythm is the Home Screen metaphor. It also keeps
     /// every icon in the same place when the seventh item disappears with the
@@ -59,34 +61,57 @@ struct LauncherView: View {
                     .padding(.top, layout.isExpandedPad ? 24 : (isCompact ? 4 : 10))
 
                 ScrollView(showsIndicators: false) {
-                    LazyVGrid(
-                        columns: Self.gridItems(
-                            isExpandedPad: layout.isExpandedPad,
-                            isLandscape: layout.isLandscape
-                        ),
-                        spacing: isLandscapePad
-                            ? LauncherTileMetrics.padLandscapeSpacing
-                            : (layout.isExpandedPad
-                                ? LauncherTileMetrics.padSpacing
-                                : LauncherTileMetrics.spacing)
-                    ) {
-                        ForEach(apps) { app in
-                            LauncherTile(
-                                app: app,
-                                label: app.label(model.settings.language),
-                                isCompact: isCompact,
+                    VStack(spacing: isLandscapePad ? 24 : (layout.isExpandedPad ? 30 : 22)) {
+                        LazyVGrid(
+                            columns: Self.gridItems(
                                 isExpandedPad: layout.isExpandedPad,
-                                isLandscapePad: isLandscapePad,
-                                onTap: { onOpen(app) }
-                            )
+                                isLandscape: layout.isLandscape
+                            ),
+                            spacing: isLandscapePad
+                                ? LauncherTileMetrics.padLandscapeSpacing
+                                : (layout.isExpandedPad
+                                    ? LauncherTileMetrics.padSpacing
+                                    : LauncherTileMetrics.spacing)
+                        ) {
+                            ForEach(apps) { app in
+                                LauncherTile(
+                                    app: app,
+                                    label: app.label(model.effectiveLanguage),
+                                    isCompact: isCompact,
+                                    isExpandedPad: layout.isExpandedPad,
+                                    isLandscapePad: isLandscapePad,
+                                    onTap: { onOpen(app) }
+                                )
+                            }
+
+                            if showFullCloudmojiDoor {
+                                LauncherFullCloudmojiDoor(
+                                    isCompact: isCompact,
+                                    isExpandedPad: layout.isExpandedPad,
+                                    isLandscapePad: isLandscapePad,
+                                    onTap: onFullCloudmoji
+                                )
+                            }
+                        }
+                        .frame(maxWidth: isLandscapePad ? 1_030 : (layout.isExpandedPad ? 780 : 460))
+                        .padding(.horizontal, isLandscapePad ? 24 : (layout.isExpandedPad ? 26 : 12))
+                        .padding(.top, isLandscapePad ? 20 : (layout.isExpandedPad ? 42 : (isCompact ? 6 : 18)))
+                        .frame(maxWidth: .infinity)
+
+                        if model.voice.hasMessage {
+                            VoiceMessagePill(isPlaying: model.voice.isPlaying) {
+                                guard !model.settings.muted else { return }
+                                model.voice.play()
+                            }
+                            .frame(maxWidth: isLandscapePad ? 940 : (layout.isExpandedPad ? 720 : 460))
+                            .padding(.horizontal, isLandscapePad ? 36 : (layout.isExpandedPad ? 34 : 20))
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
                         }
                     }
-                    .frame(maxWidth: isLandscapePad ? 1_030 : (layout.isExpandedPad ? 780 : 460))
-                    .padding(.horizontal, isLandscapePad ? 24 : (layout.isExpandedPad ? 26 : 12))
-                    .padding(.top, isLandscapePad ? 20 : (layout.isExpandedPad ? 42 : (isCompact ? 6 : 18)))
                     .padding(.bottom, isLandscapePad ? 24 : (layout.isExpandedPad ? 46 : 24))
                     .frame(maxWidth: .infinity)
                 }
+                .animation(.easeOut(duration: 0.25), value: model.voice.hasMessage)
             }
         }
         .accessibilityElement(children: .contain)
@@ -166,9 +191,10 @@ private struct LauncherHeaderWidget: View {
     }
 }
 
-/// The child's Home screen has one piece of parent chrome, not three adjacent
-/// controls a toddler can accidentally use. Sound and language now live in the
-/// gated parent panel; this is the single, labelled door to them.
+/// The header keeps parent settings behind one compact control instead of
+/// exposing several adjacent controls a toddler can accidentally use. Sound and
+/// language live in the gated parent panel. Free mode may additionally show a
+/// separate, clearly labelled offer doorway among the launcher tiles.
 private struct LauncherParentControl: View {
     let isCompact: Bool
     let isExpandedPad: Bool
@@ -257,7 +283,11 @@ private struct LauncherWallpaper: View {
 
 #Preview("Launcher") {
     AdaptiveShell {
-        LauncherView(apps: MiniApp.allCases, onOpen: { _ in })
+        LauncherView(
+            apps: [.words, .count],
+            onOpen: { _ in },
+            showFullCloudmojiDoor: true
+        )
     }
     .environment(AppModel())
 }

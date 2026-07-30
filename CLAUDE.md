@@ -6,26 +6,33 @@ Cloudmoji is a PWA where toddlers tap emojis and hear the words spoken aloud in 
 The cloud mascot ("Cloudmoji") is a fluffy white cloud character with a face who reacts to the child's taps — bouncing, showing star-eyes when excited, opening its mouth when speaking, and beaming with joy at milestones.
 
 This is a validation-stage product. No backend, no accounts. One optional
-purchase (StoreKit 2 only, behind the parental gate) unlocks the premium
-mini-apps. Ship fast, learn fast.
+USD 9.99 lifetime purchase (a StoreKit 2 non-consumable, behind the parental
+gate) unlocks every experience beyond Words and Count in English. Ship fast,
+learn fast. The implementation and test contract lives in
+`docs/product/MONETIZATION.md`.
 
 Hosted on Vercel (free tier, auto-deploys from `main`) at **cloudmoji.app**.
+Customer support: **kevin.chan@sproutlearn.co**, published at
+**cloudmoji.app/support** and linked only from the gated Grown-ups area in the
+native app.
 
 ### The play area (iOS)
 The iOS app opens on a **launcher**: a four-column iPhone-style grid of seven
 layered app icons, with one labelled, gated Grown-ups control above it. Sound
-and language choices live in that parent panel. Four are always included — Words 🗣️,
-Count 🧮, Music 🎹 and Sleepy Cloud 🌙 — and three are behind a single unlock:
-Flash Cards ⚡, Animals 🔊 and Photos 📷. Available child-facing apps carry no
-purchase badge; `AppModel.visibleMiniApps` hides the premium three entirely
-while the entitlement is locked. Inside a mini-app the only navigation control
-is the **cloud home button**: 84pt, centred along the bottom, in every one of
-the seven.
+and language choices live in that parent panel. Words 🗣️ and Count 🧮 in
+English are always included. One purchase unlocks Music 🎹, Flash Cards ⚡,
+Animals 🔊, Photos 📷, Sleepy Cloud 🌙, Mandarin Chinese, Bahasa Melayu,
+Japanese, Tagalog, and the Apple Watch experience including voice notes.
+Available child-facing apps carry no purchase badge;
+`AppModel.visibleMiniApps` hides the Full mini-apps entirely while the
+entitlement is locked. Inside a mini-app the only navigation control is the
+**cloud home button**: 84pt, centred along the bottom, in every one of the
+seven.
 
 `StubEntitlementStore` is the entitlement today and it defaults to **unlocked** —
 there is no App Store Connect product yet, so a default of locked would hide
-three finished mini-apps behind a button that cannot do anything. StoreKit is
-Step 7 of `PLAN.md` and is not built.
+five finished mini-apps and four languages behind a button that cannot do
+anything. StoreKit is Step 7 of `PLAN.md` and is not built.
 
 **Scope:** the launcher and the mini-apps are iOS-only. The web app remains the
 two-mode product and is no longer the reference for iOS structure —
@@ -44,6 +51,12 @@ held only in memory for the session, never on disk. `SystemSpeechEngine` now
 lives in `CloudmojiCore` so both targets share it. Still no watch settings UI or
 mascot. **Note:** a microphone in a Kids-Category app carries an unresolved App
 Review risk — check the guidelines before submission.
+
+The watch experience is part of Full Cloudmoji. The embedded watch binary
+cannot be withheld from a free app download, so a locked watch must show only a
+parent-facing unlock explanation and must not activate WatchConnectivity,
+speech, or the microphone. Its source of truth is the universal verified
+StoreKit entitlement, not a Boolean received from the phone.
 
 ## Where Context Lives
 - `MASTER_PLAN.md` — strategy, phases, decision points

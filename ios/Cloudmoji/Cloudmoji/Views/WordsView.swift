@@ -106,7 +106,7 @@ struct WordsView: View {
         // A language or mute change must silence what is already queued — the
         // same `useEffect(cancelAll, [muted, lang])` the web has. Without it the
         // phone finishes the previous language's word after the switch.
-        .onChange(of: model.settings.language) {
+        .onChange(of: model.effectiveLanguage) {
             silence()
             // `TypedEmoji` froze its word at tap time, so without this the row
             // keeps speaking whatever language it was typed in: tap 🍎 in
@@ -206,7 +206,7 @@ struct WordsView: View {
             muted: model.settings.muted,
             // The row's placeholder is the one string in it that is not a glyph,
             // and it is the first thing on screen before the first tap.
-            language: model.settings.language,
+            language: model.effectiveLanguage,
             onReplay: replayAll,
             onDelete: {
                 model.speech.cancelAll()
@@ -337,7 +337,7 @@ struct WordsView: View {
         speechFallback?.cancel()
         speechFallback = afterDelay(Self.speechCeiling) { setMood(.happy) }
 
-        model.speech.speak(word, in: model.settings.language) {
+        model.speech.speak(word, in: model.effectiveLanguage) {
             moodTask?.cancel()
             speechFallback?.cancel()
             setMood(.happy)
@@ -363,7 +363,7 @@ struct WordsView: View {
                     moodTask = afterDelay(Self.bubbleHold) { setMood(.happy) }
                 }
             },
-            in: model.settings.language
+            in: model.effectiveLanguage
         )
     }
 

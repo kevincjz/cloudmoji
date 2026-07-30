@@ -51,22 +51,19 @@ struct TutorialView: View {
             glyph: "👆",
             title: "Tap an emoji, hear the word",
             detail: """
-                That is the whole app. Tap anything in the grid and Cloudmoji says \
-                it out loud. A grown-up chooses the learning languages; Words and \
-                Count also keep a quick language button in their top bar.
+                Start with Words and Count in English. Tap anything in the grid and \
+                Cloudmoji says it out loud. A grown-up can find plan details and \
+                all parent controls in Grown-ups.
                 """
         ),
         Step(
             id: "launcher",
             glyph: "🗣️",
-            title: "Seven mini-apps on the home screen",
+            title: "More worlds with Full Cloudmoji",
             detail: """
-                Words is the emoji grid. Count gives them a group of things to tap \
-                one at a time. Flash Cards asks them to find a word they have just \
-                heard. Music is eight pads with no wrong notes. Animals plays a \
-                creature, then names it. Photos takes pictures that stay inside the \
-                app. Sleepy Cloud is a breathing exercise with a soft, calming \
-                sound for bedtime.
+                Full Cloudmoji adds Music, Flash Cards, Animals, Photos and Sleepy \
+                Cloud, plus four more languages and the Apple Watch experience. \
+                Purchase details stay inside the gated Grown-ups screen.
                 """
         ),
         Step(
@@ -105,10 +102,10 @@ struct TutorialView: View {
             title: "Grown-ups settings",
             detail: """
                 The locked Grown-ups button on Home opens them, behind a simple sum \
-                to keep small fingers out. Inside you can choose sound, which languages \
-                appear, which categories of emoji your child sees, how high Count \
-                mode goes, and what happens to the photos your child takes — and \
-                get back to this page any time.
+                to keep small fingers out. Inside you can choose sound, categories, \
+                how high Count mode goes and which languages are available with your \
+                plan. You can also see what the free version includes and what Full \
+                Cloudmoji unlocks.
                 """
         ),
     ]

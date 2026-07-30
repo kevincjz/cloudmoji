@@ -143,7 +143,7 @@ struct AnimalSoundsView: View {
             for task in [bounceTask, moodTask, speechFallback, wordTask] { task?.cancel() }
         }
         .onChange(of: model.settings.muted) { silence() }
-        .onChange(of: model.settings.language) { silence() }
+        .onChange(of: model.effectiveLanguage) { silence() }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("animals-panel")
     }
@@ -231,7 +231,7 @@ struct AnimalSoundsView: View {
         speechFallback?.cancel()
         speechFallback = afterDelay(Self.speechCeiling) { setMood(.happy) }
 
-        model.speech.speak(word, in: model.settings.language) {
+        model.speech.speak(word, in: model.effectiveLanguage) {
             moodTask?.cancel()
             speechFallback?.cancel()
             setMood(.happy)

@@ -75,7 +75,7 @@ struct CountView: View {
 
     /// A missing row is a content bug, not a reason for a child to see a crash.
     private func text(_ table: [Language: String]) -> String {
-        table[model.settings.language] ?? table[.en] ?? ""
+        table[model.effectiveLanguage] ?? table[.en] ?? ""
     }
 
     // MARK: - Timings
@@ -119,7 +119,7 @@ struct CountView: View {
         }
         // Same `useEffect(cancelAll, [muted, lang])` Words mode has. Without it the
         // phone finishes the previous language's number after the switch.
-        .onChange(of: model.settings.language) {
+        .onChange(of: model.effectiveLanguage) {
             silence()
             // The phrase was built at tap time and would otherwise stay in the old
             // language until the next tap — and be handed to the new language's
@@ -312,7 +312,7 @@ struct CountView: View {
         speechFallback?.cancel()
         speechFallback = afterDelay(Self.speechCeiling) { setMood(.happy) }
 
-        model.speech.speak(text, in: model.settings.language) {
+        model.speech.speak(text, in: model.effectiveLanguage) {
             moodTask?.cancel()
             speechFallback?.cancel()
             setMood(.happy)
@@ -332,7 +332,7 @@ struct CountView: View {
             )
             phrase = closing
             if !model.settings.muted {
-                model.speech.speak(closing, in: model.settings.language)
+                model.speech.speak(closing, in: model.effectiveLanguage)
             }
 
             try? await Task.sleep(for: Self.beamingHold)

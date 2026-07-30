@@ -33,12 +33,16 @@ struct PocketCloudView: View {
         .sheet(isPresented: $isRecording) {
             RecordView().environment(model)
         }
+        .onChange(of: model.entitlements.isUnlocked) { _, isFull in
+            if !isFull { isRecording = false }
+        }
     }
 
     /// The one way to reach the microphone — small, out of the emoji's way, and
     /// a parent's target rather than a child's.
     private var micButton: some View {
         Button {
+            guard model.entitlements.isUnlocked else { return }
             isRecording = true
         } label: {
             Image(systemName: "mic.fill")

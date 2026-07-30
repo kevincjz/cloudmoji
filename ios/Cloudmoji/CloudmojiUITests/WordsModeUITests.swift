@@ -65,6 +65,8 @@ final class WordsModeUITests: XCTestCase {
     private func launch(enabledLanguages: String = "(en,zh,ms,ja,tl)") -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = [
+            "-cm_use_stub_entitlements", "YES",
+            "-cm_premium_unlocked", "YES",
             "-cm_lang", "en",
             "-cm_muted", "NO",
             "-cm_enabled_langs", enabledLanguages,

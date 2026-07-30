@@ -113,6 +113,115 @@ struct LauncherTile: View {
     }
 }
 
+/// A discoverable grown-up doorway on the free launcher.
+///
+/// This deliberately isn't a `MiniApp`: Free still contains exactly Words and
+/// Count, and this tile never opens child content. It also contains no price,
+/// "buy", or "upgrade" language. Tapping it opens the same arithmetic parental
+/// gate as Settings; only the gated screen explains the paid version.
+struct LauncherFullCloudmojiDoor: View {
+    var isCompact = false
+    var isExpandedPad = false
+    var isLandscapePad = false
+    let onTap: () -> Void
+
+    private var iconSide: CGFloat {
+        if isLandscapePad { return LauncherTileMetrics.padLandscapeIconSide }
+        if isExpandedPad { return LauncherTileMetrics.padIconSide }
+        return isCompact ? LauncherTileMetrics.compactIconSide : LauncherTileMetrics.iconSide
+    }
+
+    private var cellHeight: CGFloat {
+        if isLandscapePad { return LauncherTileMetrics.padLandscapeCellHeight }
+        if isExpandedPad { return LauncherTileMetrics.padCellHeight }
+        return isCompact ? LauncherTileMetrics.compactCellHeight : LauncherTileMetrics.cellHeight
+    }
+
+    private var labelSize: CGFloat {
+        if isLandscapePad { return LauncherTileMetrics.padLandscapeLabelSize }
+        if isExpandedPad { return LauncherTileMetrics.padLabelSize }
+        return isCompact ? LauncherTileMetrics.compactLabelSize : LauncherTileMetrics.labelSize
+    }
+
+    private var cellWidth: CGFloat? {
+        if isLandscapePad { return LauncherTileMetrics.padLandscapeCellWidth }
+        if isExpandedPad { return LauncherTileMetrics.padCellWidth }
+        return nil
+    }
+
+    private var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: iconSide * 0.25, style: .continuous)
+    }
+
+    var body: some View {
+        Button {
+            Haptics.tap()
+            onTap()
+        } label: {
+            VStack(spacing: isLandscapePad ? 12 : (isExpandedPad ? 10 : (isCompact ? 4 : 7))) {
+                icon
+
+                Text("For Grown-ups")
+                    .font(Theme.body(labelSize, .black))
+                    .foregroundStyle(Theme.textPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.68)
+                    .shadow(color: Theme.bgPrimary.opacity(0.9), radius: 2, y: 1)
+            }
+            .frame(maxWidth: .infinity, minHeight: cellHeight)
+            .frame(width: cellWidth)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PressScale(scale: LauncherTileMetrics.pressedScale))
+        .accessibilityLabel("For grown-ups")
+        .accessibilityHint("Opens a grown-up check.")
+        .accessibilityIdentifier("launcher-full-cloudmoji")
+    }
+
+    private var icon: some View {
+        ZStack {
+            shape
+                .fill(
+                    LinearGradient(
+                        colors: [Theme.teal, Theme.coral, Theme.bgMid.opacity(0.9)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+
+            Circle()
+                .fill(Color.white.opacity(0.18))
+                .frame(width: iconSide * 0.76)
+                .blur(radius: iconSide * 0.12)
+                .offset(x: -iconSide * 0.25, y: -iconSide * 0.28)
+
+            Image(systemName: "cloud.fill")
+                .font(.system(size: iconSide * 0.48, weight: .black))
+                .foregroundStyle(Color.white)
+
+            Circle()
+                .fill(Theme.bgEdge)
+                .frame(width: iconSide * 0.31)
+                .overlay {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: iconSide * 0.14, weight: .black))
+                        .foregroundStyle(Theme.gold)
+                }
+                .overlay {
+                    Circle().stroke(Color.white.opacity(0.28), lineWidth: 1)
+                }
+                .offset(x: iconSide * 0.27, y: iconSide * 0.25)
+
+            shape
+                .strokeBorder(Color.white.opacity(0.24), lineWidth: 1)
+        }
+        .frame(width: iconSide, height: iconSide)
+        .clipShape(shape)
+        .shadow(color: Theme.teal.opacity(0.3), radius: 10, y: 6)
+        .accessibilityHidden(true)
+    }
+}
+
 /// A layered, in-app app icon.
 ///
 /// It follows the visual grammar of an iOS Home Screen icon — one simple idea,

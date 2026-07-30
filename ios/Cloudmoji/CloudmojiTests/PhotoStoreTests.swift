@@ -1,4 +1,5 @@
 import Foundation
+import Photos
 import Testing
 import UIKit
 @testable import Cloudmoji
@@ -157,6 +158,29 @@ struct PhotoStoreTests {
 
         _ = try store.save(jpeg(0.5))
         #expect(FileManager.default.fileExists(atPath: store.directory.path()))
+    }
+}
+
+@Suite("Photo library export")
+@MainActor
+struct PhotoLibraryExporterTests {
+
+    @Test("only statuses that allow adding photos proceed")
+    func authorizationStatusesAreHandled() {
+        #expect(PhotoLibraryExporter.canAddPhotos(for: .authorized))
+        #expect(PhotoLibraryExporter.canAddPhotos(for: .limited))
+        #expect(!PhotoLibraryExporter.canAddPhotos(for: .notDetermined))
+        #expect(!PhotoLibraryExporter.canAddPhotos(for: .restricted))
+        #expect(!PhotoLibraryExporter.canAddPhotos(for: .denied))
+    }
+
+    @Test("the app explains why it adds to the photo library")
+    func addOnlyUsageDescriptionIsPresent() {
+        let description = Bundle.main.object(
+            forInfoDictionaryKey: "NSPhotoLibraryAddUsageDescription"
+        ) as? String
+        #expect(!(description ?? "").isEmpty)
+        #expect(description?.localizedCaseInsensitiveContains("save") == true)
     }
 }
 

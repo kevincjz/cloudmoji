@@ -41,6 +41,31 @@ struct LauncherViewTests {
         #expect(bitmap.height >= 64, "the icon cell is \(bitmap.height)pt tall")
     }
 
+    /// The free launcher's parent doorway occupies the same generous grid cell
+    /// as a mini-app even though it is not itself child content.
+    @Test("the Full discovery doorway remains child-sized")
+    func fullDiscoveryDoorMeetsTheTouchTargetFloor() {
+        let bitmap = Bitmap.rendered(
+            LauncherFullCloudmojiDoor(onTap: {})
+                .frame(width: 80)
+        )
+        #expect(bitmap.width >= 64, "the grown-up door is \(bitmap.width)pt wide")
+        #expect(bitmap.height >= 64, "the grown-up door is \(bitmap.height)pt tall")
+    }
+
+    /// The replay affordance is a launcher widget now, not a small overlay over
+    /// the brand. It keeps the child-facing touch-target floor while spanning
+    /// the available launcher column.
+    @Test("the voice-message widget is broad and child-sized")
+    func voiceMessageWidgetIsBroadAndChildSized() {
+        let bitmap = Bitmap.rendered(
+            VoiceMessagePill(isPlaying: false, onTap: {})
+                .frame(width: 350)
+        )
+        #expect(bitmap.width == 350, "the widget collapsed to \(bitmap.width)pt wide")
+        #expect(bitmap.height >= 64, "the widget is only \(bitmap.height)pt tall")
+    }
+
     // MARK: - What is on the launcher
 
     /// The entitlement decides, in one place, and every premium mini-app relies
@@ -51,18 +76,20 @@ struct LauncherViewTests {
     @Test("the extras are on the launcher only when they are unlocked")
     func visibilityFollowsTheEntitlement() {
         let locked = makeModel(unlocked: false)
-        #expect(locked.visibleMiniApps.count == 4)
-        #expect(locked.visibleMiniApps.allSatisfy { !$0.isPremium })
+        #expect(locked.visibleMiniApps.count == 2)
+        #expect(locked.visibleMiniApps.allSatisfy { !$0.requiresFull })
         #expect(!locked.visibleMiniApps.contains(.flashCards))
+        #expect(!locked.visibleMiniApps.contains(.instrument))
+        #expect(!locked.visibleMiniApps.contains(.sleepy))
 
         let unlocked = makeModel(unlocked: true)
         #expect(unlocked.visibleMiniApps.count == 7)
         #expect(unlocked.visibleMiniApps == MiniApp.allCases)
     }
 
-    /// Absent means unlocked, and that is deliberate — there is no product in
-    /// App Store Connect yet, so defaulting to locked would hide three finished
-    /// mini-apps behind a button that cannot do anything.
+    /// The deterministic stub defaults to unlocked so previews and legacy unit
+    /// tests continue to exercise the complete product. Production never uses
+    /// this flag as an access grant.
     ///
     /// Mutation: drop the `object(forKey:) != nil` guard in `readUnlocked` so a
     /// missing key falls through to `bool(forKey:)`, which is false. The first
@@ -123,14 +150,16 @@ struct LauncherViewTests {
         }
     }
 
-    /// Exactly three extras, and they are the three the badge, the Settings copy
-    /// and the About FAQ all name.
+    /// Exactly five Full mini-apps, matching the paywall, Settings and About copy.
     ///
-    /// Mutation: mark `sleepy` premium. This fails.
-    @Test("three mini-apps are extras and four are not")
+    /// Mutation: make Music or Sleepy Cloud free. This fails.
+    @Test("five mini-apps require Full and two are free")
     func premiumSetIsTheDocumentedOne() {
-        #expect(MiniApp.allCases.filter(\.isPremium) == [.flashCards, .animalSounds, .photos])
-        #expect(MiniApp.allCases.filter { !$0.isPremium } == [.words, .count, .instrument, .sleepy])
+        #expect(
+            Set(MiniApp.allCases.filter(\.requiresFull))
+                == Set([.instrument, .flashCards, .animalSounds, .photos, .sleepy])
+        )
+        #expect(MiniApp.allCases.filter { !$0.requiresFull } == [.words, .count])
     }
 
     /// Every tile has a caption in every language, and none of them falls back

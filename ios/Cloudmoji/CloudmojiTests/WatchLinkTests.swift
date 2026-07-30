@@ -16,12 +16,17 @@ struct WatchLinkTests {
         var onVoice: ((Data) -> Void)?
         var onHello: (() -> Void)?
         var activated = false
+        var deactivated = false
         var sent: [[String: String]] = []
         var contexts: [[String: String]] = []
 
         init(isSupported: Bool = true) { self.isSupported = isSupported }
 
         func activate() { activated = true }
+        func deactivate() {
+            activated = false
+            deactivated = true
+        }
         func send(_ payload: [String: String]) { sent.append(payload) }
         func updateContext(_ payload: [String: String]) { contexts.append(payload) }
 
@@ -34,14 +39,25 @@ struct WatchLinkTests {
     private func make(
         language: Language = .en,
         muted: Bool = false,
-        supported: Bool = true
+        supported: Bool = true,
+        unlocked: Bool = true
     ) -> (WatchLink, FakeTransport, SettingsStore) {
         let defaults = UserDefaults(suiteName: "watchlink-\(UUID().uuidString)")!
+        defaults.set(unlocked, forKey: StubEntitlementStore.storageKey)
         let settings = SettingsStore(defaults: defaults)
         settings.language = language
         settings.muted = muted
         let transport = FakeTransport(isSupported: supported)
-        return (WatchLink(settings: settings, transport: transport), transport, settings)
+        let entitlements = StubEntitlementStore(defaults: defaults)
+        return (
+            WatchLink(
+                settings: settings,
+                entitlements: entitlements,
+                transport: transport
+            ),
+            transport,
+            settings
+        )
     }
 
     /// Bringing the link up tells the watch the current state, so it opens in
@@ -71,6 +87,35 @@ struct WatchLinkTests {
         #expect(!transport.activated)
         #expect(transport.sent.isEmpty)
         #expect(transport.contexts.isEmpty)
+    }
+
+    @Test("a free installation cannot activate, send or receive Watch content")
+    func lockedEntitlementIsInert() {
+        let (link, transport, _) = make(language: .ja, unlocked: false)
+
+        link.activate()
+        link.childTapped("🍎")
+        transport.deliver(RadioMessage(emoji: "🐶", direction: .toPhone, language: .ja))
+        transport.deliverVoice(Data([1, 2, 3]))
+
+        #expect(!transport.activated)
+        #expect(transport.sent.isEmpty)
+        #expect(transport.contexts.isEmpty)
+        #expect(link.incoming == nil)
+        #expect(link.incomingVoice == nil)
+    }
+
+    @Test("deactivation clears received content and stops the transport")
+    func deactivationClearsContent() {
+        let (link, transport, _) = make()
+        transport.deliver(RadioMessage(emoji: "🐶", direction: .toPhone, language: .en))
+        transport.deliverVoice(Data([1]))
+
+        link.deactivate()
+
+        #expect(transport.deactivated)
+        #expect(link.incoming == nil)
+        #expect(link.incomingVoice == nil)
     }
 
     /// A child's tap becomes a `.toWatch` message in the language the parent set.

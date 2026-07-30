@@ -7,16 +7,15 @@ import CloudmojiCore
 /// because `MiniApp` is a view-layer type and must not leak into `CloudmojiCore`
 /// — the package is shared with a future watch target that has no launcher.
 extension AppModel {
-    /// The free four when the extras are locked, all seven when they are not.
+    /// Words and Count when Full is locked, all seven when it is unlocked.
     ///
     /// One filter, in one place, is what keeps every premium mini-app from
     /// carrying its own entitlement branch: `FlashCardsView` never asks whether
     /// it is allowed to be on screen, because a locked launcher never opens it.
     var visibleMiniApps: [MiniApp] {
-        let unlocked = entitlements.isUnlocked
         let hasAnimals = settings.enabledCategories.contains(.animals)
         return MiniApp.allCases.filter { app in
-            guard !app.isPremium || unlocked else { return false }
+            guard accessPolicy.canUse(app) else { return false }
             // Animal Sounds *is* the animals category. A parent who switched
             // animals off in Settings has said they do not want them, and the
             // mini-app has nothing else to show — it used to render a blank

@@ -1,15 +1,14 @@
 import Foundation
 
-/// Where a child's photographs live, and the promise that they never leave.
+/// Where a child's photographs live until a grown-up explicitly saves a copy.
 ///
 /// Three decisions here are the whole of "photos stay on this device", and each
 /// one is load-bearing:
 ///
-/// * **Application Support, not the photo library.** Writing to the library would
-///   need `NSPhotoLibraryAddUsageDescription`, would put a toddler's shutter
-///   presses in the parent's camera roll and in their iCloud Photos, and would
-///   make this a Kids Category conversation. The app container is not backed up
-///   to the same place, is deleted with the app, and needs no permission at all.
+/// * **Application Support, not the photo library.** A toddler's shutter presses
+///   stay in the app rather than appearing automatically in the parent's camera
+///   roll or iCloud Photos. Only `PhotoLibraryExporter`, reached through the
+///   parental gate, copies a photo out when a grown-up asks.
 /// * **Excluded from backup.** Without this the folder rides along in the
 ///   device's iCloud backup, which is a copy of the child's photographs on
 ///   Apple's servers — true, defensible, and not what the About screen says.

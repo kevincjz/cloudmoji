@@ -67,7 +67,7 @@ final class AppModel {
         self.settings = settings
         self.entitlements = entitlements
         self.audio = audio
-        self.radio = WatchLink(settings: settings)
+        self.radio = WatchLink(settings: settings, entitlements: entitlements)
         // A missing or malformed bundled resource is a build error, not a
         // runtime path — but the child must never see a crash, so an empty
         // repository is the degraded case rather than a trap.
@@ -91,8 +91,23 @@ final class AppModel {
         )
     }
 
+    var accessPolicy: AppAccessPolicy {
+        AppAccessPolicy(hasFullAccess: entitlements.isUnlocked)
+    }
+
+    /// The only language child-facing code may render or speak.
+    ///
+    /// A refund does not overwrite the parent's saved Full preference; it merely
+    /// resolves to English until the entitlement is verified again.
+    var effectiveLanguage: Language {
+        accessPolicy.effectiveLanguage(preferred: settings.language)
+    }
+
     var availableLanguages: [LanguageMeta] {
-        repository.languages.filter { settings.enabledLanguages.contains($0.id) }
+        if !entitlements.isUnlocked {
+            return repository.languages.filter { $0.id == .en }
+        }
+        return repository.languages.filter { settings.enabledLanguages.contains($0.id) }
     }
 
     /// Whether the header's language button does anything. False when the parent
@@ -108,8 +123,9 @@ final class AppModel {
     /// `availableLanguages` is the point of the design — a family that switched
     /// three off gets a two-way toggle.
     func cycleLanguage() {
+        guard entitlements.isUnlocked else { return }
         settings.language = Self.nextLanguage(
-            after: settings.language,
+            after: effectiveLanguage,
             in: availableLanguages.map(\.id)
         )
     }
@@ -243,17 +259,17 @@ final class AppModel {
     /// `CountingGrammar`, which is where the five languages' rules live and are
     /// tested. This exists so the view never has to know the language either.
     func phrase(for item: Countable, count: Int) -> String {
-        grammar.phrase(item, count: count, in: settings.language)
+        grammar.phrase(item, count: count, in: effectiveLanguage)
     }
 
     func word(for entry: EmojiEntry) -> String {
-        entry.word(settings.language)
+        entry.word(effectiveLanguage)
     }
 
     /// What an animal *says* in the chosen language — "woof woof", 汪汪, ワンワン.
     /// `nil` when this glyph has no noise on file. See `src/data/animalSounds.ts`.
     func animalSound(for glyph: String) -> String? {
-        repository.animalSound(for: glyph, in: settings.language)
+        repository.animalSound(for: glyph, in: effectiveLanguage)
     }
 
     /// Every animal with a noise, whatever the language.
@@ -276,6 +292,24 @@ final class AppModel {
     }
 
     func label(for tab: CategoryTab) -> String {
-        tab.label(settings.language)
+        tab.label(effectiveLanguage)
+    }
+
+    func canUse(_ app: MiniApp) -> Bool {
+        accessPolicy.canUse(app)
+    }
+
+    /// Side effects that accompany a verified entitlement transition.
+    ///
+    /// Navigation itself stays in `RootContent`, the owner of the active screen.
+    func handleAccessChange(isFull: Bool) {
+        speech.cancelAll()
+        if isFull {
+            radio.activate()
+        } else {
+            audio.detach()
+            voice.clear()
+            radio.deactivate()
+        }
     }
 }

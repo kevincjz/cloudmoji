@@ -1,0 +1,39 @@
+{
+  "identifier" : "594E57A8-A281-48C5-B234-FC427116C1A6",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "9.99",
+      "familyShareable" : true,
+      "internalID" : "6015042055",
+      "localizations" : [
+        {
+          "description" : "Unlock Music, Flash Cards, Animals, Photos, Sleepy Cloud, four more languages, and the Apple Watch experience.",
+          "displayName" : "Full Cloudmoji",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "app.cloudmoji.unlock.full",
+      "referenceName" : "Full Cloudmoji",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+
+    ],
+    "_timeRate" : 0
+  },
+  "subscriptionGroups" : [
+
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

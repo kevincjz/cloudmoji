@@ -7,11 +7,15 @@ import CloudmojiCore
 @Suite("AppModel")
 struct AppModelTests {
     /// Isolated defaults per test, so cases cannot leak into each other.
-    func makeModel() -> AppModel {
+    func makeModel(unlocked: Bool = true) -> AppModel {
         let suite = UUID().uuidString
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
-        return AppModel(settings: SettingsStore(defaults: defaults))
+        defaults.set(unlocked, forKey: StubEntitlementStore.storageKey)
+        return AppModel(
+            settings: SettingsStore(defaults: defaults),
+            entitlements: StubEntitlementStore(defaults: defaults)
+        )
     }
 
     @Test("exposes all content by default")
@@ -134,6 +138,42 @@ struct AppModelTests {
         let model = makeModel()
         model.settings.enabledLanguages = [.en, .zh]
         #expect(model.availableLanguages.map(\.id) == [.en, .zh])
+    }
+
+    @Test("the free plan always renders and speaks English")
+    func freePlanUsesEnglishWithoutOverwritingThePreference() throws {
+        let model = makeModel(unlocked: false)
+        model.settings.language = .ja
+        let apple = try #require(model.emojis(in: .fruits).first { $0.emoji == "🍎" })
+
+        #expect(model.effectiveLanguage == .en)
+        #expect(model.availableLanguages.map(\.id) == [.en])
+        #expect(model.word(for: apple) == "apple")
+        #expect(!model.canCycleLanguage)
+
+        model.cycleLanguage()
+        #expect(model.settings.language == .ja, "the saved Full preference was overwritten")
+    }
+
+    @Test("the access policy is the complete free and Full contract")
+    func accessPolicyContract() {
+        let free = AppAccessPolicy(hasFullAccess: false)
+        #expect(free.canUse(.words))
+        #expect(free.canUse(.count))
+        #expect(!free.canUse(.instrument))
+        #expect(!free.canUse(.flashCards))
+        #expect(!free.canUse(.animalSounds))
+        #expect(!free.canUse(.photos))
+        #expect(!free.canUse(.sleepy))
+        #expect(free.effectiveLanguage(preferred: .tl) == .en)
+        #expect(!free.canUseWatch)
+        #expect(!free.canUseWatchVoiceNotes)
+
+        let full = AppAccessPolicy(hasFullAccess: true)
+        #expect(MiniApp.allCases.allSatisfy { full.canUse($0) })
+        #expect(full.effectiveLanguage(preferred: .ja) == .ja)
+        #expect(full.canUseWatch)
+        #expect(full.canUseWatchVoiceNotes)
     }
 
     @Test("the word follows the selected language")

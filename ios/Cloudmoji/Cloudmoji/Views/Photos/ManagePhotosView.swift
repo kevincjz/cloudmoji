@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-/// The grown-up's half of Photos: how many there are, and how to get rid of them.
+/// The grown-up's half of Photos: save copies to Apple Photos or delete them.
 ///
 /// Pushed from `SettingsView`, so it is already behind the parental gate — which
 /// is the whole reason it is a separate screen from the child's gallery. The
@@ -17,9 +17,23 @@ struct ManagePhotosView: View {
     @State private var store = PhotoStore()
     @State private var photos: [URL] = []
     @State private var isConfirmingDeleteAll = false
+    @State private var savingURLs: Set<URL> = []
+    @State private var saveAlert: SaveAlert?
 
     private static let rowHeight: CGFloat = 44
     private static let thumbnailSide: CGFloat = 56
+
+    private struct SaveAlert: Identifiable {
+        enum Kind {
+            case saved
+            case accessDenied
+            case failed
+        }
+
+        let id = UUID()
+        let kind: Kind
+        let count: Int
+    }
 
     var body: some View {
         List {
@@ -32,7 +46,7 @@ struct ManagePhotosView: View {
                     .frame(minHeight: Self.rowHeight, alignment: .leading)
                     .accessibilityIdentifier("manage-photos-count")
             } footer: {
-                Text("Photos your child takes are stored inside Cloudmoji on this device. They are excluded from iCloud backup, they are never added to your photo library, and deleting the app deletes them.")
+                Text("Photos your child takes stay inside Cloudmoji unless you choose to save a copy to Photos. Cloudmoji originals are excluded from iCloud backup, and deleting the app deletes them.")
             }
 
             // **The one link out of the app, and it is behind the gate.**
@@ -63,6 +77,33 @@ struct ManagePhotosView: View {
             }
 
             if !photos.isEmpty {
+                Section {
+                    Button {
+                        saveToPhotoLibrary(photos)
+                    } label: {
+                        Label {
+                            Text(savingURLs.isEmpty
+                                 ? "Save all \(photos.count) to Photos"
+                                 : "Saving to Photos…")
+                                .font(Theme.body(15, .bold))
+                        } icon: {
+                            if savingURLs.isEmpty {
+                                Image(systemName: "square.and.arrow.down")
+                            } else {
+                                ProgressView()
+                                    .controlSize(.small)
+                            }
+                        }
+                        .frame(minHeight: Self.rowHeight)
+                    }
+                    .disabled(!savingURLs.isEmpty)
+                    .accessibilityIdentifier("manage-photos-save-all")
+                } header: {
+                    Text("Photo Library")
+                } footer: {
+                    Text("This adds copies to Apple Photos. The originals remain inside Cloudmoji until you delete them.")
+                }
+
                 Section("Photos") {
                     ForEach(photos, id: \.self) { url in
                         HStack(spacing: 12) {
@@ -70,6 +111,24 @@ struct ManagePhotosView: View {
                                 .frame(width: Self.thumbnailSide, height: Self.thumbnailSide)
                                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                             Spacer()
+                            Button {
+                                saveToPhotoLibrary([url])
+                            } label: {
+                                if savingURLs.contains(url) {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                        .frame(minWidth: Self.rowHeight, minHeight: Self.rowHeight)
+                                        .accessibilityLabel("Saving")
+                                } else {
+                                    Text("Save")
+                                        .font(Theme.body(14, .bold))
+                                        .frame(minHeight: Self.rowHeight)
+                                }
+                            }
+                            .buttonStyle(.borderless)
+                            .disabled(!savingURLs.isEmpty)
+                            .accessibilityIdentifier("manage-photo-save")
+
                             Button(role: .destructive) {
                                 store.delete(url)
                                 photos = store.photos
@@ -80,6 +139,7 @@ struct ManagePhotosView: View {
                                     .frame(minHeight: Self.rowHeight)
                             }
                             .buttonStyle(.borderless)
+                            .disabled(!savingURLs.isEmpty)
                             .accessibilityIdentifier("manage-photo-delete")
                         }
                         .frame(minHeight: Self.rowHeight)
@@ -95,6 +155,7 @@ struct ManagePhotosView: View {
                             .frame(minHeight: Self.rowHeight)
                     }
                     .accessibilityIdentifier("manage-photos-delete-all")
+                    .disabled(!savingURLs.isEmpty)
                 }
             }
         }
@@ -131,8 +192,52 @@ struct ManagePhotosView: View {
         } message: {
             Text("This cannot be undone.")
         }
+        .alert(item: $saveAlert) { alert in
+            switch alert.kind {
+            case .saved:
+                let noun = alert.count == 1 ? "photo is" : "photos are"
+                return Alert(
+                    title: Text("Saved to Photos"),
+                    message: Text("\(alert.count) \(noun) now in your photo library."),
+                    dismissButton: .default(Text("Done"))
+                )
+            case .accessDenied:
+                return Alert(
+                    title: Text("Allow Photos Access"),
+                    message: Text("Cloudmoji needs permission to add these photos to your library. You can allow access in iPhone Settings."),
+                    primaryButton: .default(Text("Open Settings")) {
+                        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+                        openURL(url)
+                    },
+                    secondaryButton: .cancel()
+                )
+            case .failed:
+                return Alert(
+                    title: Text("Couldn’t Save Photos"),
+                    message: Text("No photos were removed from Cloudmoji. Please try again."),
+                    dismissButton: .default(Text("OK"))
+                )
+            }
+        }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("manage-photos-panel")
+    }
+
+    private func saveToPhotoLibrary(_ urls: [URL]) {
+        guard savingURLs.isEmpty, !urls.isEmpty else { return }
+        savingURLs = Set(urls)
+
+        Task {
+            do {
+                try await PhotoLibraryExporter.save(urls)
+                saveAlert = SaveAlert(kind: .saved, count: urls.count)
+            } catch PhotoLibraryExporter.ExportError.accessDenied {
+                saveAlert = SaveAlert(kind: .accessDenied, count: urls.count)
+            } catch {
+                saveAlert = SaveAlert(kind: .failed, count: urls.count)
+            }
+            savingURLs.removeAll()
+        }
     }
 }
 

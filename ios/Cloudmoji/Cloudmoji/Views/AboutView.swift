@@ -8,20 +8,25 @@ import SwiftUI
 /// is one fewer secret to remember and one fewer way for a toddler to land on a wall
 /// of text.
 ///
-/// There are **no outbound links** — the web's Ko-fi button is deliberately absent,
-/// because monetisation is a v1 non-goal and an external link is the riskiest single
-/// item in a Kids Category review. Nothing in this file calls
-/// `UIApplication.shared.open`, and `AboutViewTests` fails if a URL appears in the
-/// copy.
+/// The only outbound action is a `mailto:` link to Cloudmoji support. About is
+/// already behind the parental gate, the link opens the grown-up's own mail app,
+/// and Cloudmoji attaches no diagnostics or child data. The web's Ko-fi button
+/// remains deliberately absent.
 ///
 /// The privacy text is **rewritten, not ported**. Every sentence in it is a claim
 /// about this binary and was checked against the source before it was written: the
-/// app imports only AVFoundation, CoreText, Foundation, Observation and SwiftUI, the
-/// package has no dependencies, there is no `URLSession` anywhere in the target, and
-/// `SettingsStore` writes exactly seven `UserDefaults` keys. Shipping the web's
+/// app has no analytics or advertising SDK, there is no `URLSession` anywhere in
+/// the target, and `SettingsStore` writes exactly seven `UserDefaults` keys.
+/// StoreKit is the one network-backed system service, used only when a grown-up
+/// checks the purchase price, buys, or restores. Shipping the web's
 /// wording instead would attach an inaccurate disclosure to a listing whose
 /// nutrition label says "Data Not Collected".
 struct AboutView: View {
+
+    static let supportEmail = "kevin.chan@sproutlearn.co"
+    static let supportURL = URL(
+        string: "mailto:\(supportEmail)?subject=Cloudmoji%20Support"
+    )!
 
     struct Entry: Identifiable {
         /// Explicit rather than derived from `question`, so the accessibility
@@ -38,7 +43,7 @@ struct AboutView: View {
             id: "how-to-use",
             question: "How do we use Cloudmoji?",
             answer: """
-                Cloudmoji opens on a grid of mini-apps. Tap one to go in; tap the big cloud along \
+                The free version opens with Words and Count in English. Tap one to go in; tap the big cloud along \
                 the bottom of the screen to come back out.
 
                 🗣️ Words — tap any emoji to hear the word spoken aloud. The row along the top \
@@ -53,10 +58,13 @@ struct AboutView: View {
 
                 🔊 Animals — tap a creature to hear it, then hear its name.
 
-                📷 Photos — your child takes pictures, and they stay inside the app.
+                📷 Photos — your child takes pictures inside the app. A grown-up can save copies \
+                to Apple Photos from the grown-ups screen.
 
                 🌙 Sleepy Cloud — a breathing exercise with a soft calming sound for winding \
                 down. You or your child can pick two, five or ten minutes; the screen dims as it goes.
+
+                Music, Flash Cards, Animals, Photos and Sleepy Cloud are part of Full Cloudmoji.
 
                 We run it in Guided Access, which locks the phone to Cloudmoji so a small \
                 person can tap freely without leaving the app.
@@ -77,9 +85,10 @@ struct AboutView: View {
             id: "languages",
             question: "Which languages are supported?",
             answer: """
-                Five: English, Mandarin Chinese (中文), Bahasa Melayu (BM), Japanese (日本語) \
-                and Tagalog (TL). Choose the starting language in the grown-ups screen. Words \
-                and Count also have a quick language button in their top bar.
+                The free version includes English. Full Cloudmoji adds Mandarin Chinese (中文), \
+                Bahasa Melayu (BM), Japanese (日本語) and Tagalog (TL). With Full, choose the \
+                starting language in the grown-ups screen; Words and Count also have a quick \
+                language button in their top bar.
 
                 Japanese uses hiragana and katakana only — no kanji — which matches what \
                 Japanese children learn first. Counting uses the ～つ counter (ひとつ, ふたつ, \
@@ -115,18 +124,33 @@ struct AboutView: View {
             id: "offline",
             question: "Does it work offline?",
             answer: """
-                Always, and there is no "first time online" either. Every word in all five \
-                languages is inside the app you downloaded, and the speech comes from your \
-                device's own voices. Cloudmoji works in a plane, in a car park and on a train \
-                through a tunnel.
+                Play works offline, and there is no "first time online" for the free activities \
+                or anything already unlocked. Every word in all five languages is inside the app \
+                you downloaded, and speech comes from your device's own voices. Only checking the \
+                price, buying or restoring Full Cloudmoji may need the App Store connection.
+                """
+        ),
+        Entry(
+            id: "full-cloudmoji",
+            question: "What does Full Cloudmoji unlock?",
+            answer: """
+                Full Cloudmoji is a one-time purchase, not a subscription. It adds Music, Flash \
+                Cards, Animals, Photos, Sleepy Cloud, Mandarin Chinese, Bahasa Melayu, Japanese, \
+                Tagalog and the Apple Watch experience, including short voice notes. The free \
+                version includes Words and Count in English.
                 """
         ),
         Entry(
             id: "data",
             question: "Is my child's data collected?",
             answer: """
-                No. There are no accounts, no tracking and no personal data of any kind, and the \
-                app never connects to the internet. See the privacy policy below for the details.
+                Cloudmoji does not automatically collect personal data. There are no accounts, no \
+                tracking and no Cloudmoji servers. Apple handles an optional purchase through the \
+                App Store.
+
+                If a grown-up chooses to email support, their own mail app sends the address and \
+                message they choose to provide. Cloudmoji attaches nothing. See the privacy policy \
+                below for the details.
                 """
         ),
     ]
@@ -139,26 +163,29 @@ struct AboutView: View {
                 Cloudmoji for iPhone and iPad collects nothing, and its App Store privacy label \
                 says so: Data Not Collected.
 
-                IT MAKES NO CONNECTIONS
-                There are no network connections of any kind — no analytics, no advertising, no \
-                crash reporting, and no third-party code inside the app. Nothing about your \
-                child is uploaded because there is nowhere for it to go: the word lists for all \
-                five languages are inside the download, the emoji are drawn by iOS itself, and \
-                the two typefaces we ship travel with the app.
+                NO CLOUDMOJI SERVERS OR TRACKING
+                There are no analytics, advertising, crash-reporting services or Cloudmoji \
+                servers. Nothing about your child is uploaded to us. The word lists for all five \
+                languages are inside the download, the emoji are drawn by iOS itself, and the two \
+                typefaces we ship travel with the app. If a grown-up buys or restores Full \
+                Cloudmoji, Apple's StoreKit handles that transaction with the App Store.
 
                 WHAT IS STORED, AND WHERE
-                Eight small settings are kept on this device by iOS: the chosen language, which \
+                Seven small settings are kept on this device by iOS: the chosen language, which \
                 languages are switched on, which categories are switched on, the lowest and the \
                 highest number Count mode uses, whether Cloudmoji is muted, whether the welcome \
-                tour has been dismissed, and whether the extra mini-apps are unlocked. That is \
-                the whole list. They never leave the device, and deleting the app deletes them.
+                tour has been dismissed. Purchase entitlement information is maintained by Apple, \
+                not stored as a Cloudmoji setting. The settings never leave the device, and \
+                deleting the app deletes them.
 
                 CAMERA
                 Photos your child takes are written inside the app's own storage on this device. \
-                They are excluded from iCloud backup, they are never added to your photo library, \
-                and you can delete them — one at a time or all at once — in the grown-ups screen. \
-                Deleting Cloudmoji deletes them too. The camera is only ever running while the \
-                camera screen is open.
+                They are excluded from iCloud backup and are not added to your photo library \
+                automatically. In the grown-ups screen you can save copies to Apple Photos, or \
+                delete the Cloudmoji originals — one at a time or all at once. Cloudmoji asks only \
+                for permission to add photos; it never reads your library. Deleting Cloudmoji \
+                deletes any originals that remain inside the app. The camera is only ever running \
+                while the camera screen is open.
 
                 APPLE WATCH
                 If you pair an Apple Watch, Cloudmoji on the watch and Cloudmoji on the iPhone \
@@ -182,11 +209,19 @@ struct AboutView: View {
                 the watch's job, described above). If you add a voice from iOS Settings, iOS \
                 fetches that voice — that is the system doing it, not this app.
 
-                NO ACCOUNTS, NO PURCHASES, NO LINKS OUT
-                There is nothing to sign in to and nothing to buy. Nothing your child can \
-                reach opens a browser or another app. There is exactly one exception, and it \
-                is behind the grown-ups question: if you have refused camera access, the \
-                grown-ups screen offers to open the iOS Settings app so you can change it.
+                OPTIONAL SUPPORT EMAIL
+                The Support row opens your own mail app with the Cloudmoji support address and a \
+                subject line. Cloudmoji does not attach diagnostics, settings, photos, voice \
+                messages or any other app data. If you choose to send an email, Kevin receives \
+                your email address and whatever you write. Please do not include your child's \
+                name, photos, voice recordings or other personal information.
+
+                NO ACCOUNTS, ONE APPLE PURCHASE, NO CHILD LINKS OUT
+                There is nothing to sign in to. A grown-up can make one optional, one-time \
+                purchase for Full Cloudmoji after passing the grown-ups question; there is no \
+                subscription. Nothing your child can reach opens a browser, another app or a \
+                purchase screen. The grown-ups area can also open iOS Settings after camera \
+                access has been refused.
 
                 We are parents, not lawyers. This describes what the app actually does rather \
                 than being a legal certification, and we have aimed at what COPPA and \
@@ -203,7 +238,7 @@ struct AboutView: View {
                 • Speech quality depends on the voices installed on your device and varies \
                 between them.
                 • We may update or discontinue Cloudmoji at any time.
-                • Cloudmoji is a personal project by Kevin and PQ, not a commercial product.
+                • Full Cloudmoji is sold as a one-time In-App Purchase handled by Apple.
 
                 Last updated: July 2026.
                 """
@@ -301,6 +336,44 @@ struct AboutView: View {
             }
 
             section("FAQ", Self.faq)
+
+            Section("Support") {
+                Link(destination: Self.supportURL) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "envelope.fill")
+                            .font(.system(size: 17, weight: .bold))
+                            .foregroundStyle(Theme.teal)
+                            .accessibilityHidden(true)
+
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Email Cloudmoji Support")
+                                .font(Theme.body(14, .bold))
+                                .foregroundStyle(Theme.textPrimary)
+                            Text(Self.supportEmail)
+                                .font(Theme.body(12, .bold))
+                                .foregroundStyle(Theme.textSecondary)
+                        }
+
+                        Spacer(minLength: 8)
+
+                        Image(systemName: "arrow.up.right")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(Theme.textSecondary)
+                            .accessibilityHidden(true)
+                    }
+                    .frame(minHeight: Self.rowHeight)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Email Cloudmoji Support at \(Self.supportEmail)")
+                .accessibilityIdentifier("about-support-email")
+
+                Text("Your mail app opens with no Cloudmoji data attached. Please do not include personal information about your child.")
+                    .font(Theme.body(11, .bold))
+                    .foregroundStyle(Theme.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
             section("Legal", Self.legal)
             section("Version history", Self.history)
 

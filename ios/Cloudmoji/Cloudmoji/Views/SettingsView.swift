@@ -23,6 +23,69 @@ struct SettingsView: View {
 
         Form {
             Section {
+                NavigationLink {
+                    FullCloudmojiView()
+                } label: {
+                    VStack(alignment: .leading, spacing: 7) {
+                        HStack {
+                            Label(
+                                model.entitlements.isUnlocked ? "Full Cloudmoji" : "Cloudmoji Free",
+                                systemImage: model.entitlements.isUnlocked
+                                    ? "checkmark.seal.fill"
+                                    : "cloud.fill"
+                            )
+                            .font(Theme.body(15, .black))
+
+                            Spacer()
+
+                            Text("CURRENT")
+                                .font(Theme.body(10, .black))
+                                .foregroundStyle(model.entitlements.isUnlocked
+                                                 ? Theme.bgEdge
+                                                 : Theme.textSecondary)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(
+                                    model.entitlements.isUnlocked
+                                        ? Theme.teal
+                                        : Theme.surface,
+                                    in: Capsule()
+                                )
+                        }
+
+                        Text(model.entitlements.isUnlocked
+                             ? "You own the paid Full version. Everything is unlocked."
+                             : "You’re using the free version.")
+                            .font(Theme.body(13, .bold))
+                            .foregroundStyle(Theme.textSecondary)
+
+                        if !model.entitlements.isUnlocked {
+                            Text("Included: Words and Count in English.")
+                                .font(Theme.body(13, .bold))
+                                .foregroundStyle(Theme.textSecondary)
+
+                            Label(fullPlanCallToAction, systemImage: "sparkles")
+                                .font(Theme.body(14, .black))
+                                .foregroundStyle(Theme.teal)
+                                .padding(.top, 3)
+                                .accessibilityIdentifier("settings-full-call-to-action")
+                        }
+                    }
+                    .padding(.vertical, 6)
+                    .frame(minHeight: Self.rowHeight, alignment: .leading)
+                }
+                .accessibilityIdentifier("settings-plan-row")
+            } header: {
+                Text("Your Cloudmoji plan")
+            } footer: {
+                if model.entitlements.isUnlocked {
+                    Text("Full Cloudmoji is a lifetime purchase. There is no subscription.")
+                } else {
+                    Text("Full Cloudmoji is the paid version. One purchase unlocks five more mini-apps, four more languages and Apple Watch. There is no subscription.")
+                }
+            }
+
+            Section {
                 Toggle(isOn: soundBinding) {
                     Label(
                         settings.muted ? "Sound is off" : "Sound is on",
@@ -39,46 +102,69 @@ struct SettingsView: View {
                 Text("Controls speech, Music, animal sounds and the calming sound in Sleepy Cloud. Sound-based mini-apps also show a large way to turn sound back on.")
             }
 
-            Section {
-                ForEach(model.allLanguages) { meta in
-                    Toggle(isOn: languageBinding(meta.id)) {
-                        HStack(spacing: 10) {
-                            Text(meta.short)
-                                .font(Theme.body(15, .black))
-                                .frame(minWidth: 52, alignment: .leading)
-                            Text(meta.name)
-                                .font(Theme.body(13, .bold))
-                                .foregroundStyle(Theme.textSecondary)
+            if model.entitlements.isUnlocked {
+                Section {
+                    ForEach(model.allLanguages) { meta in
+                        Toggle(isOn: languageBinding(meta.id)) {
+                            HStack(spacing: 10) {
+                                Text(meta.short)
+                                    .font(Theme.body(15, .black))
+                                    .frame(minWidth: 52, alignment: .leading)
+                                Text(meta.name)
+                                    .font(Theme.body(13, .bold))
+                                    .foregroundStyle(Theme.textSecondary)
+                            }
+                        }
+                        .tint(Theme.teal)
+                        .disabled(!model.canDisableLanguage(meta.id)
+                                  && settings.enabledLanguages.contains(meta.id))
+                        .frame(minHeight: Self.rowHeight)
+                        .accessibilityIdentifier("settings-lang-\(meta.id.rawValue)")
+                    }
+                } header: {
+                    Text("Languages")
+                } footer: {
+                    Text("Only the languages you leave on appear in the picker Cloudmoji shows.")
+                }
+
+                Section("Starting language") {
+                    Picker("Starting language", selection: $settings.language) {
+                        ForEach(model.availableLanguages) { meta in
+                            Text(meta.name).tag(meta.id)
                         }
                     }
+                    .pickerStyle(.menu)
                     .tint(Theme.teal)
-                    .disabled(!model.canDisableLanguage(meta.id)
-                              && settings.enabledLanguages.contains(meta.id))
                     .frame(minHeight: Self.rowHeight)
-                    .accessibilityIdentifier("settings-lang-\(meta.id.rawValue)")
+                    .contentShape(Rectangle())
+                    .accessibilityIdentifier("settings-default-lang")
                 }
-            } header: {
-                Text("Languages")
-            } footer: {
-                Text("Only the languages you leave on appear in the picker Cloudmoji shows.")
-            }
-
-            Section("Starting language") {
-                Picker("Starting language", selection: $settings.language) {
-                    // Only the enabled ones: choosing a default you have switched
-                    // off is a state `SettingsStore` would immediately undo.
-                    ForEach(model.availableLanguages) { meta in
-                        Text(meta.name).tag(meta.id)
+            } else {
+                Section {
+                    HStack {
+                        Text("English")
+                            .font(Theme.body(15, .black))
+                        Spacer()
+                        Text("Included")
+                            .font(Theme.body(13, .bold))
+                            .foregroundStyle(Theme.teal)
                     }
+                    .frame(minHeight: Self.rowHeight)
+                    .accessibilityIdentifier("settings-lang-en")
+
+                    NavigationLink {
+                        FullCloudmojiView()
+                    } label: {
+                        Label("4 more languages with Full", systemImage: "lock.fill")
+                            .font(Theme.body(15, .bold))
+                            .frame(minHeight: Self.rowHeight)
+                    }
+                    .accessibilityIdentifier("settings-full-languages")
+                } header: {
+                    Text("Language")
+                } footer: {
+                    Text("The free version speaks and displays child content in English.")
                 }
-                .pickerStyle(.menu)
-                .tint(Theme.teal)
-                .frame(minHeight: Self.rowHeight)
-                // The frame alone does NOT grow a menu picker's hit area — it lays
-                // out at 34pt tall and only the text is tappable, which is how the
-                // header's picker shipped once as a 34pt control claiming 44.
-                .contentShape(Rectangle())
-                .accessibilityIdentifier("settings-default-lang")
             }
 
             Section {
@@ -86,7 +172,7 @@ struct SettingsView: View {
                     Toggle(isOn: categoryBinding(tab)) {
                         HStack(spacing: 10) {
                             Text(tab.icon)
-                            Text(tab.label(settings.language))
+                            Text(tab.label(model.effectiveLanguage))
                                 .font(Theme.body(15, .bold))
                         }
                     }
@@ -126,43 +212,20 @@ struct SettingsView: View {
             }
 
             Section {
-                if model.entitlements.isUnlocked {
-                    Label("Full Cloudmoji unlocked ✓", systemImage: "checkmark.seal")
+                NavigationLink {
+                    ManagePhotosView()
+                } label: {
+                    Label("Manage photos", systemImage: "photo.on.rectangle")
                         .font(Theme.body(15, .bold))
                         .frame(minHeight: Self.rowHeight)
-                        .accessibilityIdentifier("settings-unlocked-row")
-
-                    NavigationLink {
-                        ManagePhotosView()
-                    } label: {
-                        Label("Manage photos", systemImage: "photo.on.rectangle")
-                            .font(Theme.body(15, .bold))
-                            .frame(minHeight: Self.rowHeight)
-                    }
-                    .accessibilityIdentifier("settings-manage-photos-row")
-                } else {
-                    Button {
-                        Task { _ = await model.entitlements.purchase() }
-                    } label: {
-                        Label(unlockLabel, systemImage: "sparkles")
-                            .font(Theme.body(15, .bold))
-                            .frame(minHeight: Self.rowHeight)
-                    }
-                    .accessibilityIdentifier("settings-unlock-btn")
-
-                    Button {
-                        Task { _ = await model.entitlements.restore() }
-                    } label: {
-                        Label("Restore purchase", systemImage: "arrow.clockwise")
-                            .font(Theme.body(15, .bold))
-                            .frame(minHeight: Self.rowHeight)
-                    }
-                    .accessibilityIdentifier("settings-restore-btn")
                 }
+                .accessibilityIdentifier("settings-manage-photos-row")
             } header: {
-                Text("More mini-apps")
+                Text("Photos")
             } footer: {
-                Text("Flash Cards, Animals and Photos are the extra three. Everything else — Words, Count, Music and Sleepy Cloud — is always included.")
+                Text(model.entitlements.isUnlocked
+                     ? "Save copies to Apple Photos or delete Cloudmoji originals."
+                     : "If Full access ends, stored photos remain here so you can save or delete them.")
             }
 
             Section {
@@ -221,16 +284,6 @@ struct SettingsView: View {
         .accessibilityIdentifier("settings-panel")
     }
 
-    /// "Unlock the extra mini-apps", plus a price when there is one to show.
-    ///
-    /// `priceText` is `nil` until StoreKit lands — the stub deliberately quotes
-    /// no number, because a price written down in the app and not agreed in App
-    /// Store Connect is a promise nobody can keep.
-    private var unlockLabel: String {
-        guard let price = model.entitlements.priceText else { return "Unlock the extra mini-apps" }
-        return "Unlock the extra mini-apps — \(price)"
-    }
-
     // MARK: Bindings
     //
     // Set-membership toggles, written out rather than derived: `Binding` has no
@@ -268,6 +321,13 @@ struct SettingsView: View {
             get: { !model.settings.muted },
             set: { model.settings.muted = !$0 }
         )
+    }
+
+    private var fullPlanCallToAction: String {
+        guard let price = model.entitlements.priceText else {
+            return "See the paid Full version"
+        }
+        return "See the paid Full version — \(price)"
     }
 
     private var lowerBinding: Binding<Int> {

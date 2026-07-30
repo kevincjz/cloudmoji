@@ -42,10 +42,10 @@ enum MiniApp: String, CaseIterable, Identifiable {
     /// A property of the mini-app, not of the person holding the phone — whether
     /// it *opens* is `EntitlementProviding.isUnlocked`, which is a different
     /// question and lives somewhere else on purpose.
-    var isPremium: Bool {
+    var requiresFull: Bool {
         switch self {
-        case .flashCards, .animalSounds, .photos: true
-        case .words, .count, .instrument, .sleepy: false
+        case .instrument, .flashCards, .animalSounds, .photos, .sleepy: true
+        case .words, .count: false
         }
     }
 

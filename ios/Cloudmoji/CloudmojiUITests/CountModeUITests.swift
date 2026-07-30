@@ -67,6 +67,8 @@ final class CountModeUITests: XCTestCase {
     private func launch(countRange: ClosedRange<Int> = 2...9) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = [
+            "-cm_use_stub_entitlements", "YES",
+            "-cm_premium_unlocked", "YES",
             "-cm_lang", "en",
             "-cm_muted", "NO",
             "-cm_enabled_langs", "(en,zh,ms,ja,tl)",

@@ -89,7 +89,7 @@ struct SleepyCloudView: View {
 
     /// A missing row is a content bug, not a reason for a child to see a crash.
     private func text(_ table: [Language: String]) -> String {
-        table[model.settings.language] ?? table[.en] ?? ""
+        table[model.effectiveLanguage] ?? table[.en] ?? ""
     }
 
     /// The prototype's 56pt buttons lose to `CLAUDE.md` rule 1: either a child or

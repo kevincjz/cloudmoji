@@ -14,6 +14,7 @@ import CloudmojiCore
 @Observable
 final class WatchModel {
     let speech: SpeechController
+    let entitlements: any EntitlementProviding
 
     /// Which language the watch speaks. Persisted under `cmw_lang` so a relaunch
     /// starts where the last session left off; overwritten whenever the phone
@@ -49,8 +50,12 @@ final class WatchModel {
     private static let languageKey = "cmw_lang"
     private static let flashLifetime = Duration.seconds(2)
 
-    init(defaults: UserDefaults = .standard) {
+    init(
+        defaults: UserDefaults = .standard,
+        entitlements: any EntitlementProviding = StubEntitlementStore()
+    ) {
         self.defaults = defaults
+        self.entitlements = entitlements
         self.language = defaults.string(forKey: Self.languageKey)
             .flatMap(Language.init(rawValue:)) ?? .en
 
@@ -75,31 +80,49 @@ final class WatchModel {
     /// Starts the connection and applies whatever context iOS already had
     /// waiting. Called once, from the app's `init`.
     func activate() {
+        guard entitlements.isUnlocked else { return }
         radio.activate()
+    }
+
+    func deactivate() {
+        speech.cancelAll()
+        flashTask?.cancel()
+        flash = nil
+        radio.deactivate()
+    }
+
+    func handleAccessChange(isFull: Bool) {
+        if isFull {
+            activate()
+        } else {
+            deactivate()
+        }
     }
 
     /// The parent tapped an emoji on the wrist: buzz, speak it, and send it to
     /// the child's phone so Cloud sees it too.
     func tap(_ entry: EmojiEntry) {
+        guard entitlements.isUnlocked else { return }
         WatchHaptics.tap()
         showFlash(entry.emoji, word: word(for: entry))
         radio.send(RadioMessage(emoji: entry.emoji, direction: .toPhone, language: language).payload)
         speakUnlessMuted(word(for: entry))
     }
 
-    /// A finished voice clip: send it to the phone, then delete it — nothing is
-    /// kept on the watch.
+    /// A finished voice clip: hand it to the radio, which owns the temporary
+    /// file until WatchConnectivity reports success or a terminal failure.
     func sendVoice(_ url: URL) {
+        guard entitlements.isUnlocked else {
+            try? FileManager.default.removeItem(at: url)
+            return
+        }
         WatchHaptics.tap()
         radio.sendVoice(url)
-        // Transfer copies the file into the session's outbox, so removing our
-        // temp copy now is safe and leaves no recording behind.
-        try? FileManager.default.removeItem(at: url)
     }
 
     /// An emoji arrived from the child.
     private func receive(_ message: RadioMessage) {
-        guard message.direction == .toWatch else { return }
+        guard entitlements.isUnlocked, message.direction == .toWatch else { return }
         WatchHaptics.received()
         let word = wordForGlyph(message.emoji, in: message.language)
         showFlash(message.emoji, word: word)
@@ -107,6 +130,7 @@ final class WatchModel {
     }
 
     private func apply(_ context: RadioContext) {
+        guard entitlements.isUnlocked else { return }
         language = context.language
         muted = context.muted
         defaults.set(context.language.rawValue, forKey: Self.languageKey)

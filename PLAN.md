@@ -485,15 +485,22 @@ behind the gate, as specified.
 ## §Step 7 — StoreKit — **EXCLUDED from this run**
 
 Documented in PLAN.md as the final section, marked "requires Kevin: sandbox
-purchase testing". Design fixed so Steps 1–6 need no rework:
-`StoreEntitlementStore` (app target) implements the same `EntitlementProviding`;
-one non-consumable `app.cloudmoji.unlock.full`; `cm_premium_unlocked` demotes
-to fast-boot cache with truth from `Transaction.currentEntitlements`;
-`Transaction.updates` observer from `CloudmojiApp.init`; Ask-to-Buy `.pending`
-→ "Waiting for approval…" in Settings; DEBUG `-cm_premium_unlocked` keeps the
-stub for UI tests; About copy softened in the same commit ("makes no
-connections of its own…"). Manual for Kevin: App Store Connect IAP + price +
-privacy label stays "Data Not Collected".
+purchase testing". The current product decision is in
+`docs/product/MONETIZATION.md`, and the launch-ready execution plan is in
+`docs/superpowers/plans/2026-07-30-full-cloudmoji-launch.md`; both supersede
+this short pre-draft. The launch contract is Free = Words and Count in English;
+Full = the other five mini-apps, four more languages, and the complete Apple
+Watch experience including voice notes. Design fixed so Steps 1–6 need no
+rework:
+shared `StoreEntitlementStore` implements the same `EntitlementProviding`; one
+USD 9.99 non-consumable `app.cloudmoji.unlock.full`;
+`Transaction.currentEntitlements` is the launch source of truth and
+`Transaction.updates` handles later changes; `cm_premium_unlocked` is honored
+only after an explicit DEBUG stub switch; Ask-to-Buy `.pending` → "Waiting for
+approval…" in Settings; UI tests remain deterministic; About copy is updated
+in the same commit. Manual for Kevin: App Store Connect IAP + price + sandbox
+and paired-watch testing; privacy label stays "Data Not Collected" only if the
+final binary's data flows still justify it.
 
 ---
 

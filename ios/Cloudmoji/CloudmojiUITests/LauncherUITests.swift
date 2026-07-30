@@ -37,6 +37,7 @@ final class LauncherUITests: XCTestCase {
     /// `-cm_open` is deliberately absent: the launcher is what this suite
     /// measures.
     private static let contentPins = [
+        "-cm_use_stub_entitlements", "YES",
         "-cm_lang", "en",
         "-cm_muted", "YES",
         "-cm_enabled_langs", "(en,zh,ms,ja,tl)",
@@ -49,7 +50,10 @@ final class LauncherUITests: XCTestCase {
     /// Launches on the launcher itself.
     private func launch(extraArguments: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = Self.contentPins + extraArguments
+        let entitlementPins = extraArguments.contains("-cm_premium_unlocked")
+            ? []
+            : ["-cm_premium_unlocked", "YES"]
+        app.launchArguments = Self.contentPins + entitlementPins + extraArguments
         app.launch()
         XCTAssertTrue(
             app.buttons["launcher-tile-words"].waitForExistence(timeout: 30),
@@ -122,6 +126,10 @@ final class LauncherUITests: XCTestCase {
             }
         }
         XCTAssertGreaterThanOrEqual(comparisons, 3, "only \(comparisons) tile pairs shared a row")
+        XCTAssertFalse(
+            app.buttons["launcher-full-cloudmoji"].exists,
+            "the Full discovery door should disappear after Full is unlocked"
+        )
     }
 
     /// Every mini-app has a tile, by the raw value that is also its deep link.
@@ -143,17 +151,29 @@ final class LauncherUITests: XCTestCase {
     ///
     /// Mutation: return `MiniApp.allCases` from `visibleMiniApps`. The locked
     /// launch still shows seven tiles and this fails.
-    func testLockingTheExtrasLeavesTheFourFreeMiniApps() {
+    func testLockingFullLeavesWordsAndCount() {
         let app = launch(extraArguments: ["-cm_premium_unlocked", "NO"])
 
-        let frames = assertMeetsChildMinimum(tiles(app), named: "launcher tile", atLeast: 4)
-        XCTAssertEqual(frames.count, 4, "a locked launcher drew \(frames.count) tiles rather than four")
+        let frames = assertMeetsChildMinimum(tiles(app), named: "launcher tile", atLeast: 2)
+        XCTAssertEqual(frames.count, 2, "a free launcher drew \(frames.count) tiles rather than two")
 
-        for raw in ["words", "count", "instrument", "sleepy"] {
+        for raw in ["words", "count"] {
             XCTAssertTrue(app.buttons["launcher-tile-\(raw)"].exists, "\(raw) should always be there")
         }
-        for raw in ["flashcards", "animalsounds", "photos"] {
-            XCTAssertFalse(app.buttons["launcher-tile-\(raw)"].exists, "\(raw) is on a locked launcher")
+        for raw in ["instrument", "flashcards", "animalsounds", "photos", "sleepy"] {
+            XCTAssertFalse(app.buttons["launcher-tile-\(raw)"].exists, "\(raw) is on a free launcher")
+        }
+
+        let grownUps = app.buttons["launcher-full-cloudmoji"]
+        XCTAssertTrue(grownUps.exists, "the free launcher has no visible route to Full Cloudmoji")
+        XCTAssertGreaterThanOrEqual(grownUps.frame.width, Self.childMinimum - Self.tolerance)
+        XCTAssertGreaterThanOrEqual(grownUps.frame.height, Self.childMinimum - Self.tolerance)
+        XCTAssertEqual(grownUps.label, "For grown-ups")
+        for commercialWord in ["buy", "price", "upgrade", "$"] {
+            XCTAssertFalse(
+                grownUps.label.lowercased().contains(commercialWord),
+                "the child-facing doorway contains commercial copy: \(grownUps.label)"
+            )
         }
     }
 
@@ -185,7 +205,8 @@ final class LauncherUITests: XCTestCase {
     /// used, leaving sound on for the rest of the session.
     func testMutedAudioAppsOfferAChildSizedWayBackToSound() {
         let app = XCUIApplication()
-        app.launchArguments = Self.contentPins + ["-cm_open", "sleepy"]
+        app.launchArguments = Self.contentPins
+            + ["-cm_premium_unlocked", "YES", "-cm_open", "sleepy"]
         app.launch()
 
         let recovery = app.buttons["sound-recovery-btn"]
@@ -203,7 +224,8 @@ final class LauncherUITests: XCTestCase {
     /// sleepy toddler and the breathing session.
     func testSleepyCloudStartsWithoutAParentalGate() {
         let app = XCUIApplication()
-        app.launchArguments = Self.contentPins + ["-cm_open", "sleepy"]
+        app.launchArguments = Self.contentPins
+            + ["-cm_premium_unlocked", "YES", "-cm_open", "sleepy"]
         app.launch()
 
         let duration = app.buttons["sleepy-duration-2"]
@@ -274,7 +296,8 @@ final class LauncherUITests: XCTestCase {
             // and `-cm_open` means there is no launcher to wait for. Waiting for
             // the wrong landmark is how this test failed the first time it ran.
             let app = XCUIApplication()
-            app.launchArguments = Self.contentPins + ["-cm_open", raw]
+            app.launchArguments = Self.contentPins
+                + ["-cm_premium_unlocked", "YES", "-cm_open", raw]
             app.launch()
 
             XCTAssertTrue(

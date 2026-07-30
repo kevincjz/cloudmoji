@@ -27,6 +27,7 @@ final class VoiceRecorder {
     private var recorder: AVAudioRecorder?
     private var startedAt: Date?
     private var tick: Task<Void, Never>?
+    private var permissionTask: Task<Void, Never>?
 
     /// Handed the finished clip's URL. The owner transfers it and is then
     /// responsible for cleaning it up.
@@ -41,8 +42,10 @@ final class VoiceRecorder {
     /// UI shows a gentle explanation rather than a dead button.
     func start() {
         guard !isRecording else { return }
-        Task {
+        permissionTask?.cancel()
+        permissionTask = Task {
             let granted = await Self.requestPermission()
+            guard !Task.isCancelled else { return }
             guard granted else { state = .denied; return }
             beginRecording()
         }
@@ -51,6 +54,8 @@ final class VoiceRecorder {
     /// Stops and hands the clip over. A no-op if not recording.
     func stop() {
         guard isRecording else { return }
+        permissionTask?.cancel()
+        permissionTask = nil
         tick?.cancel()
         tick = nil
         recorder?.stop()
@@ -63,6 +68,23 @@ final class VoiceRecorder {
         if let url { onFinished?(url) }
     }
 
+    /// Stops without delivering a partial clip.
+    func cancel() {
+        permissionTask?.cancel()
+        permissionTask = nil
+        tick?.cancel()
+        tick = nil
+        let url = recorder?.url
+        recorder?.stop()
+        recorder = nil
+        startedAt = nil
+        if state != .denied { state = .idle }
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        if let url {
+            try? FileManager.default.removeItem(at: url)
+        }
+    }
+
     private func beginRecording() {
         let session = AVAudioSession.sharedInstance()
         do {
@@ -73,9 +95,10 @@ final class VoiceRecorder {
             return
         }
 
+        // Every transfer needs its own source path. Reusing one filename would
+        // overwrite a clip that WatchConnectivity may still be sending.
         let url = FileManager.default.temporaryDirectory
-            .appending(path: "cloudmoji-voice.m4a")
-        try? FileManager.default.removeItem(at: url)
+            .appending(path: "cloudmoji-voice-\(UUID().uuidString).m4a")
 
         let settings: [String: Any] = [
             AVFormatIDKey: Int(kAudioFormatMPEG4AAC),

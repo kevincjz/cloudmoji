@@ -22,6 +22,7 @@ protocol RadioTransporting: AnyObject {
     /// The watch asked us to re-send state (its "hello" on launch).
     var onHello: (() -> Void)? { get set }
     func activate()
+    func deactivate()
     func send(_ payload: [String: String])
     func updateContext(_ payload: [String: String])
 }
@@ -73,11 +74,17 @@ final class WatchLink {
 
     private let transport: any RadioTransporting
     private let settings: SettingsStore
+    private let entitlements: any EntitlementProviding
     private var token = 0
     private var voiceToken = 0
 
-    init(settings: SettingsStore, transport: (any RadioTransporting)? = nil) {
+    init(
+        settings: SettingsStore,
+        entitlements: any EntitlementProviding,
+        transport: (any RadioTransporting)? = nil
+    ) {
         self.settings = settings
+        self.entitlements = entitlements
         self.transport = transport ?? WCSessionTransport()
         self.transport.onMessage = { [weak self] message in self?.receive(message) }
         self.transport.onVoice = { [weak self] data in self?.receiveVoice(data) }
@@ -87,17 +94,23 @@ final class WatchLink {
     /// Brings the connection up and tells the watch our current state. A no-op
     /// where WatchConnectivity is unsupported (iPad).
     func activate() {
-        guard transport.isSupported else { return }
+        guard entitlements.isUnlocked, transport.isSupported else { return }
         transport.activate()
         pushContext()
+    }
+
+    func deactivate() {
+        incoming = nil
+        incomingVoice = nil
+        transport.deactivate()
     }
 
     /// A child tapped `glyph` in Words mode — mirror it to the wrist, and refresh
     /// the watch's state while we are at it.
     func childTapped(_ glyph: String) {
-        guard transport.isSupported else { return }
+        guard entitlements.isUnlocked, transport.isSupported else { return }
         transport.send(
-            RadioMessage(emoji: glyph, direction: .toWatch, language: settings.language).payload
+            RadioMessage(emoji: glyph, direction: .toWatch, language: effectiveLanguage).payload
         )
         pushContext()
     }
@@ -105,13 +118,14 @@ final class WatchLink {
     /// Push the parent's language and mute to the watch as the application
     /// context — the channel that survives the watch app being closed.
     func pushContext() {
-        guard transport.isSupported else { return }
+        guard entitlements.isUnlocked, transport.isSupported else { return }
         transport.updateContext(
-            RadioContext(language: settings.language, muted: settings.muted).payload
+            RadioContext(language: effectiveLanguage, muted: settings.muted).payload
         )
     }
 
     private func receive(_ message: RadioMessage) {
+        guard entitlements.isUnlocked else { return }
         // Drop our own echo: a `.toWatch` message coming back would loop.
         guard message.direction == .toPhone else { return }
         token += 1
@@ -119,9 +133,13 @@ final class WatchLink {
     }
 
     private func receiveVoice(_ data: Data) {
-        guard !data.isEmpty else { return }
+        guard entitlements.isUnlocked, !data.isEmpty else { return }
         voiceToken += 1
         incomingVoice = VoiceDrop(id: voiceToken, data: data)
+    }
+
+    private var effectiveLanguage: Language {
+        entitlements.isUnlocked ? settings.language : .en
     }
 }
 
@@ -148,6 +166,7 @@ final class WCSessionTransport: NSObject, RadioTransporting {
     /// `activationDidCompleteWith`. Latest-wins is already the channel's
     /// semantics, so holding only the most recent loses nothing.
     private var pendingContext: [String: String]?
+    private var shouldBeActive = false
 
     var isSupported: Bool { WCSession.isSupported() }
 
@@ -156,19 +175,29 @@ final class WCSessionTransport: NSObject, RadioTransporting {
     }
 
     func activate() {
+        shouldBeActive = true
         let session = WCSession.default
         session.delegate = self
         session.activate()
     }
 
+    func deactivate() {
+        shouldBeActive = false
+        pendingContext = nil
+        if WCSession.isSupported(), WCSession.default.delegate === self {
+            WCSession.default.delegate = nil
+        }
+    }
+
     func send(_ payload: [String: String]) {
-        guard isActivated else { return }
+        guard shouldBeActive, isActivated else { return }
         // Fire and forget: an unreachable or watchless phone is a silent no-op,
         // never an error surfaced to a child (`CLAUDE.md` rule 4).
         WCSession.default.sendMessage(payload, replyHandler: nil, errorHandler: nil)
     }
 
     func updateContext(_ payload: [String: String]) {
+        guard shouldBeActive else { return }
         guard isActivated else {
             pendingContext = payload
             return
@@ -178,7 +207,7 @@ final class WCSessionTransport: NSObject, RadioTransporting {
 
     /// Flush a context that arrived before the session was ready.
     fileprivate func flushPendingContext() {
-        guard isActivated, let pending = pendingContext else { return }
+        guard shouldBeActive, isActivated, let pending = pendingContext else { return }
         pendingContext = nil
         try? WCSession.default.updateApplicationContext(pending)
     }
@@ -200,17 +229,31 @@ extension WCSessionTransport: WCSessionDelegate {
     // one changes, the session deactivates and must be re-activated to follow.
     nonisolated func sessionDidBecomeInactive(_ session: WCSession) {}
     nonisolated func sessionDidDeactivate(_ session: WCSession) {
-        session.activate()
+        Task { @MainActor in
+            guard self.shouldBeActive else { return }
+            self.activateIfNeeded()
+        }
+    }
+
+    private func activateIfNeeded() {
+        guard shouldBeActive else { return }
+        WCSession.default.activate()
     }
 
     nonisolated func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
         // The watch's launch "hello" is not an emoji — treat it as "re-send state".
         if message["kind"] as? String == "hello" {
-            Task { @MainActor in self.onHello?() }
+            Task { @MainActor in
+                guard self.shouldBeActive else { return }
+                self.onHello?()
+            }
             return
         }
         guard let decoded = RadioMessage(payload: message) else { return }
-        Task { @MainActor in self.onMessage?(decoded) }
+        Task { @MainActor in
+            guard self.shouldBeActive else { return }
+            self.onMessage?(decoded)
+        }
     }
 
     /// A voice clip arrived.
@@ -223,6 +266,9 @@ extension WCSessionTransport: WCSessionDelegate {
         guard file.metadata?["kind"] as? String == "voice",
               let data = try? Data(contentsOf: file.fileURL) else { return }
         try? FileManager.default.removeItem(at: file.fileURL)
-        Task { @MainActor in self.onVoice?(data) }
+        Task { @MainActor in
+            guard self.shouldBeActive else { return }
+            self.onVoice?(data)
+        }
     }
 }

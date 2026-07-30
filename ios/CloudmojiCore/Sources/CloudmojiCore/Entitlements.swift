@@ -1,101 +1,399 @@
 import Foundation
 import Observation
+import StoreKit
 
-/// What a purchase or restore attempt came back with.
-///
-/// `.pending` is Ask-to-Buy: a child on a Family Sharing account taps unlock, a
-/// parent gets the approval prompt on their own phone, and nothing happens here
-/// for minutes or days. It is a real outcome, not an error, and Settings says
-/// "waiting for approval" rather than "something went wrong".
 public enum PurchaseOutcome: Sendable, Hashable {
     case unlocked
     case pending
     case cancelled
+    case notFound
     case failed
 }
 
-/// The one thing the app asks about the extra mini-apps: are they on?
+public enum EntitlementAccessState: Sendable, Hashable {
+    case checking
+    case locked
+    case unlocked
+}
+
+public enum EntitlementProductState: Sendable, Hashable {
+    case loading
+    case available
+    case unavailable
+}
+
+public enum EntitlementOperationState: Sendable, Hashable {
+    case idle
+    case purchasing
+    case pending
+    case restoring
+
+    public var isBusy: Bool {
+        self == .purchasing || self == .restoring
+    }
+}
+
+public enum EntitlementNotice: Sendable, Hashable {
+    case purchaseFailed
+    case restoreFailed
+    case restoreNotFound
+}
+
+/// The one commerce seam shared by iPhone, iPad, and Apple Watch.
 ///
-/// A protocol rather than a concrete type so that StoreKit can land later
-/// without a single view changing. `StubEntitlementStore` below is the whole
-/// implementation today; `StoreEntitlementStore` will be the second one, and the
-/// launcher, the tiles and Settings will not know which one they are holding.
-///
-/// `AnyObject` because the store outlives any view that reads it, and
-/// `Observable` because SwiftUI has to redraw the launcher when it flips.
+/// Views ask this object for presentation state, while access itself is always
+/// the single `isUnlocked` answer. The production implementation below derives
+/// that answer only from verified StoreKit transactions. The stub is retained
+/// for previews, unit tests, and explicit Debug UI-test launches.
 @MainActor
 public protocol EntitlementProviding: AnyObject, Observable {
-    /// Whether the premium mini-apps are available.
+    var accessState: EntitlementAccessState { get }
     var isUnlocked: Bool { get }
-    /// Localised price, or `nil` when there is nothing to price yet. The stub
-    /// always returns `nil`, which is what keeps Settings from advertising a
-    /// number no App Store product has agreed to.
+    var productState: EntitlementProductState { get }
+    var operationState: EntitlementOperationState { get }
+    var notice: EntitlementNotice? { get }
     var priceText: String? { get }
+
     func purchase() async -> PurchaseOutcome
     func restore() async -> PurchaseOutcome
-    /// Starts watching for entitlement changes made elsewhere — another device,
-    /// an Ask-to-Buy approval, a refund. A no-op in the stub.
+    func refresh() async
+    func reloadProduct() async
     func startObserving()
 }
 
-/// The pre-StoreKit entitlement: a single persisted flag, and no money anywhere.
+/// StoreKit 2 source of truth for Full Cloudmoji.
 ///
-/// **It defaults to unlocked.** There is no product in App Store Connect yet, so
-/// a default of `false` would hide three finished mini-apps behind a button that
-/// cannot do anything — which is the failure state `CLAUDE.md` rule 4 forbids,
-/// aimed at the parent instead of the child. When `StoreEntitlementStore`
-/// arrives the truth moves to `Transaction.currentEntitlements` and this key
-/// demotes to a fast-boot cache.
+/// No UserDefaults Boolean grants access here. `Transaction.currentEntitlements`
+/// is maintained by StoreKit on the device and remains available for an offline
+/// relaunch after a verified purchase.
+@MainActor
+@Observable
+public final class StoreEntitlementStore: EntitlementProviding {
+    public static let productID = "app.cloudmoji.unlock.full"
+
+    public private(set) var accessState: EntitlementAccessState = .checking
+    public private(set) var productState: EntitlementProductState = .loading
+    public private(set) var operationState: EntitlementOperationState = .idle
+    public private(set) var notice: EntitlementNotice?
+
+    public var isUnlocked: Bool { accessState == .unlocked }
+    public var priceText: String? { product?.displayPrice }
+
+    @ObservationIgnored private var product: Product?
+    @ObservationIgnored private var updatesTask: Task<Void, Never>?
+    @ObservationIgnored private var startupTask: Task<Void, Never>?
+    /// A revocation update can arrive a fraction before
+    /// `Transaction.currentEntitlements` drops the old transaction. Remembering
+    /// the verified ID prevents that stale snapshot from immediately granting
+    /// access again. A later verified granting update for the same ID removes it.
+    @ObservationIgnored private var revokedTransactionIDs: Set<UInt64> = []
+
+    public init() {}
+
+    deinit {
+        updatesTask?.cancel()
+        startupTask?.cancel()
+    }
+
+    public func startObserving() {
+        guard updatesTask == nil else { return }
+
+        // Start this before the initial scan so a purchase or revocation cannot
+        // fall into the gap between launch and current-entitlement reconciliation.
+        updatesTask = Task { [weak self] in
+            for await update in Transaction.updates {
+                guard !Task.isCancelled else { return }
+                await self?.consume(update)
+            }
+        }
+
+        startupTask = Task { [weak self] in
+            guard let self else { return }
+            await self.refresh()
+            await self.reloadProduct()
+        }
+    }
+
+    public func refresh() async {
+        await finishRelevantUnfinishedTransactions()
+
+        var hasFull = false
+        for await result in Transaction.currentEntitlements {
+            guard let transaction = verified(result),
+                  transaction.productID == Self.productID else { continue }
+            if grantsAccess(transaction) {
+                hasFull = true
+            }
+        }
+
+        accessState = hasFull ? .unlocked : .locked
+        if hasFull {
+            operationState = .idle
+            notice = nil
+        }
+    }
+
+    public func reloadProduct() async {
+        productState = .loading
+        do {
+            let products = try await Product.products(for: [Self.productID])
+            product = products.first { $0.id == Self.productID }
+            productState = product == nil ? .unavailable : .available
+        } catch {
+            product = nil
+            productState = .unavailable
+        }
+    }
+
+    public func purchase() async -> PurchaseOutcome {
+        notice = nil
+        guard let product else {
+            productState = .unavailable
+            return .failed
+        }
+
+        operationState = .purchasing
+        do {
+            switch try await product.purchase() {
+            case .success(let result):
+                guard let transaction = verified(result),
+                      transaction.productID == Self.productID,
+                      transactionGrantsAccess(transaction) else {
+                    operationState = .idle
+                    notice = .purchaseFailed
+                    return .failed
+                }
+                revokedTransactionIDs.remove(transaction.id)
+                accessState = .unlocked
+                operationState = .idle
+                notice = nil
+                await transaction.finish()
+                return .unlocked
+
+            case .pending:
+                operationState = .pending
+                return .pending
+
+            case .userCancelled:
+                operationState = .idle
+                return .cancelled
+
+            @unknown default:
+                operationState = .idle
+                notice = .purchaseFailed
+                return .failed
+            }
+        } catch {
+            operationState = .idle
+            notice = .purchaseFailed
+            return .failed
+        }
+    }
+
+    public func restore() async -> PurchaseOutcome {
+        notice = nil
+        operationState = .restoring
+
+        do {
+            try await AppStore.sync()
+            await refresh()
+            operationState = .idle
+            if isUnlocked {
+                return .unlocked
+            }
+            notice = .restoreNotFound
+            return .notFound
+        } catch {
+            operationState = .idle
+            notice = .restoreFailed
+            return .failed
+        }
+    }
+
+    private func finishRelevantUnfinishedTransactions() async {
+        for await result in Transaction.unfinished {
+            guard let transaction = verified(result),
+                  transaction.productID == Self.productID else { continue }
+
+            if transactionGrantsAccess(transaction) {
+                guard !revokedTransactionIDs.contains(transaction.id) else {
+                    await transaction.finish()
+                    continue
+                }
+                accessState = .unlocked
+            } else {
+                revokedTransactionIDs.insert(transaction.id)
+            }
+            await transaction.finish()
+        }
+    }
+
+    private func consume(_ result: VerificationResult<Transaction>) async {
+        guard let transaction = verified(result),
+              transaction.productID == Self.productID else { return }
+
+        if transactionGrantsAccess(transaction) {
+            // This result came from the live update stream, rather than a
+            // possibly lagging entitlement scan, so it is authoritative for
+            // undoing a previous revocation of the same transaction.
+            revokedTransactionIDs.remove(transaction.id)
+            accessState = .unlocked
+            operationState = .idle
+            notice = nil
+        } else {
+            // Record the verified revocation before scanning. StoreKit may emit
+            // this update just before `currentEntitlements` stops returning its
+            // earlier snapshot; the ID guard prevents that stale item from
+            // re-unlocking Full.
+            revokedTransactionIDs.insert(transaction.id)
+            accessState = .locked
+            operationState = .idle
+            notice = nil
+            await transaction.finish()
+
+            // Another current transaction (for example a later repurchase) may
+            // still grant the product, so reconcile the complete set after the
+            // immediate relock.
+            await refresh()
+            return
+        }
+        await transaction.finish()
+    }
+
+    private func grantsAccess(_ transaction: Transaction) -> Bool {
+        transactionGrantsAccess(transaction)
+            && !revokedTransactionIDs.contains(transaction.id)
+    }
+
+    private func transactionGrantsAccess(_ transaction: Transaction) -> Bool {
+        transaction.revocationDate == nil && !transaction.isUpgraded
+    }
+
+    private func verified(
+        _ result: VerificationResult<Transaction>
+    ) -> Transaction? {
+        switch result {
+        case .verified(let transaction):
+            transaction
+        case .unverified:
+            nil
+        }
+    }
+}
+
+/// Deterministic entitlement for previews and tests.
 ///
-/// Reads in `init`, writes in `didSet` — `SettingsStore`'s exact pattern, and
-/// for the same two reasons: `-cm_premium_unlocked NO` through
-/// `NSArgumentDomain` pins it for a UI test, and
-/// `-cm_reset_persisted_settings YES` wipes it with everything else.
+/// It defaults to unlocked so app-target unit tests and previews continue to
+/// exercise all seven completed mini-apps. The shipping app creates this store
+/// only when the explicit Debug `cm_use_stub_entitlements` switch is present.
 @MainActor
 @Observable
 public final class StubEntitlementStore: EntitlementProviding {
-
-    /// Named here rather than spelled at each call site: the privacy copy in
-    /// `AboutView` enumerates the keys this app writes, and a key that is only a
-    /// string literal is one nobody can find when that list has to be checked.
     public static let storageKey = "cm_premium_unlocked"
+    public static let priceKey = "cm_stub_price"
+    public static let productUnavailableKey = "cm_stub_product_unavailable"
+    public static let purchaseOutcomeKey = "cm_stub_purchase_outcome"
+    public static let restoreOutcomeKey = "cm_stub_restore_outcome"
 
     @ObservationIgnored private let defaults: UserDefaults
+    @ObservationIgnored private let fallbackPrice: String?
 
     public var isUnlocked: Bool {
         didSet { defaults.set(isUnlocked, forKey: Self.storageKey) }
     }
 
-    /// Nothing to price until there is a product. See the type's note.
-    public var priceText: String? { nil }
-
-    public init(defaults: UserDefaults = .standard) {
-        self.defaults = defaults
-        self.isUnlocked = Self.readUnlocked(from: defaults)
+    public var accessState: EntitlementAccessState {
+        isUnlocked ? .unlocked : .locked
     }
 
-    /// Absent means unlocked; present means whatever it says.
-    ///
-    /// Read through `bool(forKey:)` rather than `object(forKey:) as? Bool`,
-    /// because `NSArgumentDomain` stores `-cm_premium_unlocked NO` as the
-    /// *string* "NO" — which casts to `nil` and would quietly hand every UI test
-    /// the default instead of the value it asked for.
-    ///
-    /// Static and pure so both halves can be tested without a live store.
+    public private(set) var productState: EntitlementProductState
+    public private(set) var operationState: EntitlementOperationState = .idle
+    public private(set) var notice: EntitlementNotice?
+
+    public var priceText: String? {
+        guard productState == .available else { return nil }
+        return defaults.string(forKey: Self.priceKey) ?? fallbackPrice
+    }
+
+    public init(
+        defaults: UserDefaults = .standard,
+        priceText: String? = "$9.99"
+    ) {
+        self.defaults = defaults
+        self.fallbackPrice = priceText
+        self.isUnlocked = Self.readUnlocked(from: defaults)
+        self.productState = defaults.bool(forKey: Self.productUnavailableKey)
+            ? .unavailable
+            : (priceText == nil ? .unavailable : .available)
+    }
+
     public static func readUnlocked(from defaults: UserDefaults) -> Bool {
         guard defaults.object(forKey: storageKey) != nil else { return true }
         return defaults.bool(forKey: storageKey)
     }
 
     public func purchase() async -> PurchaseOutcome {
-        isUnlocked = true
-        return .unlocked
+        notice = nil
+        operationState = .purchasing
+        let outcome = stubOutcome(
+            defaults.string(forKey: Self.purchaseOutcomeKey),
+            default: .unlocked
+        )
+        apply(outcome, restoring: false)
+        return outcome
     }
 
     public func restore() async -> PurchaseOutcome {
-        isUnlocked = true
-        return .unlocked
+        notice = nil
+        operationState = .restoring
+        let fallback: PurchaseOutcome = isUnlocked ? .unlocked : .notFound
+        let outcome = stubOutcome(
+            defaults.string(forKey: Self.restoreOutcomeKey),
+            default: fallback
+        )
+        apply(outcome, restoring: true)
+        return outcome
+    }
+
+    public func refresh() async {}
+
+    public func reloadProduct() async {
+        productState = defaults.bool(forKey: Self.productUnavailableKey)
+            ? .unavailable
+            : (priceText == nil && fallbackPrice == nil ? .unavailable : .available)
     }
 
     public func startObserving() {}
+
+    private func apply(_ outcome: PurchaseOutcome, restoring: Bool) {
+        switch outcome {
+        case .unlocked:
+            isUnlocked = true
+            operationState = .idle
+        case .pending:
+            operationState = .pending
+        case .cancelled:
+            operationState = .idle
+        case .notFound:
+            operationState = .idle
+            notice = .restoreNotFound
+        case .failed:
+            operationState = .idle
+            notice = restoring ? .restoreFailed : .purchaseFailed
+        }
+    }
+
+    private func stubOutcome(
+        _ raw: String?,
+        default fallback: PurchaseOutcome
+    ) -> PurchaseOutcome {
+        switch raw?.lowercased() {
+        case "unlocked", "success": .unlocked
+        case "pending": .pending
+        case "cancelled", "canceled": .cancelled
+        case "notfound", "not-found": .notFound
+        case "failed", "failure": .failed
+        default: fallback
+        }
+    }
 }

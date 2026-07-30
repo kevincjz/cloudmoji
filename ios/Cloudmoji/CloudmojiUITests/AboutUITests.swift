@@ -41,6 +41,8 @@ final class AboutUITests: XCTestCase {
     private func launch() -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = [
+            "-cm_use_stub_entitlements", "YES",
+            "-cm_premium_unlocked", "YES",
             "-cm_lang", "en",
             "-cm_muted", "YES",
             "-cm_enabled_langs", "(en,zh,ms,ja,tl)",
@@ -147,7 +149,8 @@ final class AboutUITests: XCTestCase {
         // Each row's own identifier. Walked top to bottom because `scrollTo` only
         // ever swipes forward.
         for id in ["about-how-to-use", "about-guided-access", "about-languages",
-                   "about-privacy", "about-terms", "about-v1-0-ios", "about-web-history"] {
+                   "about-support-email", "about-privacy", "about-terms",
+                   "about-v1-0-ios", "about-web-history"] {
             let entry = scrollTo(id, in: app)
             // Every disclosure row is a parent target and must clear 44pt.
             XCTAssertGreaterThanOrEqual(
@@ -179,14 +182,14 @@ final class AboutUITests: XCTestCase {
         }
     }
 
-    /// The single riskiest item in a Kids Category review is an outbound link, and
-    /// the deliberate difference from the web is that there is not one. Nothing on
-    /// this screen may offer to leave the app.
+    /// The single riskiest item in a Kids Category review is an outbound link.
+    /// About is already behind the parental gate, and exactly one narrow link is
+    /// allowed here: the designated Cloudmoji support email.
     ///
     /// Read off the live screen rather than off `AboutView.faq`, so it also covers
     /// a link added in the view rather than in the copy — a `Link`, a Ko-fi button
     /// or a `UIApplication.shared.open` would all publish a label here.
-    func testNothingOnTheAboutScreenLeavesTheApp() {
+    func testOnlyTheSupportEmailCanLeaveTheAboutScreen() {
         let app = launch()
         openSettings(app)
         element("settings-about-row", in: app).tap()
@@ -215,6 +218,10 @@ final class AboutUITests: XCTestCase {
         XCTAssertTrue(
             labels.contains { $0.contains("Version history") },
             "the sweep never reached the bottom of the panel, so it proves nothing about what is down there"
+        )
+        XCTAssertTrue(
+            labels.contains { $0.contains("kevin.chan@sproutlearn.co") },
+            "the designated support contact is missing from About"
         )
         for banned in ["ko-fi", "Ko-fi", "http", "Buy us a coffee", "Open in Safari"] {
             for label in labels where label.contains(banned) {

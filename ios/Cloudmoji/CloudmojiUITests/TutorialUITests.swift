@@ -51,6 +51,8 @@ final class TutorialUITests: XCTestCase {
     /// one cannot inherit a disabled category from whichever suite ran before —
     /// that inheritance is what took sixteen `WordsModeUITests` red at once.
     private static let contentPins = [
+        "-cm_use_stub_entitlements", "YES",
+        "-cm_premium_unlocked", "YES",
         "-cm_lang", "en",
         "-cm_muted", "YES",
         "-cm_enabled_langs", "(en,zh,ms,ja,tl)",

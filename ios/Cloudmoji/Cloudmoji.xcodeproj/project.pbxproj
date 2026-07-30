@@ -575,7 +575,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Cloudmoji;
-				INFOPLIST_KEY_NSCameraUsageDescription = "Cloudmoji uses the camera so your child can photograph things around them. Photos stay inside the app, on this device.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Cloudmoji uses the camera so your child can photograph things around them. Photos stay inside the app unless a grown-up saves a copy.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Cloudmoji lets a grown-up save selected photos from the app to their photo library.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -607,9 +608,11 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 322UC75K7F;
 				ENABLE_PREVIEWS = YES;
+				EXCLUDED_SOURCE_FILE_NAMES = Cloudmoji.storekit;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Cloudmoji;
-				INFOPLIST_KEY_NSCameraUsageDescription = "Cloudmoji uses the camera so your child can photograph things around them. Photos stay inside the app, on this device.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Cloudmoji uses the camera so your child can photograph things around them. Photos stay inside the app unless a grown-up saves a copy.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Cloudmoji lets a grown-up save selected photos from the app to their photo library.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

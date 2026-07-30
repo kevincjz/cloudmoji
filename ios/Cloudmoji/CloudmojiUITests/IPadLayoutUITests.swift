@@ -14,6 +14,7 @@ final class IPadLayoutUITests: XCTestCase {
         app.launchArguments = [
             "-cm_reset_persisted_settings", "YES",
             "-cm_seen_tutorial", "YES",
+            "-cm_use_stub_entitlements", "YES",
             "-cm_premium_unlocked", "YES",
             "-cm_lang", "en",
             "-cm_muted", "NO",

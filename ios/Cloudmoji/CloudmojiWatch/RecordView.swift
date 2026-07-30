@@ -1,4 +1,5 @@
 import SwiftUI
+import CloudmojiCore
 
 /// The record screen: one big button that starts and stops, and sends.
 ///
@@ -45,11 +46,17 @@ struct RecordView: View {
                 dismiss()
             }
         }
-        // Leaving mid-recording must not strand an open microphone.
-        .onDisappear { recorder.stop() }
+        .onChange(of: model.entitlements.isUnlocked) { _, isFull in
+            guard !isFull else { return }
+            recorder.cancel()
+            dismiss()
+        }
+        // Leaving mid-recording must not send a partial clip or strand the mic.
+        .onDisappear { recorder.cancel() }
     }
 
     private func toggle() {
+        guard model.entitlements.isUnlocked else { return }
         if recorder.isRecording {
             recorder.stop()
         } else {

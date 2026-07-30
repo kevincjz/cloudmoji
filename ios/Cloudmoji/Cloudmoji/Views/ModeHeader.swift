@@ -230,18 +230,18 @@ struct ModeHeader: View {
     /// retire that test rather than fail it.
     private var languageToggle: some View {
         let languages = model.availableLanguages
-        let current = languages.first { $0.id == model.settings.language }
-        let next = Self.nextMeta(in: languages, after: model.settings.language)
+        let current = languages.first { $0.id == model.effectiveLanguage }
+        let next = Self.nextMeta(in: languages, after: model.effectiveLanguage)
         let canCycle = model.canCycleLanguage
 
         return LanguageToggle(
             // The fallback cannot happen — `SettingsStore` re-resolves the active
             // language whenever either side of the invariant moves — but a blank
             // button would be a worse way to find that out than a wrong one.
-            label: current?.short ?? model.settings.language.rawValue.uppercased(),
+            label: current?.short ?? model.effectiveLanguage.rawValue.uppercased(),
             // English, and spelled out: VoiceOver here is for the parent. The
             // short label alone would have it read "BM" and "TL" as letters.
-            voiceOverLabel: "Language: \(current?.name ?? model.settings.language.rawValue)",
+            voiceOverLabel: "Language: \(current?.name ?? model.effectiveLanguage.rawValue)",
             voiceOverValue: current?.short ?? "",
             voiceOverHint: canCycle
                 ? "Switches to \(next?.name ?? "the next language")"

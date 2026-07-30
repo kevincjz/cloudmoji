@@ -37,12 +37,15 @@ private struct RootContent: View {
 
     private enum ParentRequest {
         case settings
+        case fullCloudmoji
         case cameraSettings
 
         var explanation: String {
             switch self {
             case .settings:
                 "Settings let you choose Cloudmoji's sound, languages, categories and learning range."
+            case .fullCloudmoji:
+                "Full Cloudmoji is the paid version. Continue to see what it unlocks and the one-time price."
             case .cameraSettings:
                 "Camera access was turned off. A grown-up can open iPhone Settings and allow it again."
             }
@@ -58,7 +61,7 @@ private struct RootContent: View {
     /// first-launch tour and the parent panel. An `item:` presenter with one
     /// case each is the shape that cannot hit it.
     private enum RootSheet: String, Identifiable {
-        case tutorial, settings
+        case tutorial, settings, fullCloudmoji
         var id: String { rawValue }
     }
 
@@ -68,6 +71,13 @@ private struct RootContent: View {
     /// beat. Cleared by `echoTask` after the bubble's lifetime.
     @State private var echo: WatchLink.Echo?
     @State private var echoTask: Task<Void, Never>?
+
+    /// A Debug deep link or a just-revoked screen is never allowed to construct
+    /// a Full mini-app, even for the frame before state is cleaned up.
+    private var permittedActive: MiniApp? {
+        guard let active, model.canUse(active) else { return nil }
+        return active
+    }
 
     /// Preselects a mini-app from `-cm_open <raw value>`, so a UI suite can land
     /// on the screen it means to measure instead of tapping its way there.
@@ -95,7 +105,7 @@ private struct RootContent: View {
         // leave several mascots animating and several `.task`s running for
         // screens nobody is looking at.
         Group {
-            if let active {
+            if let active = permittedActive {
                 hosted(active)
                     .transition(
                         reduceMotion
@@ -106,7 +116,9 @@ private struct RootContent: View {
                 LauncherView(
                     apps: model.visibleMiniApps,
                     onOpen: open,
-                    onParent: openParentDoor
+                    onParent: openParentDoor,
+                    showFullCloudmojiDoor: !model.entitlements.isUnlocked,
+                    onFullCloudmoji: openFullCloudmojiDoor
                 )
                 .transition(.opacity)
             }
@@ -169,7 +181,7 @@ private struct RootContent: View {
             case .bubbleAndSpeech:
                 showEcho(new)
                 if let word = model.word(forEmoji: new.message.emoji) {
-                    model.speech.speak(word, in: model.settings.language)
+                    model.speech.speak(word, in: model.effectiveLanguage)
                 }
             }
         }
@@ -193,19 +205,16 @@ private struct RootContent: View {
         .onChange(of: active) { _, now in
             if now == .sleepy { model.voice.clear() }
         }
-        // The replay pill: present whenever a message is held and we are not at
-        // bedtime. Tapping it replays, unless the phone is muted.
-        .overlay(alignment: .top) {
-            if model.voice.hasMessage && active != .sleepy {
-                VoiceMessagePill(isPlaying: model.voice.isPlaying) {
-                    guard !model.settings.muted else { return }
-                    model.voice.play()
-                }
-                .padding(.top, 6)
-                .transition(.move(edge: .top).combined(with: .opacity))
+        .onChange(of: model.entitlements.isUnlocked) { _, isFull in
+            model.handleAccessChange(isFull: isFull)
+            if !isFull, active?.requiresFull == true {
+                goHome()
+            }
+            if !isFull {
+                echo = nil
+                echoTask?.cancel()
             }
         }
-        .animation(.easeOut(duration: 0.25), value: model.voice.hasMessage)
         .sheet(item: $sheet) { which in
             switch which {
             case .tutorial:
@@ -234,12 +243,27 @@ private struct RootContent: View {
                 // A language or mute change made in Settings has to reach the
                 // watch; the sheet closing is the moment those choices are final.
                 .onDisappear { model.radio.pushContext() }
+            case .fullCloudmoji:
+                NavigationStack {
+                    FullCloudmojiView()
+                        .toolbar {
+                            ToolbarItem(placement: .confirmationAction) {
+                                Button("Done") { sheet = nil }
+                                    .accessibilityIdentifier("full-done")
+                            }
+                        }
+                }
+                .environment(model)
             }
         }
         // First launch only, and never behind the gate: a parent installing this
         // should not have to answer an arithmetic question to find out what they
         // just installed. Settings itself stays gated.
         .task {
+            if let active, !model.canUse(active) {
+                self.active = nil
+            }
+            model.handleAccessChange(isFull: model.entitlements.isUnlocked)
             guard !model.settings.seenTutorial else { return }
             sheet = .tutorial
         }
@@ -292,6 +316,15 @@ private struct RootContent: View {
         isGateShowing = true
     }
 
+    /// A visible parent doorway on the free launcher. The tile itself contains
+    /// no price or purchase language; only after this gate succeeds does the
+    /// paid offer appear.
+    private func openFullCloudmojiDoor() {
+        model.speech.cancelAll()
+        parentRequest = .fullCloudmoji
+        isGateShowing = true
+    }
+
     private func openCameraDoor() {
         model.speech.cancelAll()
         parentRequest = .cameraSettings
@@ -302,6 +335,8 @@ private struct RootContent: View {
         switch parentRequest {
         case .settings:
             sheet = .settings
+        case .fullCloudmoji:
+            sheet = .fullCloudmoji
         case .cameraSettings:
             guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
             openURL(url)
@@ -314,6 +349,7 @@ private struct RootContent: View {
     /// failure it would produce is the launcher's last word playing over the new
     /// screen's, which is exactly the class of bug `SpeechController` exists for.
     private func open(_ app: MiniApp) {
+        guard model.canUse(app) else { return }
         model.speech.cancelAll()
         active = app
     }

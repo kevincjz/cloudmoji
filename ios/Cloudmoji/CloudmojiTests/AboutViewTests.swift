@@ -11,6 +11,15 @@ struct AboutViewTests {
         AboutView.faq + AboutView.legal + AboutView.history
     }
 
+    @Test("support uses the designated email and only a mail URL")
+    func supportContactIsExactAndNarrow() {
+        #expect(AboutView.supportEmail == "kevin.chan@sproutlearn.co")
+        #expect(AboutView.supportURL.scheme == "mailto")
+        #expect(AboutView.supportURL.path == AboutView.supportEmail)
+        #expect(AboutView.supportURL.query == "subject=Cloudmoji%20Support")
+        #expect(AboutView.supportURL.host == nil)
+    }
+
     /// The web's privacy text describes four things that leave the device, and
     /// **none of them exists in this build**. Copying it across is the obvious
     /// shortcut and it would attach an inaccurate disclosure to a listing whose
@@ -31,8 +40,15 @@ struct AboutViewTests {
             .first { $0.question.contains("Privacy") }?.answer ?? ""
         #expect(!privacy.isEmpty, "there is no privacy disclosure at all")
 
-        // The thing that *is* true, in the words the nutrition label uses.
-        #expect(privacy.contains("no network connections"))
+        // The things that are true even though Apple's StoreKit may contact the
+        // App Store for a grown-up's optional purchase.
+        #expect(privacy.contains("Data Not Collected"))
+        #expect(privacy.contains("no analytics"))
+        #expect(privacy.contains("StoreKit"))
+        #expect(privacy.contains("App Store"))
+        #expect(privacy.contains("OPTIONAL SUPPORT EMAIL"))
+        #expect(privacy.contains("does not attach diagnostics"))
+        #expect(privacy.contains("Please do not include your child's"))
 
         // The watch disclosure is honest and present: a paired watch exchanges
         // emoji and voice device-to-device, no internet. Deleting the paragraph
