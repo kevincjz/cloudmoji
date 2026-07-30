@@ -243,9 +243,8 @@ editing docs — each needs a code, content, or process change.
    runtime-caching rules in `vite.config.ts`.
 
 5. **No privacy or terms page.** The checklist lists `cloudmoji.app/privacy` and
-   `/terms`; neither exists. The app is a single page with no routing, and `public/`
-   contains only icons and the OG image. Static files or a hosting-level route would be
-   needed.
+   `/terms`; neither exists. A static support page now exists at `/support`, but the
+   privacy and terms documents still need their own public routes.
 
 6. **External link with no parental gate.** `src/components/AboutPanel.tsx` links to
    `ko-fi.com/kevincjz` in a new tab with no gate. The checklist item "No external links
@@ -271,6 +270,7 @@ Reality-checked against source. Unchecked means not implemented.
 
 - [ ] Privacy policy page at cloudmoji.app/privacy — does not exist
 - [ ] Terms of service at cloudmoji.app/terms — does not exist
+- [x] Support page at cloudmoji.app/support with a direct support email
 - [ ] Correct the in-app privacy text in `AboutPanel.tsx` (Open Issue 3) — remove the
       compliance assertion, add Speed Insights and Google Fonts
 - [ ] Analytics opt-out toggle, and a mechanism that prevents the beacons firing before a

@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/support",
+      "destination": "/support/index.html"
+    },
+    {
+      "source": "/support/",
+      "destination": "/support/index.html"
+    }
+  ]
+}
