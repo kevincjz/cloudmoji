@@ -48,11 +48,11 @@ class AndroidSpeechEngine(
     private val focusOwner: AudioFocusOwner? = null,
 ) : SpeechEngine {
     /** Set once `TextToSpeech`'s async init handshake completes. `speak`
-     * silently declines to forward to the engine before this is true — the
-     * same "no failure state" philosophy as everywhere else in this app: a
-     * tap that lands during the sub-second startup race is a quiet miss, not
-     * a crash, and [SpeechController]'s own watchdog (for a sequence) or the
-     * next tap (for a single word) recovers from it. */
+     * declines to forward to the engine before this is true and immediately
+     * reports the utterance finished instead — the same "no failure state"
+     * philosophy as everywhere else in this app: a tap that lands during the
+     * sub-second startup race is a quiet miss, not a crash, and not a
+     * stranded mascot mood either. */
     private var isReady = false
     private var pendingFinish: (() -> Unit)? = null
     private var cachedVoices: List<VoiceDescribing>? = null
@@ -110,7 +110,13 @@ class AndroidSpeechEngine(
 
     override fun speak(utterance: SpeechUtterance) {
         pendingFinish = utterance.onFinish
-        if (!isReady) return
+        if (!isReady) {
+            // Hand the miss straight back rather than stranding a caller's
+            // completion callback — a single `SpeechController.speak()` has
+            // no watchdog of its own to recover it, unlike a sequence item.
+            finish()
+            return
+        }
 
         val resolved = (utterance.voice as? AndroidVoice)?.voice
             ?: tts.voices?.firstOrNull { it.locale.toLanguageTag() == utterance.languageTag }
