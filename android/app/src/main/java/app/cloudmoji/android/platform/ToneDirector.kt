@@ -59,6 +59,19 @@ class ToneDirector(
     var isAttached: Boolean = false
         private set
 
+    /**
+     * Whether some screen still *wants* the bedtime ambience playing —
+     * distinct from whether it is actually sounding right now.
+     *
+     * The two come apart exactly once: an audio-focus loss
+     * ([silence]) stops the engine out from under a screen that never asked
+     * it to. This flag is what makes that recoverable — see
+     * [resumeAfterFocusGain]. Music never sets it, so a focus gain during
+     * Music can never start a wind-down loop over the pads.
+     */
+    var isSleepNoiseWanted: Boolean = false
+        private set
+
     fun attach() {
         isAttached = true
         engine.start()
@@ -71,6 +84,10 @@ class ToneDirector(
     fun detach() {
         if (!isAttached) return
         isAttached = false
+        // Leaving the screen is the one unambiguous "nobody wants this any
+        // more": a later focus gain must not resurrect the ambience over the
+        // launcher.
+        isSleepNoiseWanted = false
         focusOwner.release(AudioFocusClient.TONE)
         engine.stop()
     }
@@ -95,9 +112,16 @@ class ToneDirector(
      * not currently attached must not spin the engine up or ask the
      * platform for focus, the same reasoning [playTone]'s own doc gives.
      * Mirrors iOS `AudioDirector.playSleepNoise()`.
+     *
+     * [isSleepNoiseWanted] is set *before* the focus request, deliberately:
+     * a session that starts while a phone call is already in progress is
+     * denied focus and stays silent, and it should get its ambience the
+     * moment focus arrives rather than never — the same recovery
+     * [resumeAfterFocusGain] gives an interrupted one.
      */
     fun playSleepNoise() {
         if (!isAttached) return
+        isSleepNoiseWanted = true
         if (!focusOwner.request(AudioFocusClient.TONE)) return
         restartIfStalled()
         engine.playSleepNoise()
@@ -107,10 +131,39 @@ class ToneDirector(
      * mid-session silences the loop, but Sleepy Cloud is still the screen
      * holding the engine, so the very next unmute can bring it straight
      * back via [playSleepNoise] without re-attaching. Mirrors iOS
-     * `AudioDirector.stopSleepNoise()`. */
+     * `AudioDirector.stopSleepNoise()`.
+     *
+     * A *deliberate* stop, so it clears [isSleepNoiseWanted] — a phone muted
+     * mid-session must stay silent through any number of focus changes. */
     fun stopSleepNoise() {
         if (!isAttached) return
+        isSleepNoiseWanted = false
         engine.stopSleepNoise()
+    }
+
+    /**
+     * Platform audio focus came back. Restarts the ambience if, and only if,
+     * a screen still wants it.
+     *
+     * **The gap this closes.** [silence] is called on a focus loss and stops
+     * the `AudioTrack` without touching [isAttached] — for Music that is
+     * enough, because the next pad tap runs [restartIfStalled] and the sound
+     * comes back. Sleepy Cloud has no next tap: the whole interaction is a
+     * child lying still while a ten-minute loop plays. Without this, a
+     * notification sound arriving while the app is still in the *foreground*
+     * (so none of `SleepyCloudScreen`'s `ON_PAUSE` handling fires) would kill
+     * the ambience for the rest of the session, while the cloud went on
+     * breathing and the room went on darkening. See [AudioFocusLossAction]
+     * for the policy half.
+     *
+     * Everything it needs to be safe is already in [playSleepNoise]: the
+     * [isAttached] guard, the fresh focus request, and [restartIfStalled].
+     * The one addition is refusing to act at all for a screen that never
+     * asked for ambience, which is what keeps Music unaffected.
+     */
+    fun resumeAfterFocusGain() {
+        if (!isSleepNoiseWanted) return
+        playSleepNoise()
     }
 
     /**
@@ -126,8 +179,16 @@ class ToneDirector(
     /**
      * Silences whatever is currently sounding without giving up the screen's
      * hold on the engine — [isAttached] is untouched, so the very next tap's
-     * [restartIfStalled] (via [playTone]) can bring it straight back. The one
-     * caller is [CloudmojiApplication]'s audio-focus-loss handling: see
+     * [restartIfStalled] (via [playTone]) can bring it straight back.
+     *
+     * [isSleepNoiseWanted] is deliberately *not* cleared here: this is an
+     * involuntary stop, not a screen saying it is done, and clearing it would
+     * make [resumeAfterFocusGain] the no-op that leaves a wind-down session
+     * silent for its remaining ten minutes. That distinction — a stop nobody
+     * asked for versus [stopSleepNoise]'s deliberate one — is the whole
+     * mechanism.
+     *
+     * The one caller is [CloudmojiApplication]'s audio-focus-loss handling: see
      * [AudioFocusLossAction] for why Android needs this where iOS's
      * `AudioDirector` does not — `AVAudioSession` silences the app's own
      * output for free on an interruption; Android's `AudioManager` does not,

@@ -21,13 +21,9 @@ import android.media.AudioManager
  * or app that just took focus. That gap is what this policy closes.
  *
  * [AudioManager.AUDIOFOCUS_LOSS] / [AudioManager.AUDIOFOCUS_LOSS_TRANSIENT]
- * ([STOP][AudioFocusLossAction.STOP]): something else now holds focus.
- * Cloudmoji's own sounds are ~1.2s tone blips ([ToneBuffer.duration]) or a
- * few seconds of a spoken word at most — there is nothing worth pausing and
- * resuming later, unlike a music player mid-song — so a full stop plus
- * letting the very next tap re-request focus fresh is the whole policy. This
- * is the same "recovery checked at the point of use" shape as iOS, just with
- * an explicit stop bolted on for the half iOS gets for free.
+ * ([STOP][AudioFocusLossAction.STOP]): something else now holds focus. Stop
+ * everything, and re-sync [AudioFocusOwner]'s bookkeeping with the fact that
+ * the platform has already taken focus away.
  *
  * [AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK] is deliberately a
  * [NONE][AudioFocusLossAction.NONE]. Cloudmoji only ever *asks* for
@@ -37,17 +33,44 @@ import android.media.AudioManager
  * would need a volume-ramp mechanism this app has no other use for, to cover
  * a corner case a full stop already handles safely, if more bluntly.
  *
- * Anything else — notably the `AUDIOFOCUS_GAIN*` family, delivered when
- * focus comes back — is also [NONE][AudioFocusLossAction.NONE]: regaining
- * focus does not by itself restart anything, matching iOS's "silent on
- * failure, recovered lazily on the next tap" rule. There is no queued tone
- * or word waiting to resume.
+ * The `AUDIOFOCUS_GAIN*` family, delivered when focus comes back, is
+ * [RESUME][AudioFocusLossAction.RESUME].
+ *
+ * **This used to be [NONE][AudioFocusLossAction.NONE], and the reasoning
+ * recorded here for it was true right up until Sleepy Cloud existed.** It
+ * said Cloudmoji's own sounds are "~1.2s tone blips ([ToneBuffer.duration])
+ * or a few seconds of a spoken word at most — there is nothing worth pausing
+ * and resuming later", so a stop plus lazy recovery on the next tap was the
+ * whole policy, matching iOS's `AudioDirector.restartIfStalled`.
+ *
+ * Sleepy Cloud breaks both halves of that. Its ambience
+ * ([ToneDirector.playSleepNoise]) is a **continuous loop that runs for up to
+ * ten minutes**, and the screen has no next tap: a child lying still and
+ * breathing along is the entire interaction. So a notification sound
+ * arriving *while the app stays in the foreground* — no `ON_PAUSE`, so none
+ * of `SleepyCloudScreen`'s lifecycle handling fires — would take focus, this
+ * policy would stop the track, and nothing would ever start it again. The
+ * cloud would go on breathing and the room would go on darkening with the
+ * advertised sleep sounds silently dead for the rest of the session.
+ *
+ * Resuming is safe for the other clients precisely because
+ * [ToneDirector.resumeAfterFocusGain] does not resume "whatever was
+ * playing": it restarts the ambience **only** if some screen still wants it
+ * ([ToneDirector.isSleepNoiseWanted]). A pad tone or a spoken word that was
+ * cut off has genuinely nothing worth resuming, and still gets none.
  */
-enum class AudioFocusLossAction { STOP, NONE }
+enum class AudioFocusLossAction { STOP, RESUME, NONE }
 
 fun audioFocusLossAction(focusChange: Int): AudioFocusLossAction = when (focusChange) {
     AudioManager.AUDIOFOCUS_LOSS,
     AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
     -> AudioFocusLossAction.STOP
+
+    AudioManager.AUDIOFOCUS_GAIN,
+    AudioManager.AUDIOFOCUS_GAIN_TRANSIENT,
+    AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK,
+    AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE,
+    -> AudioFocusLossAction.RESUME
+
     else -> AudioFocusLossAction.NONE
 }

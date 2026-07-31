@@ -49,7 +49,10 @@ class ToneDirectorTest {
         }
     }
 
-    private class FakeAudioFocusSystem(private val granted: Boolean = true) : AudioFocusSystem {
+    /** [granted] is a `var` so one test can model the case that matters
+     * most for the ambience: focus denied when the session starts (a call in
+     * progress), granted a moment later. */
+    private class FakeAudioFocusSystem(var granted: Boolean = true) : AudioFocusSystem {
         var requestCount = 0
             private set
         var abandonCount = 0
@@ -68,7 +71,17 @@ class ToneDirectorTest {
     private class Fixture(granted: Boolean = true) {
         val system = FakeAudioFocusSystem(granted)
         val engine = FakeToneEngine()
-        val director = ToneDirector(AudioFocusOwner(system), engine)
+
+        /** Exposed, not inlined into [director], because the focus-loss path
+         * this suite models calls `releaseAll()` on it directly — that is
+         * what `CloudmojiApplication.onAudioFocusChange` does. */
+        val focusOwner = AudioFocusOwner(system)
+        val director = ToneDirector(focusOwner, engine)
+
+        /** Whether the platform is currently granting focus. */
+        var granting: Boolean
+            get() = system.granted
+            set(value) { system.granted = value }
     }
 
     /**
@@ -240,5 +253,126 @@ class ToneDirectorTest {
         fixture.director.playSleepNoise()
 
         assertEquals(0, fixture.engine.sleepStarts)
+    }
+
+    /**
+     * **The regression this suite exists to hold.** A transient focus loss
+     * while the app stays in the *foreground* — a notification sound, say —
+     * reaches `CloudmojiApplication.onAudioFocusChange`, which calls
+     * [ToneDirector.silence]. That stops the track without touching
+     * [ToneDirector.isAttached], and Sleepy Cloud has no next tap to run
+     * `restartIfStalled` the way Music's next pad does. Before
+     * [ToneDirector.resumeAfterFocusGain] existed, the ambience simply died
+     * for the rest of a ten-minute session while the cloud went on breathing.
+     *
+     * Mutation proof: temporarily made `resumeAfterFocusGain()` a no-op
+     * (`return` on the first line). This test failed — `sleepStarts` stayed
+     * at 1 — before the body was restored.
+     */
+    @Test
+    fun `a foreground focus blip does not end the ambience for good`() {
+        val fixture = Fixture()
+        fixture.director.attach()
+        fixture.director.playSleepNoise()
+        assertEquals(1, fixture.engine.sleepStarts)
+
+        // The focus-loss handler's own three calls, in order.
+        fixture.director.silence()
+        fixture.focusOwner.releaseAll()
+        assertTrue("the screen is still Sleepy Cloud's", fixture.director.isAttached)
+
+        fixture.director.resumeAfterFocusGain()
+
+        assertEquals("the ambience never came back", 2, fixture.engine.sleepStarts)
+    }
+
+    /**
+     * A focus gain must not start a wind-down loop over Music. Music never
+     * calls [ToneDirector.playSleepNoise], so it never sets
+     * [ToneDirector.isSleepNoiseWanted] — that flag, not "was something
+     * playing", is what the resume is gated on.
+     *
+     * Mutation proof: temporarily changed `resumeAfterFocusGain()` to call
+     * `playSleepNoise()` unconditionally. This test failed before the
+     * `isSleepNoiseWanted` guard was restored.
+     */
+    @Test
+    fun `a focus gain during Music starts no ambience`() {
+        val fixture = Fixture()
+        fixture.director.attach()
+        fixture.director.playTone(0)
+        fixture.director.silence()
+
+        fixture.director.resumeAfterFocusGain()
+
+        assertEquals(0, fixture.engine.sleepStarts)
+        assertFalse(fixture.director.isSleepNoiseWanted)
+    }
+
+    /**
+     * A phone muted mid-session stays silent through any number of focus
+     * changes: [ToneDirector.stopSleepNoise] is a *deliberate* stop and
+     * clears the want, unlike [ToneDirector.silence].
+     *
+     * Mutation proof: temporarily removed `isSleepNoiseWanted = false` from
+     * `stopSleepNoise()`. This test failed — the ambience restarted on a
+     * muted phone — before it was restored.
+     */
+    @Test
+    fun `a focus gain after muting keeps the phone silent`() {
+        val fixture = Fixture()
+        fixture.director.attach()
+        fixture.director.playSleepNoise()
+        fixture.director.stopSleepNoise()
+
+        fixture.director.resumeAfterFocusGain()
+
+        assertEquals("mute was undone by a focus change", 1, fixture.engine.sleepStarts)
+    }
+
+    /**
+     * Leaving the mini-app ends the want outright — a focus gain arriving
+     * after the child is back at the launcher must not resurrect a loop over
+     * it.
+     *
+     * Mutation proof: temporarily removed `isSleepNoiseWanted = false` from
+     * `detach()`. This test failed before it was restored.
+     */
+    @Test
+    fun `a focus gain after leaving the screen resurrects nothing`() {
+        val fixture = Fixture()
+        fixture.director.attach()
+        fixture.director.playSleepNoise()
+        fixture.director.detach()
+
+        fixture.director.resumeAfterFocusGain()
+
+        assertEquals(1, fixture.engine.sleepStarts)
+        assertFalse(fixture.director.isSleepNoiseWanted)
+    }
+
+    /**
+     * A session that begins while focus is *already* denied — a call in
+     * progress — still wants its ambience, and gets it the moment focus
+     * arrives. Without recording the want before the focus request, such a
+     * session would stay silent for its whole ten minutes.
+     *
+     * Mutation proof: temporarily moved `isSleepNoiseWanted = true` to after
+     * the `focusOwner.request(...)` guard in `playSleepNoise()`. This test
+     * failed before it was moved back.
+     */
+    @Test
+    fun `a session denied focus at the start still gets its ambience later`() {
+        val fixture = Fixture(granted = false)
+        fixture.director.attach()
+
+        fixture.director.playSleepNoise()
+        assertEquals(0, fixture.engine.sleepStarts)
+        assertTrue("the want was not recorded", fixture.director.isSleepNoiseWanted)
+
+        fixture.granting = true
+        fixture.director.resumeAfterFocusGain()
+
+        assertEquals("the ambience never arrived", 1, fixture.engine.sleepStarts)
     }
 }

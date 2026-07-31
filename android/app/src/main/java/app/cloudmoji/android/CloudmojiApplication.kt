@@ -138,17 +138,35 @@ class CloudmojiApplication : Application() {
 
     /**
      * [audioFocusOwner]'s [AndroidAudioFocusSystem] callback. See
-     * [AudioFocusLossAction] for the full policy this only applies:
+     * [AudioFocusLossAction] for the full policy this only applies.
+     *
      * [AudioFocusLossAction.STOP] silences whatever is currently playing and
      * re-syncs [audioFocusOwner]'s own bookkeeping with the fact that the
      * platform has already taken focus away, so the next tap or word asks
      * fresh instead of believing focus is still held.
+     *
+     * [AudioFocusLossAction.RESUME] brings back the one sound in this app
+     * that has nothing to restart it otherwise — Sleepy Cloud's ten-minute
+     * ambience, which plays to a child who is deliberately not tapping
+     * anything. [ToneDirector.resumeAfterFocusGain] is a no-op for every
+     * other client.
+     *
+     * Written as an exhaustive `when` over the enum rather than an early
+     * return on one case: adding a fourth action later should break this
+     * file loudly rather than fall through to silence.
      */
     private fun onAudioFocusChange(focusChange: Int) {
-        if (audioFocusLossAction(focusChange) != AudioFocusLossAction.STOP) return
-        speechController.cancelAll()
-        toneDirector.silence()
-        audioFocusOwner.releaseAll()
+        when (audioFocusLossAction(focusChange)) {
+            AudioFocusLossAction.STOP -> {
+                speechController.cancelAll()
+                toneDirector.silence()
+                audioFocusOwner.releaseAll()
+            }
+
+            AudioFocusLossAction.RESUME -> toneDirector.resumeAfterFocusGain()
+
+            AudioFocusLossAction.NONE -> Unit
+        }
     }
 
     /** Words mode's own state — see the class doc's trade-off note. */
