@@ -30,8 +30,8 @@ import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -305,7 +305,16 @@ fun CloudMascot(
         modifier = modifier
             .size(size, size * 0.78f)
             .testTag("cloud-mascot")
-            .semantics { contentDescription = "Cloudmoji" },
+            // `clearAndSetSemantics`, not plain `semantics {}`: the latter
+            // defaults `mergeDescendants = false`, which *adds* a labeled
+            // node rather than collapsing this element's descendants —
+            // during excited/beaming, up to 5 real `Text` sparkle glyphs
+            // below would each surface their own unlabeled node to TalkBack
+            // alongside this one. `clearAndSetSemantics` discards whatever
+            // the subtree would have reported and substitutes this single
+            // node, the direct analogue of iOS's
+            // `.accessibilityElement(children: .ignore)`.
+            .clearAndSetSemantics { contentDescription = "Cloudmoji" },
     ) {
         Canvas(
             modifier = Modifier
@@ -339,14 +348,17 @@ fun CloudMascot(
             val sparkleTwinkle = sparklePhasesById[sparkle.id] ?: 0f
             val twinkleScale = lerp(0.7f, 1.3f, sparkleTwinkle)
             val twinkleAlpha = lerp(0.2f, 1f, sparkleTwinkle)
-            val fontSizePx = sparkle.fontSizePx * scaleFactorDp.value
+            // A dp-scaled magnitude (the viewBox's own `fontSizePx` number
+            // times the mascot's dp-per-viewbox-unit ratio), not a pixel
+            // count — used below as both `.sp` and `.dp`.
+            val fontSizeDpValue = sparkle.fontSizePx * scaleFactorDp.value
             Text(
                 text = sparkle.glyph,
-                fontSize = fontSizePx.sp,
+                fontSize = fontSizeDpValue.sp,
                 modifier = Modifier
                     .offset(
                         x = scaleFactorDp * sparkle.x,
-                        y = yOffsetDp + scaleFactorDp * sparkle.y - fontSizePx.dp,
+                        y = yOffsetDp + scaleFactorDp * sparkle.y - fontSizeDpValue.dp,
                     )
                     .graphicsLayer {
                         alpha = twinkleAlpha
