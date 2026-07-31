@@ -61,6 +61,15 @@ dependencies {
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.androidx.datastore.preferences)
 
+    // Photos (Task 14) only. `camera-camera2` is the implementation of the
+    // CameraX API, `camera-lifecycle` binds a use-case graph to an Activity's
+    // lifecycle, and `camera-view` supplies `PreviewView` — the viewfinder
+    // surface, which has no Compose equivalent and is reached through
+    // `AndroidView`. Nothing else in this app touches the camera.
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
+
     val composeBom = platform(libs.androidx.compose.bom)
     implementation(composeBom)
     androidTestImplementation(composeBom)

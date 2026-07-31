@@ -1,6 +1,9 @@
 package app.cloudmoji.android
 
+import android.Manifest
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -27,7 +30,8 @@ import app.cloudmoji.android.model.narrowedCountables
 import app.cloudmoji.android.model.narrowedEmojis
 import app.cloudmoji.android.platform.SpeechController
 import app.cloudmoji.android.platform.StubEntitlementStore
-import app.cloudmoji.android.ui.MiniAppPlaceholder
+import app.cloudmoji.android.platform.findActivity
+import app.cloudmoji.android.platform.openAppSettings
 import app.cloudmoji.android.ui.animals.AnimalsScreen
 import app.cloudmoji.android.ui.animals.narrowedAnimals
 import app.cloudmoji.android.ui.common.AdaptiveShell
@@ -37,7 +41,9 @@ import app.cloudmoji.android.ui.launcher.LauncherScreen
 import app.cloudmoji.android.ui.music.MusicScreen
 import app.cloudmoji.android.ui.parents.GateAttempt
 import app.cloudmoji.android.ui.parents.GrownUpsHost
+import app.cloudmoji.android.ui.parents.ParentRequest
 import app.cloudmoji.android.ui.parents.ParentalGate
+import app.cloudmoji.android.ui.photos.PhotosScreen
 import app.cloudmoji.android.ui.sleepy.SleepyCloudScreen
 import app.cloudmoji.android.ui.words.WordsScreen
 import kotlinx.coroutines.launch
@@ -74,14 +80,6 @@ private val RouteSaver: Saver<String, String> = Saver(
     restore = { sanitizeRestoredRoute(it) },
 )
 
-/** Shown on the gate overlay, whichever of the three doorways below opened
- * it — Settings is the only parent request this app has, so there is only
- * one explanation, unlike iOS's `RootContent.ParentRequest` (which also
- * covers its Full Cloudmoji discovery tile and two camera-permission doors,
- * neither of which exist here yet). */
-private const val GateExplanation =
-    "Settings let you choose Cloudmoji's sound, languages, categories and learning range."
-
 /**
  * The app's one composition root: the launcher/mini-app/parent-door route
  * switch.
@@ -113,6 +111,10 @@ private const val GateExplanation =
 fun CloudmojiApp() {
     val context = LocalContext.current
     val application = remember(context) { context.applicationContext as CloudmojiApplication }
+    // Only for `shouldShowRequestPermissionRationale`, which is an Activity
+    // method with no Context equivalent. Same helper `SleepyCloudScreen`
+    // already uses to reach its window.
+    val activity = remember(context) { context.findActivity() }
     var route by rememberSaveable(stateSaver = RouteSaver) { mutableStateOf(LauncherRoute) }
 
     // The gate's own state. `gateIndex` only ever advances by one, on every
@@ -126,6 +128,13 @@ fun CloudmojiApp() {
     // duplicated `+ 1`.
     var isGateShowing by rememberSaveable { mutableStateOf(false) }
     var gateIndex by rememberSaveable { mutableStateOf(0) }
+
+    // Why the gate is open — the sentence it shows, and what passing it does.
+    // Held as the enum's `name` so it keeps the ordinary default Saver, the
+    // same trade-off `gateIndex` above makes; [ParentRequest.fromName] is what
+    // makes a restored value from an older build safe.
+    var parentRequestName by rememberSaveable { mutableStateOf(ParentRequest.Settings.name) }
+    val parentRequest = ParentRequest.fromName(parentRequestName)
 
     val settings by application.settingsRepository.settings.collectAsState(initial = Settings.default())
     val isUnlocked by application.entitlementStore.isUnlocked.collectAsState()
@@ -211,9 +220,34 @@ fun CloudmojiApp() {
                 application.sleepySessionState.reset()
             }
 
+            // Photos keeps no round, mood or session of its own to clear — it
+            // re-reads the folder and the permission on its own first frame —
+            // but a word still finishing from Words mode over a silent
+            // viewfinder is the same wrong-screen carry-over every branch
+            // above cancels. iOS gets this for free: its `open(_:)` cancels
+            // speech for every mini-app unconditionally.
+            MiniApp.Photos -> application.speechController.cancelAll()
+
             else -> Unit
         }
         route = app.route
+    }
+
+    // Android's own camera dialog, shown only *after* a grown-up has answered
+    // the gate — see [ParentRequest.CameraPermission]. Registered here rather
+    // than in `PhotosScreen` because this is the composition root, and because
+    // the answer has to outlive the screen that asked: it is stored in
+    // `application.cameraPermission`, which `PhotosScreen` observes.
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        // Read *after* the result, which is the only time this answer means
+        // "a further prompt is still possible" — see
+        // `permanentlyDeniedAfterRequest`. Defaults to "can ask again" when
+        // there is no Activity to ask, which errs toward showing the child a
+        // camera tile rather than a locked one.
+        val canAskAgain = activity?.shouldShowRequestPermissionRationale(Manifest.permission.CAMERA) ?: true
+        application.cameraPermission.onRequestResult(granted, canAskAgain)
     }
 
     // The one way any "Grown-ups"/gear control reaches the gate — see this
@@ -221,6 +255,22 @@ fun CloudmojiApp() {
     // to keep talking over the arithmetic question.
     val openParentDoor: () -> Unit = {
         application.speechController.cancelAll()
+        parentRequestName = ParentRequest.Settings.name
+        isGateShowing = true
+    }
+
+    // Photos' two camera doors — iOS `openCameraPermissionDoor` /
+    // `openCameraSettingsDoor`. Both go through the same single gate as
+    // everything else; only the sentence on it and what a pass does differ.
+    val openCameraPermissionDoor: () -> Unit = {
+        application.speechController.cancelAll()
+        parentRequestName = ParentRequest.CameraPermission.name
+        isGateShowing = true
+    }
+
+    val openCameraSettingsDoor: () -> Unit = {
+        application.speechController.cancelAll()
+        parentRequestName = ParentRequest.CameraSettings.name
         isGateShowing = true
     }
 
@@ -234,6 +284,21 @@ fun CloudmojiApp() {
     fun closeGate() {
         isGateShowing = false
         gateIndex = GateAttempt(index = gateIndex).next().index
+    }
+
+    // **The one place a passed gate turns into an action**, and therefore the
+    // one place `route = ParentRoute` is ever written — see
+    // `sanitizeRestoredRoute`'s own doc for why that single write site is a
+    // hard invariant rather than a preference. Ported from iOS
+    // `completeParentRequest`. Exhaustive over the enum on purpose: a fourth
+    // door added later should break this file loudly rather than silently do
+    // nothing.
+    fun completeParentRequest() {
+        when (parentRequest) {
+            ParentRequest.Settings -> route = ParentRoute
+            ParentRequest.CameraPermission -> cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+            ParentRequest.CameraSettings -> openAppSettings(context)
+        }
     }
 
     BackHandler(enabled = route != LauncherRoute) {
@@ -273,6 +338,8 @@ fun CloudmojiApp() {
                     categories = application.repository.categories.filter { it.category != null },
                     effectiveLanguage = effectiveLanguage,
                     isUnlocked = isUnlocked,
+                    photoStore = application.photoStore,
+                    cameraPermission = application.cameraPermission,
                     onSetMuted = { muted -> scope.launch { application.settingsRepository.setMuted(muted) } },
                     onSetEnabledLanguages = { languages ->
                         scope.launch { application.settingsRepository.setEnabledLanguages(languages) }
@@ -363,9 +430,18 @@ fun CloudmojiApp() {
                                 onUnmute = { scope.launch { application.settingsRepository.setMuted(false) } },
                             )
 
-                            else -> MiniAppPlaceholder(
-                                app = app,
+                            // Photos keeps no round, mood or audio of its own
+                            // to reset on entry — hence no branch in
+                            // `onOpenApp` above — but it does re-read the
+                            // folder and the camera permission every time it
+                            // appears, which is its own first effect.
+                            MiniApp.Photos -> PhotosScreen(
+                                store = application.photoStore,
+                                cameraPermission = application.cameraPermission,
                                 language = effectiveLanguage,
+                                hapticFeedback = application.hapticFeedback,
+                                onCameraPermissionRequest = openCameraPermissionDoor,
+                                onCameraPermissionHelp = openCameraSettingsDoor,
                                 onHome = { route = LauncherRoute },
                             )
                         }
@@ -384,10 +460,10 @@ fun CloudmojiApp() {
         if (isGateShowing) {
             ParentalGate(
                 challengeIndex = gateIndex,
-                action = GateExplanation,
+                action = parentRequest.explanation,
                 onPass = {
                     closeGate()
-                    route = ParentRoute
+                    completeParentRequest()
                 },
                 onCancel = ::closeGate,
             )

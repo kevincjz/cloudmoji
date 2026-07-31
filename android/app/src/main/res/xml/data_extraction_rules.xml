@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  API 31+ backup/transfer rules (`android:dataExtractionRules`). See
+  `backup_rules.xml` for why the photos folder is excluded at all.
+
+  Both destinations are covered on purpose. `cloud-backup` is the Google Drive
+  upload; `device-transfer` is the direct phone-to-phone copy, which does not
+  go through Google's servers but does copy the pictures onto hardware the
+  photographs were never taken on. iOS has one flag for both cases
+  (`isExcludedFromBackup`); Android splits them, and a rule that covered only
+  the first would make the same promise half true.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="file" path="photos" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="file" path="photos" />
+    </device-transfer>
+</data-extraction-rules>

@@ -1,10 +1,13 @@
 package app.cloudmoji.android
 
+import android.Manifest
 import android.app.Application
+import android.content.pm.PackageManager
 import android.util.Log
 import app.cloudmoji.android.data.EmojiCatalogException
 import app.cloudmoji.android.data.EmojiRepository
 import app.cloudmoji.android.data.EmojiRepositoryLoader
+import app.cloudmoji.android.data.PhotoStore
 import app.cloudmoji.android.data.SettingsRepository
 import app.cloudmoji.android.data.settingsDataStore
 import app.cloudmoji.android.model.CountViewModel
@@ -23,6 +26,7 @@ import app.cloudmoji.android.platform.AndroidToneEngine
 import app.cloudmoji.android.platform.AudioFocusClient
 import app.cloudmoji.android.platform.AudioFocusLossAction
 import app.cloudmoji.android.platform.AudioFocusOwner
+import app.cloudmoji.android.platform.CameraPermissionState
 import app.cloudmoji.android.platform.CoroutineSpeechWatchdogScheduler
 import app.cloudmoji.android.platform.HapticFeedback
 import app.cloudmoji.android.platform.SpeechController
@@ -34,6 +38,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import java.io.File
 
 /**
  * The process-lifetime home for everything that must survive an Activity
@@ -272,6 +277,40 @@ class CloudmojiApplication : Application() {
      * silently resumed it would make that impossible.
      */
     val sleepySessionState: SleepySessionState by lazy { SleepySessionState() }
+
+    /**
+     * Where a child's photographs live. Process-scoped for the same
+     * rotation-survival reason as everything else in this class, and shared
+     * deliberately: [app.cloudmoji.android.ui.photos.PhotosScreen] and
+     * [app.cloudmoji.android.ui.parents.ManagePhotosScreen] must be looking at
+     * one folder, not at two stores that happen to agree on a path.
+     *
+     * `filesDir` — app-private, credential-encrypted, excluded from backup by
+     * `res/xml/backup_rules.xml`. [PhotoStore]'s own doc explains why each of
+     * those three is load-bearing.
+     */
+    val photoStore: PhotoStore by lazy { PhotoStore(File(filesDir, PhotoStore.DIRECTORY_NAME)) }
+
+    /**
+     * The camera permission, as this app remembers it. Process-scoped because
+     * the *result* of a request arrives at `CloudmojiApp`'s
+     * `ActivityResultLauncher` — the only place one can be registered — while
+     * the screen that asked for it is `PhotosScreen`, and a rotation in
+     * between must not lose the answer.
+     *
+     * `FEATURE_CAMERA_ANY` rather than `FEATURE_CAMERA`: a tablet with only a
+     * front camera can still take a picture of a two-year-old's thumb, which
+     * is the correct outcome. Both reads are injected as plain values/lambdas
+     * so [CameraPermissionState] itself stays host-testable.
+     */
+    val cameraPermission: CameraPermissionState by lazy {
+        CameraPermissionState(
+            hasCamera = packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY),
+            isGranted = {
+                checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+            },
+        )
+    }
 
     /** The taps and rewards a child feels — see [HapticFeedback]'s own doc.
      * Words mode does not wire this in yet (Task 6 shipped without it); Count

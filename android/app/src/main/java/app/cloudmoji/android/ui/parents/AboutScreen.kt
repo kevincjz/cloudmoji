@@ -61,11 +61,12 @@ import app.cloudmoji.android.ui.theme.TextTertiary
 /**
  * FAQ, privacy and support. Ported from iOS `AboutView.swift`, rewritten
  * (not translated line for line) for what this Android binary actually does
- * today: Words and Count are real; the other five mini-apps are still
- * placeholders (Task 9+), there is no camera or microphone anywhere in this
- * app, Full Cloudmoji has no Google Play purchase yet ([FullCloudmojiScreen]
- * covers that), and settings are six values in Preferences DataStore, not
- * seven `UserDefaults` keys. Every claim below was checked against what is
+ * today: all seven mini-apps are real as of Task 14; the camera is used in
+ * exactly one of them and the microphone in none (unlike iOS, which carries a
+ * watch-only microphone); Full Cloudmoji has no Google Play purchase yet
+ * ([FullCloudmojiScreen] covers that); and settings are six values in
+ * Preferences DataStore, not seven `UserDefaults` keys. Every claim below was
+ * checked against what is
  * actually built rather than copied from the iPhone app's disclosure —
  * `AboutView.swift`'s own doc explains why that distinction matters: a
  * privacy screen is a claim about *this* binary.
@@ -360,8 +361,8 @@ private val faq: List<AboutEntry> = listOf(
             "the big cloud along the bottom of the screen to come back out.\n\n" +
             "🗣️ Words — tap any emoji to hear the word spoken aloud.\n\n" +
             "🧮 Count — tap the emojis one at a time to count them, out loud, in order.\n\n" +
-            "Flash Cards, Music, Animals, Photos and Sleepy Cloud are part of Full Cloudmoji, " +
-            "and arrive on Android in a later update.",
+            "⚡ Flash Cards, 🎹 Music, 🔊 Animals, 📷 Photos and 🌙 Sleepy Cloud are part of " +
+            "Full Cloudmoji.",
     ),
     AboutEntry(
         id = "screen-pinning",
@@ -422,9 +423,20 @@ private val legal: List<AboutEntry> = listOf(
             "WHAT IS STORED, AND WHERE\nSix settings are kept on this device, in Android's own " +
             "Preferences DataStore: the chosen language, which languages are switched on, which " +
             "categories are switched on, the lowest and highest number Count mode uses, whether " +
-            "Cloudmoji is muted, and whether the tour has been seen. None of it is sent to us.\n\n" +
-            "CAMERA AND MICROPHONE\nThis build of Cloudmoji does not use the camera or the " +
-            "microphone anywhere.\n\n" +
+            "Cloudmoji is muted, and whether the tour has been seen. None of it is sent to us. " +
+            "Photographs your child takes are the one other thing stored — see the next " +
+            "section.\n\n" +
+            "CAMERA AND PHOTOS\nThe camera is used in one place: the Photos mini-app, where your " +
+            "child takes pictures. Cloudmoji asks for camera permission there and nowhere else, " +
+            "and only after a grown-up has answered the grown-ups question. The pictures are " +
+            "written inside the app's own private storage: they are not added to your phone's " +
+            "gallery, they are excluded from Android backup and phone-to-phone transfer, and " +
+            "uninstalling Cloudmoji deletes them. Each picture is re-saved before it is written, " +
+            "which removes the camera's own hidden information — there is no location in a " +
+            "Cloudmoji photo, and Cloudmoji never asks for location permission. A grown-up can " +
+            "delete them, or save copies to your gallery, under Photos on this device in the " +
+            "grown-ups screen.\n\n" +
+            "MICROPHONE\nThis build of Cloudmoji does not use the microphone anywhere.\n\n" +
             "SPEECH\nWords are spoken by Android's own text-to-speech. Cloudmoji hands the system " +
             "a word and Android makes a sound; nothing is recorded, saved or sent anywhere.\n\n" +
             "OPTIONAL SUPPORT EMAIL\nThe Support row opens your own mail app with the Cloudmoji " +

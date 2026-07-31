@@ -1,9 +1,47 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!--
+      Photos 📷 only. The permission is requested in context, from inside the
+      mini-app and only after a grown-up has answered the parental gate — see
+      `ui/photos/PhotosScreen.kt`.
+
+      There is no RECORD_AUDIO here and there must never be one: unlike iOS,
+      which carries a watch-only microphone, nothing on Android records
+      anything. There is likewise no location permission — the camera's own
+      JPEG is re-encoded before it is written (`platform/CameraCapture.kt`), so
+      not even the sensor's EXIF survives, let alone a GPS tag.
+    -->
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <!--
+      Saving a copy into the parent's gallery needs this on API 28 and below,
+      where MediaStore has no scoped-storage insert. Capped so it is never
+      requested on a modern phone, and asked for only from the parent-gated
+      Manage Photos screen — never from anything a child can reach.
+    -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+
+    <!--
+      Not required: a device with no camera still gets Words, Count and the
+      other five mini-apps, and Photos itself degrades to the gallery alone
+      rather than disappearing. `required="true"` would hide Cloudmoji from
+      those devices in the Play Store for one optional feature.
+    -->
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.camera.autofocus"
+        android:required="false" />
+
     <application
         android:name=".CloudmojiApplication"
         android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
         android:icon="@drawable/cloudmoji_icon"
         android:label="@string/app_name"
         android:supportsRtl="true"
@@ -22,4 +60,3 @@
     </application>
 
 </manifest>
-

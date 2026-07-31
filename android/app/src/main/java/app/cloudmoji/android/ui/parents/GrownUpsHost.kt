@@ -10,17 +10,20 @@ import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import app.cloudmoji.android.data.PhotoStore
 import app.cloudmoji.android.model.AppAccessPolicy
 import app.cloudmoji.android.model.Category
 import app.cloudmoji.android.model.CategoryTab
 import app.cloudmoji.android.model.Language
 import app.cloudmoji.android.model.LanguageMeta
 import app.cloudmoji.android.model.Settings
+import app.cloudmoji.android.platform.CameraPermissionState
 
 internal const val DestinationPanel = "panel"
 internal const val DestinationAbout = "about"
 internal const val DestinationFullCloudmoji = "full"
 internal const val DestinationTutorial = "tutorial"
+internal const val DestinationManagePhotos = "managephotos"
 
 /**
  * Coerces a `destination` value read back from saved-instance state to
@@ -47,9 +50,9 @@ private val DestinationSaver: Saver<String, String> = Saver(
 )
 
 /**
- * The whole Grown-ups area behind the gate: the panel itself, plus the three
+ * The whole Grown-ups area behind the gate: the panel itself, plus the four
  * screens it can push ([AboutScreen], [FullCloudmojiScreen],
- * [TutorialScreen]). A raw-string internal destination, mirroring the same
+ * [TutorialScreen], [ManagePhotosScreen]). A raw-string internal destination, mirroring the same
  * pattern `CloudmojiApp.kt` already uses for its own top-level `route` — this
  * app has no navigation library, and a second one would be inconsistent with
  * the first for no benefit.
@@ -72,6 +75,8 @@ fun GrownUpsHost(
     categories: List<CategoryTab>,
     effectiveLanguage: Language,
     isUnlocked: Boolean,
+    photoStore: PhotoStore,
+    cameraPermission: CameraPermissionState,
     onSetMuted: (Boolean) -> Unit,
     onSetEnabledLanguages: (Set<Language>) -> Unit,
     onSetLanguage: (Language) -> Unit,
@@ -94,6 +99,11 @@ fun GrownUpsHost(
                 onBack = { destination = DestinationPanel },
             )
             DestinationTutorial -> TutorialScreen(onBack = { destination = DestinationPanel })
+            DestinationManagePhotos -> ManagePhotosScreen(
+                store = photoStore,
+                cameraPermission = cameraPermission,
+                onBack = { destination = DestinationPanel },
+            )
             else -> GrownUpsScreen(
                 settings = settings,
                 accessPolicy = accessPolicy,
@@ -110,6 +120,7 @@ fun GrownUpsHost(
                 onOpenFullCloudmoji = { destination = DestinationFullCloudmoji },
                 onOpenAbout = { destination = DestinationAbout },
                 onOpenTutorial = { destination = DestinationTutorial },
+                onOpenManagePhotos = { destination = DestinationManagePhotos },
                 onDone = onHome,
             )
         }

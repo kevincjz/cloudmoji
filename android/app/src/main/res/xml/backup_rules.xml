@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Auto Backup rules for API 30 and below (`android:fullBackupContent`).
+
+  **The load-bearing half of "a child's photographs never leave this device."**
+  Everything in `filesDir` is backed up to the parent's Google Drive by default,
+  which would put every picture a two-year-old took on Google's servers — the
+  About screen says otherwise, and a promise that is quietly false in the
+  direction of uploading a child's photographs is the worst kind.
+
+  The excluded path must stay identical to
+  `app.cloudmoji.android.data.PhotoStore.DIRECTORY_NAME`;
+  `BackupExclusionTest` asserts that, because a rename on one side alone
+  silently re-enables the upload with nothing on screen to say so.
+
+  Settings (Preferences DataStore) are deliberately *not* excluded: a parent who
+  restores onto a new phone should get their languages and categories back.
+-->
+<full-backup-content>
+    <exclude domain="file" path="photos" />
+</full-backup-content>

@@ -100,6 +100,7 @@ fun GrownUpsScreen(
     onOpenFullCloudmoji: () -> Unit,
     onOpenAbout: () -> Unit,
     onOpenTutorial: () -> Unit,
+    onOpenManagePhotos: () -> Unit,
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -239,6 +240,19 @@ fun GrownUpsScreen(
                 item { Spacer(Modifier.height(14.dp)) }
 
                 item { SectionHeader("More") }
+                // Mirrors iOS `SettingsView`'s own Photos row: the child's
+                // gallery has no delete affordance at all, so this — already
+                // behind the gate by virtue of being here — is the only way
+                // photographs are ever removed or copied out. See
+                // [ManagePhotosScreen].
+                item {
+                    NavRow(
+                        icon = "📷",
+                        label = "Photos on this device",
+                        testTag = "settings-manage-photos-row",
+                        onClick = onOpenManagePhotos,
+                    )
+                }
                 item {
                     NavRow(
                         icon = "❓",
