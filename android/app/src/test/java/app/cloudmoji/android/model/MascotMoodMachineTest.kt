@@ -54,9 +54,16 @@ class MascotMoodMachineTest {
 
     private data class Fixture(val machine: MascotMoodMachine, val scheduler: FakeMascotScheduler)
 
-    private fun makeMachine(milestones: Set<Int> = MascotMoodMachine.DEFAULT_MILESTONES): Fixture {
+    private fun makeMachine(
+        milestones: Set<Int> = MascotMoodMachine.DEFAULT_MILESTONES,
+        celebrationDelayMillis: Long = MascotMoodMachine.CELEBRATION_DELAY_MS,
+        celebrationHoldMillis: Long = MascotMoodMachine.CELEBRATION_HOLD_MS,
+    ): Fixture {
         val scheduler = FakeMascotScheduler()
-        return Fixture(MascotMoodMachine(scheduler, milestones), scheduler)
+        return Fixture(
+            MascotMoodMachine(scheduler, milestones, celebrationDelayMillis, celebrationHoldMillis),
+            scheduler,
+        )
     }
 
     // MARK: - Initial state
@@ -360,5 +367,167 @@ class MascotMoodMachineTest {
         assertEquals(600L, MascotMoodMachine.EXCITED_HOLD_MS)
         assertEquals(500L, MascotMoodMachine.CELEBRATION_DELAY_MS)
         assertEquals(3000L, MascotMoodMachine.CELEBRATION_HOLD_MS)
+    }
+
+    // MARK: - celebrateNow (Task 7: Count mode's round-completion celebration)
+    //
+    // Count mode's finished round is not a cumulative tap-count milestone at
+    // all — every round ends this way, unconditionally, on iOS `CountView`'s
+    // own timing (1200ms/3500ms, not Words' 500ms/3000ms) — so it calls
+    // `celebrateNow()` directly instead of routing through `onTap`'s tapCount.
+    // These mirror the milestone-celebration tests above, but through the
+    // public entry point and with the callback Count uses to speak the
+    // round's closing phrase at the moment beaming actually starts.
+
+    @Test
+    fun `celebrateNow beams after the instance's own delay and holds for its own duration`() {
+        val (machine, scheduler) = makeMachine(
+            milestones = emptySet(),
+            celebrationDelayMillis = 1200L,
+            celebrationHoldMillis = 3500L,
+        )
+        machine.celebrateNow()
+        assertEquals(MascotMood.Happy, machine.mood.value)
+
+        assertEquals(1200L, scheduler.latestDelayMillis())
+        scheduler.fireLatest()
+        assertEquals(MascotMood.Beaming, machine.mood.value)
+
+        assertEquals(3500L, scheduler.latestDelayMillis())
+        scheduler.fireLatest()
+        assertEquals(MascotMood.Happy, machine.mood.value)
+    }
+
+    @Test
+    fun `celebrateNow fires onBeamingStart exactly when the mood flips to beaming, not before`() {
+        val (machine, scheduler) = makeMachine(milestones = emptySet())
+        var fired = false
+        machine.celebrateNow { fired = true }
+
+        assertEquals("must not fire before the delay elapses", false, fired)
+        scheduler.fireLatest() // celebrationDelay -> beaming
+        assertEquals(true, fired)
+        assertEquals(MascotMood.Beaming, machine.mood.value)
+    }
+
+    @Test
+    fun `an empty milestone set never auto-celebrates on its own, however many taps land`() {
+        val (machine, scheduler) = makeMachine(milestones = emptySet())
+        repeat(200) { machine.onTap() }
+        // One scheduled entry per tap (its own excited-hold) and nothing
+        // else — no celebration was ever armed.
+        assertEquals(200, scheduler.scheduledCount)
+        assertEquals(MascotMood.Excited, machine.mood.value)
+    }
+
+    @Test
+    fun `celebrateNow re-triggered mid-celebration extends the hold rather than layering it`() {
+        val (machine, scheduler) = makeMachine(milestones = emptySet())
+        machine.celebrateNow()
+        val firstDelayIndex = scheduler.scheduledCount - 1
+        scheduler.fire(firstDelayIndex) // -> beaming
+        assertEquals(MascotMood.Beaming, machine.mood.value)
+
+        machine.celebrateNow() // a second round finishing mid-celebration
+        val secondDelayIndex = scheduler.scheduledCount - 1
+        scheduler.fire(secondDelayIndex)
+        assertEquals(MascotMood.Beaming, machine.mood.value)
+
+        // The first celebration's hold timer is stale — cancelled by the
+        // second call. It must not end the (extended) celebration early.
+        scheduler.fire(firstDelayIndex + 1)
+        assertEquals(
+            "a superseded celebration hold must not end an extended celebration early",
+            MascotMood.Beaming,
+            machine.mood.value,
+        )
+
+        scheduler.fireLatest() // only the second (current) hold actually ends it
+        assertEquals(MascotMood.Happy, machine.mood.value)
+    }
+
+    // MARK: - reset (Task 7: Shuffle/Next/mute/language change/leaving mid-celebration)
+
+    @Test
+    fun `reset puts the mood back to Happy directly, even mid-beaming`() {
+        val (machine, scheduler) = makeMachine(milestones = emptySet())
+        machine.celebrateNow()
+        scheduler.fireLatest() // -> beaming
+        assertEquals(MascotMood.Beaming, machine.mood.value)
+
+        machine.reset()
+
+        assertEquals("reset must bypass arbitrate and lower even a beaming mood", MascotMood.Happy, machine.mood.value)
+    }
+
+    @Test
+    fun `reset cancels a pending celebration so its stale timers cannot resolve later`() {
+        val (machine, scheduler) = makeMachine(milestones = emptySet())
+        machine.celebrateNow()
+        val delayIndex = scheduler.scheduledCount - 1
+        machine.reset()
+        assertEquals(MascotMood.Happy, machine.mood.value)
+
+        // The fake scheduler does not suppress a cancelled entry (see the
+        // class doc) — the guard against it resuming is the generation
+        // counter `reset()` bumps, not the scheduler's cooperation.
+        scheduler.fire(delayIndex)
+        assertEquals(
+            "a celebration delay that fires after reset() must not resurrect beaming",
+            MascotMood.Happy,
+            machine.mood.value,
+        )
+    }
+
+    @Test
+    fun `reset cancels a pending excited hold so a stale tap cannot resolve the mood later`() {
+        val (machine, scheduler) = makeMachine()
+        machine.onTap()
+        val holdIndex = scheduler.scheduledCount - 1
+        assertEquals(MascotMood.Excited, machine.mood.value)
+
+        machine.reset()
+        assertEquals(MascotMood.Happy, machine.mood.value)
+
+        scheduler.fire(holdIndex)
+        assertEquals(
+            "a stale excited-hold firing after reset() must not move the mood",
+            MascotMood.Happy,
+            machine.mood.value,
+        )
+    }
+
+    @Test
+    fun `after reset, a fresh tap behaves normally again`() {
+        val (machine, _) = makeMachine()
+        machine.onTap()
+        machine.reset()
+
+        machine.onTap()
+
+        assertEquals(MascotMood.Excited, machine.mood.value)
+    }
+
+    @Test
+    fun `reset clears a stale isSpeaking flag so a later tap's hold does not wrongly resolve to speaking`() {
+        // `armExcitedHold`'s callback resolves to Speaking or Happy based on
+        // `isSpeaking` — the only place that field is ever read. If `reset()`
+        // cancelled every timer but left a `true` `isSpeaking` in place, the
+        // *next* tap's own hold — armed with nothing actually speaking —
+        // would wrongly resolve to the speaking face instead of happy.
+        val (machine, scheduler) = makeMachine()
+        machine.onTap()
+        machine.onSpeechStarted() // isSpeaking = true, mid-excited-hold
+        machine.reset() // must clear isSpeaking, not just cancel timers
+
+        machine.onTap() // a fresh tap; nothing is actually speaking this time
+        val holdIndex = scheduler.scheduledCount - 1
+        scheduler.fire(holdIndex)
+
+        assertEquals(
+            "a stale isSpeaking=true left over from before reset() leaked into a later tap's hold",
+            MascotMood.Happy,
+            machine.mood.value,
+        )
     }
 }

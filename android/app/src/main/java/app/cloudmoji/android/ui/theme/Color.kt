@@ -10,6 +10,11 @@ val Coral = Color(0xFFFF6B6B)
 val Teal = Color(0xFF4ECDC4)
 val Gold = Color(0xFFFFE66D)
 val Amber = Color(0xFFFFB347)
+
+/** The far stop of the count badge's `linear-gradient(135deg, #4ECDC4,
+ * #44B8AC)`. Mirrors iOS `Theme.tealDeep`. A flat teal badge reads as a
+ * sticker; the gradient is what makes it look like it landed on the tile. */
+val TealDeep = Color(0xFF44B8AC)
 val Moonlight = Color(0xFFA8D6FF)
 val Lavender = Color(0xFFC4B5FD)
 

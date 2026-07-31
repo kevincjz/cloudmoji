@@ -73,8 +73,17 @@ class MascotMoodMachine(
     private val scheduler: MascotScheduler,
     /** Cumulative session tap counts that earn a celebration. `CLAUDE.md`
      * rule 10, and `WordsView.milestones` / `WordsMode.tsx`'s `[10, 25, 50,
-     * 100]`. */
+     * 100]`. Count mode's own instance passes `emptySet()` here — see
+     * [celebrateNow] — so a tap tally this class still keeps for it never
+     * auto-fires a celebration on its own. */
     private val milestones: Set<Int> = DEFAULT_MILESTONES,
+    /** The two legs' duration for *this instance*. Defaults match Words'
+     * timing (`WordsView.celebrationDelay`/`celebrationHold`); Count mode's
+     * own instance overrides both to iOS `CountView`'s 1200ms/3500ms — a
+     * whole round finishing is a bigger moment than a running total passing
+     * a milestone marker, and gets a longer hold. */
+    private val celebrationDelayMillis: Long = CELEBRATION_DELAY_MS,
+    private val celebrationHoldMillis: Long = CELEBRATION_HOLD_MS,
 ) {
     companion object {
         val DEFAULT_MILESTONES: Set<Int> = setOf(10, 25, 50, 100)
@@ -117,7 +126,7 @@ class MascotMoodMachine(
     private var celebrationHoldHandle: MascotScheduleHandle? = null
 
     /**
-     * Bumped every time [armExcitedHold] / [celebrate] supersede their own
+     * Bumped every time [armExcitedHold] / [celebrateNow] supersede their own
      * previous timer. The guard against a stale callback resuming is this
      * counter, not [MascotScheduleHandle.cancel] — mirroring
      * `SpeechController`'s `generation`, which exists for exactly the same
@@ -138,7 +147,7 @@ class MascotMoodMachine(
         tapCount += 1
         request(MascotMood.Excited)
         armExcitedHold()
-        if (tapCount in milestones) celebrate()
+        if (tapCount in milestones) celebrateNow()
     }
 
     /** The speech engine started an utterance — real-word or replay, tap or
@@ -173,23 +182,35 @@ class MascotMoodMachine(
     }
 
     /**
-     * `WordsView.celebrate()`: half a second of anticipation, then three
-     * seconds of beaming. Re-triggering while a celebration is already
-     * in flight (two milestones close together) cancels and restarts both
-     * legs, extending the hold rather than layering a second one.
+     * `WordsView.celebrate()` / iOS `CountView.celebrate()`: [celebrationDelayMillis]
+     * of anticipation, then beaming for [celebrationHoldMillis]. Re-triggering
+     * while a celebration is already in flight (two milestones close
+     * together; a round finishing again mid-celebration cannot happen today,
+     * but the same guard covers it for free) cancels and restarts both legs,
+     * extending the hold rather than layering a second one.
+     *
+     * Public — not just [onTap]'s internal milestone trigger — because a
+     * finished Count round is not a cumulative tap-count milestone at all:
+     * *every* round ends this way, unconditionally, so Count calls this
+     * directly rather than routing through a tap tally. [onBeamingStart]
+     * fires at the instant the mood actually flips to beaming, which is
+     * exactly when iOS `CountView.celebrate()` sets the closing phrase and
+     * speaks it — Count's caller uses it for that; Words' milestone
+     * celebration has no such side effect and leaves it at the default no-op.
      */
-    private fun celebrate() {
+    fun celebrateNow(onBeamingStart: () -> Unit = {}) {
         celebrationDelayHandle?.cancel()
         celebrationHoldHandle?.cancel()
         celebrationGeneration += 1
         val token = celebrationGeneration
-        celebrationDelayHandle = scheduler.schedule(CELEBRATION_DELAY_MS) {
+        celebrationDelayHandle = scheduler.schedule(celebrationDelayMillis) {
             if (token != celebrationGeneration) return@schedule
             // Not `request`: a celebration always wins, and always did — this
             // is just the direct route there instead of a no-op detour
             // through arbitrate.
             moodState.value = MascotMood.Beaming
-            celebrationHoldHandle = scheduler.schedule(CELEBRATION_HOLD_MS) {
+            onBeamingStart()
+            celebrationHoldHandle = scheduler.schedule(celebrationHoldMillis) {
                 if (token != celebrationGeneration) return@schedule
                 // The one assignment that bypasses `request`/`arbitrate`: the
                 // celebration is the only thing allowed to lower its own
@@ -197,6 +218,30 @@ class MascotMoodMachine(
                 moodState.value = MascotMood.Happy
             }
         }
+    }
+
+    /**
+     * Cancels every timer in flight — the excited hold and both legs of a
+     * celebration — and puts the mood back to Happy directly, bypassing
+     * [MascotMood.arbitrate]. Mirrors iOS `CountView.silence()`: a
+     * celebration that is about to be thrown away (the round it was for no
+     * longer exists) must not be protected by the same rule that keeps a
+     * *live* one from being interrupted.
+     *
+     * Words mode has no caller for this today — nothing there discards a
+     * live celebration — but Count does, on Shuffle, Next, a language
+     * change, a mute toggle, and leaving the screen, all of which can land
+     * mid-celebration.
+     */
+    fun reset() {
+        excitedHoldHandle?.cancel()
+        celebrationDelayHandle?.cancel()
+        celebrationHoldHandle?.cancel()
+        excitedGeneration += 1
+        celebrationGeneration += 1
+        excitedHoldActive = false
+        isSpeaking = false
+        moodState.value = MascotMood.Happy
     }
 
     private fun request(requested: MascotMood) {

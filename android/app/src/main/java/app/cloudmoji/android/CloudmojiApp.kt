@@ -13,14 +13,17 @@ import androidx.compose.ui.platform.LocalContext
 import app.cloudmoji.android.data.EmojiRepository
 import app.cloudmoji.android.data.SettingsRepository
 import app.cloudmoji.android.model.AppAccessPolicy
+import app.cloudmoji.android.model.CountRound
 import app.cloudmoji.android.model.Language
 import app.cloudmoji.android.model.MiniApp
 import app.cloudmoji.android.model.Settings
+import app.cloudmoji.android.model.narrowedCountables
 import app.cloudmoji.android.platform.SpeechController
 import app.cloudmoji.android.platform.StubEntitlementStore
 import app.cloudmoji.android.ui.MiniAppPlaceholder
 import app.cloudmoji.android.ui.ParentPlaceholder
 import app.cloudmoji.android.ui.common.AdaptiveShell
+import app.cloudmoji.android.ui.count.CountScreen
 import app.cloudmoji.android.ui.launcher.LauncherScreen
 import app.cloudmoji.android.ui.words.WordsScreen
 import kotlinx.coroutines.launch
@@ -60,6 +63,34 @@ fun CloudmojiApp() {
     val availableLanguages = application.repository.languages.filter {
         it.id in accessPolicy.allowedLanguages(settings.enabledLanguages)
     }
+    // Count mode's own catalogue, narrowed to the categories the parent left
+    // enabled — the Count analogue of `WordsScreen`'s `buildSections`. Passed
+    // down already-filtered, per the Task 6 brief's "a screen never decides
+    // what it is allowed to show" rule.
+    val countables = remember(application.repository, settings.enabledCategories) {
+        narrowedCountables(application.repository, settings.enabledCategories)
+    }
+    val onCycleLanguage: () -> Unit = {
+        val next = Language.next(after = effectiveLanguage, enabled = availableLanguages.map { it.id })
+        scope.launch { application.settingsRepository.setLanguage(next) }
+        Unit
+    }
+
+    // Opens a mini-app. Count mode's own round is reset to a fresh one on
+    // every entry here — see `ui/count/CountScreen.kt`'s own doc for why
+    // that differs from Words' "persists across a visit to the launcher and
+    // back" trade-off. This closure fires only on a genuine navigation
+    // (a launcher tile tap); `route` itself survives rotation via
+    // `rememberSaveable` above without ever calling back through here, so a
+    // rotation mid-round never re-triggers this reset.
+    val onOpenApp: (MiniApp) -> Unit = { app ->
+        if (app == MiniApp.Count) {
+            application.speechController.cancelAll()
+            application.countMoodMachine.reset()
+            application.countViewModel.startRound(countables, CountRound.firstTarget(settings.countRange))
+        }
+        route = app.route
+    }
 
     BackHandler(enabled = route != LauncherRoute) {
         route = LauncherRoute
@@ -70,7 +101,7 @@ fun CloudmojiApp() {
             route == LauncherRoute -> LauncherScreen(
                 apps = accessPolicy.visibleMiniApps(),
                 language = effectiveLanguage,
-                onOpen = { route = it.route },
+                onOpen = onOpenApp,
                 onParent = { route = ParentRoute },
             )
 
@@ -81,8 +112,8 @@ fun CloudmojiApp() {
             else -> {
                 val app = MiniApp.fromRoute(route)
                 if (app != null && accessPolicy.canUse(app)) {
-                    if (app == MiniApp.Words) {
-                        WordsScreen(
+                    when (app) {
+                        MiniApp.Words -> WordsScreen(
                             repository = application.repository,
                             enabledCategories = settings.enabledCategories,
                             language = effectiveLanguage,
@@ -92,18 +123,29 @@ fun CloudmojiApp() {
                             mascotMoodMachine = application.mascotMoodMachine,
                             wordsViewModel = application.wordsViewModel,
                             onSetMuted = { muted -> scope.launch { application.settingsRepository.setMuted(muted) } },
-                            onCycleLanguage = {
-                                val next = Language.next(
-                                    after = effectiveLanguage,
-                                    enabled = availableLanguages.map { it.id },
-                                )
-                                scope.launch { application.settingsRepository.setLanguage(next) }
-                            },
+                            onCycleLanguage = onCycleLanguage,
                             onHome = { route = LauncherRoute },
                             onParent = { route = ParentRoute },
                         )
-                    } else {
-                        MiniAppPlaceholder(
+
+                        MiniApp.Count -> CountScreen(
+                            countables = countables,
+                            countRange = settings.countRange,
+                            language = effectiveLanguage,
+                            muted = settings.muted,
+                            availableLanguages = availableLanguages,
+                            grammar = application.countingGrammar,
+                            speechController = application.speechController,
+                            hapticFeedback = application.hapticFeedback,
+                            moodMachine = application.countMoodMachine,
+                            viewModel = application.countViewModel,
+                            onSetMuted = { muted -> scope.launch { application.settingsRepository.setMuted(muted) } },
+                            onCycleLanguage = onCycleLanguage,
+                            onHome = { route = LauncherRoute },
+                            onParent = { route = ParentRoute },
+                        )
+
+                        else -> MiniAppPlaceholder(
                             app = app,
                             language = effectiveLanguage,
                             onHome = { route = LauncherRoute },
@@ -113,7 +155,7 @@ fun CloudmojiApp() {
                     LauncherScreen(
                         apps = accessPolicy.visibleMiniApps(),
                         language = effectiveLanguage,
-                        onOpen = { route = it.route },
+                        onOpen = onOpenApp,
                         onParent = { route = ParentRoute },
                     )
                 }
