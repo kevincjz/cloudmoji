@@ -136,6 +136,79 @@ object FlashCardMetrics {
             preferredGlyph * (fittedSide.value / preferredSide.value)
         }
 
+    /**
+     * Whether the prompt card sits *beside* the choices rather than above
+     * them. Mirrors iOS `FlashCardsView.body`'s own condition,
+     * `isCompact || (layout.isExpandedPad && layout.isLandscape)`.
+     */
+    fun isSideBySide(compact: Boolean, isExpandedPad: Boolean, isLandscape: Boolean): Boolean =
+        compact || (isExpandedPad && isLandscape)
+
+    /**
+     * The prompt card's fixed width, or `null` when it fills whatever is left
+     * (capped by [promptMaxWidth]). Mirrors iOS `FlashCardsView.promptCard`'s
+     * `.frame(width:)`, including the branch order — the expanded-tablet
+     * landscape case wins over the compact one.
+     *
+     * Non-null for exactly the layouts [isSideBySide] is true for, which is
+     * what makes [choicesAvailableWidth] able to do its subtraction from
+     * numbers alone.
+     */
+    fun promptCardWidth(compact: Boolean, isExpandedPad: Boolean, isLandscape: Boolean): Dp? = when {
+        isExpandedPad && isLandscape -> 360.dp
+        compact -> 236.dp
+        else -> null
+    }
+
+    fun promptMaxWidth(isExpandedPad: Boolean): Dp = if (isExpandedPad) 430.dp else 310.dp
+
+    fun promptCardHeight(isExpandedPad: Boolean): Dp = if (isExpandedPad) 326.dp else 224.dp
+
+    /** The outer inset, which differs between the two layouts — iOS
+     * `FlashCardsView.body`'s two `.padding(.horizontal, …)` calls. */
+    fun horizontalPadding(sideBySide: Boolean, isExpandedPad: Boolean): Dp = when {
+        sideBySide && isExpandedPad -> 44.dp
+        sideBySide -> 18.dp
+        isExpandedPad -> 36.dp
+        else -> 12.dp
+    }
+
+    /** The gap between the prompt card and the choices column in the
+     * side-by-side layout — iOS's `HStack(spacing:)`. */
+    fun sideBySideSpacing(isExpandedPad: Boolean): Dp = if (isExpandedPad) 48.dp else 18.dp
+
+    /**
+     * How much width the row of choices actually gets, as pure arithmetic.
+     *
+     * This exists because Compose will not tell the truth about it in the
+     * side-by-side layout. `Row` measures a non-weighted child against the
+     * row's own incoming max width, so a `BoxWithConstraints` wrapped around
+     * just the choices reads something very close to the full row width, not
+     * the remainder after the prompt card — which would leave
+     * [fittedChoiceSide] permanently inert on exactly the narrow landscape
+     * phones it was added for. The screen therefore measures **once**, around
+     * the whole layout, and this function subtracts the pieces whose sizes
+     * are known up front: the outer padding on both sides, and (side-by-side
+     * only) the prompt card's fixed width plus the gap after it.
+     *
+     * [promptWidth] is `null` in the stacked layout, where the choices get
+     * the full padded width — the cross-axis width of a `Column` genuinely is
+     * uniform, so nothing needs subtracting there.
+     *
+     * Never negative: a width too small for anything hands [fittedChoiceSide]
+     * zero, which floors at [childMinimum] like any other cramped case.
+     */
+    fun choicesAvailableWidth(
+        totalWidth: Dp,
+        horizontalPadding: Dp,
+        promptWidth: Dp?,
+        rowSpacing: Dp,
+    ): Dp {
+        val inner = totalWidth - horizontalPadding * 2
+        val remainder = if (promptWidth == null) inner else inner - promptWidth - rowSpacing
+        return if (remainder < 0.dp) 0.dp else remainder
+    }
+
     /** `CLAUDE.md` rule 2 (8dp floor), with room to spare. */
     val spacing: Dp = 12.dp
 
@@ -426,7 +499,11 @@ fun FlashCardsScreen(
 
     val choiceSide = FlashCardMetrics.choiceSide(layout.isCompactPhone, layout.isExpandedPad)
     val glyphSize = FlashCardMetrics.glyphSize(layout.isCompactPhone, layout.isExpandedPad)
-    val sideBySide = layout.isCompactPhone || (layout.isExpandedPad && layout.isLandscape)
+    val sideBySide = FlashCardMetrics.isSideBySide(
+        compact = layout.isCompactPhone,
+        isExpandedPad = layout.isExpandedPad,
+        isLandscape = layout.isLandscape,
+    )
 
     MiniAppScaffold(
         onHome = onHome,
@@ -437,10 +514,36 @@ fun FlashCardsScreen(
         onUnmute = onUnmute,
         modifier = modifier,
     ) {
-        Box(
+        // Measured **once**, around the whole layout, rather than around the
+        // choices alone: a `Row` measures a non-weighted child against its own
+        // full incoming width, so a `BoxWithConstraints` wrapped around just
+        // the choices would read near the full row width in the side-by-side
+        // layout and never see that the prompt card has already taken most of
+        // it. `FlashCardMetrics.choicesAvailableWidth` does that subtraction
+        // from numbers this file already knows — see its own doc.
+        BoxWithConstraints(
             contentAlignment = Alignment.Center,
             modifier = Modifier.fillMaxSize().testTag("flash-panel"),
         ) {
+            val promptWidth = FlashCardMetrics.promptCardWidth(
+                compact = layout.isCompactPhone,
+                isExpandedPad = layout.isExpandedPad,
+                isLandscape = layout.isLandscape,
+            )
+            val horizontalPadding = FlashCardMetrics.horizontalPadding(sideBySide, layout.isExpandedPad)
+            val rowSpacing = FlashCardMetrics.sideBySideSpacing(layout.isExpandedPad)
+            val choicesWidth = FlashCardMetrics.choicesAvailableWidth(
+                totalWidth = maxWidth,
+                horizontalPadding = horizontalPadding,
+                // Only the side-by-side layout has a sibling eating width; a
+                // `Column`'s cross-axis width genuinely is uniform.
+                promptWidth = if (sideBySide) promptWidth else null,
+                rowSpacing = rowSpacing,
+            )
+            val choiceCount = round?.choices?.size ?: FlashRound.DEFAULT_CHOICE_COUNT
+            val side = FlashCardMetrics.fittedChoiceSide(choicesWidth, choiceSide, choiceCount)
+            val glyph = FlashCardMetrics.fittedGlyphSize(choiceSide, side, glyphSize)
+
             val prompt: @Composable () -> Unit = {
                 PromptCard(
                     mood = mood,
@@ -452,28 +555,19 @@ fun FlashCardsScreen(
                 )
             }
             val choices: @Composable () -> Unit = {
-                // Measured rather than assumed: in the side-by-side layout
-                // this sits after the prompt card in a `Row`, so the
-                // constraint it reads is already the remainder, and in the
-                // stacked one it is the padded screen width.
-                BoxWithConstraints {
-                    val count = round?.choices?.size ?: FlashRound.DEFAULT_CHOICE_COUNT
-                    val side = FlashCardMetrics.fittedChoiceSide(maxWidth, choiceSide, count)
-                    val glyph = FlashCardMetrics.fittedGlyphSize(choiceSide, side, glyphSize)
-                    Row(horizontalArrangement = Arrangement.spacedBy(FlashCardMetrics.spacing)) {
-                        round?.choices?.forEachIndexed { index, entry ->
-                            ChoiceTile(
-                                emoji = entry.emoji,
-                                label = entry.word(language),
-                                index = index,
-                                side = side,
-                                glyphSize = glyph,
-                                isBouncing = bounce?.id == entry.id,
-                                isSolved = solvedId == entry.id,
-                                isAdvancing = isAdvancing,
-                                onTap = { onTapChoice(entry) },
-                            )
-                        }
+                Row(horizontalArrangement = Arrangement.spacedBy(FlashCardMetrics.spacing)) {
+                    round?.choices?.forEachIndexed { index, entry ->
+                        ChoiceTile(
+                            emoji = entry.emoji,
+                            label = entry.word(language),
+                            index = index,
+                            side = side,
+                            glyphSize = glyph,
+                            isBouncing = bounce?.id == entry.id,
+                            isSolved = solvedId == entry.id,
+                            isAdvancing = isAdvancing,
+                            onTap = { onTapChoice(entry) },
+                        )
                     }
                 }
             }
@@ -488,11 +582,14 @@ fun FlashCardsScreen(
                 )
             }
 
+            // Both branches take their inset and gap from the same functions
+            // `choicesAvailableWidth` was handed above, so the arithmetic and
+            // the layout cannot drift apart.
             if (sideBySide) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(if (layout.isExpandedPad) 48.dp else 18.dp),
-                    modifier = Modifier.padding(horizontal = if (layout.isExpandedPad) 44.dp else 18.dp),
+                    horizontalArrangement = Arrangement.spacedBy(rowSpacing),
+                    modifier = Modifier.padding(horizontal = horizontalPadding),
                 ) {
                     prompt()
                     Column(
@@ -507,7 +604,7 @@ fun FlashCardsScreen(
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(if (layout.isExpandedPad) 34.dp else 22.dp),
-                    modifier = Modifier.padding(horizontal = if (layout.isExpandedPad) 36.dp else 12.dp),
+                    modifier = Modifier.padding(horizontal = horizontalPadding),
                 ) {
                     prompt()
                     choices()
@@ -545,13 +642,11 @@ private fun PromptCard(
     val shape = RoundedCornerShape(30.dp)
     val frontShape = RoundedCornerShape(28.dp)
 
-    val width: Dp? = when {
-        isExpandedPad && isLandscape -> 360.dp
-        isCompact -> 236.dp
-        else -> null
-    }
-    val height = if (isExpandedPad) 326.dp else 224.dp
-    val maxWidth = if (isExpandedPad) 430.dp else 310.dp
+    // The same function `choicesAvailableWidth` subtracts, so the card cannot
+    // silently become a different width than the choices were fitted around.
+    val width: Dp? = FlashCardMetrics.promptCardWidth(isCompact, isExpandedPad, isLandscape)
+    val height = FlashCardMetrics.promptCardHeight(isExpandedPad)
+    val maxWidth = FlashCardMetrics.promptMaxWidth(isExpandedPad)
 
     Box(
         contentAlignment = Alignment.Center,

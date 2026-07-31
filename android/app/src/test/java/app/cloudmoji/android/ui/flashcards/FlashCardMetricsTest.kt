@@ -106,6 +106,159 @@ class FlashCardMetricsTest {
         assertTrue(FlashCardMetrics.fittedGlyphSize(preferred, shrunk, glyph).value < glyph.value)
     }
 
+    // MARK: - The side-by-side remainder
+
+    /**
+     * **The regression this rule was nearly useless without.** In the
+     * side-by-side (landscape) layout the choices share a `Row` with the
+     * prompt card, and Compose measures a non-weighted child against the
+     * row's *own* incoming max width — so asking Compose "how much room do
+     * the choices have?" from inside that `Row` answers with nearly the whole
+     * row, not the remainder. `choicesAvailableWidth` is the arithmetic that
+     * replaces the measurement.
+     *
+     * The assertion that bites is the comparison: the same total width must
+     * yield strictly less room side-by-side than stacked, by exactly the
+     * prompt card plus its gap.
+     *
+     * Mutation proof: temporarily made `choicesAvailableWidth` ignore
+     * `promptWidth` (the shape the broken measurement produced). Both
+     * assertions below failed, then passed once restored.
+     */
+    @Test
+    fun `the side-by-side layout subtracts the prompt card from the choices' width`() {
+        val total = 640.dp
+        val padding = FlashCardMetrics.horizontalPadding(sideBySide = true, isExpandedPad = false)
+        val gap = FlashCardMetrics.sideBySideSpacing(isExpandedPad = false)
+        val promptWidth = requireNotNull(
+            FlashCardMetrics.promptCardWidth(compact = true, isExpandedPad = false, isLandscape = true),
+        ) { "the side-by-side layout must have a fixed prompt width to subtract" }
+
+        val beside = FlashCardMetrics.choicesAvailableWidth(total, padding, promptWidth, gap)
+        val stacked = FlashCardMetrics.choicesAvailableWidth(total, padding, promptWidth = null, rowSpacing = gap)
+
+        assertTrue("the prompt card was not subtracted at all", beside < stacked)
+        assertEquals(stacked - promptWidth - gap, beside)
+    }
+
+    /**
+     * The same arithmetic, carried through to the size a tile actually gets,
+     * on a 560dp landscape phone — small enough that the remainder after a
+     * 236dp prompt card cannot hold three preferred tiles, but large enough
+     * that shrinking them fixes it. This is precisely the case the broken
+     * measurement hid: the tiles stayed at 96dp and ran under the card.
+     *
+     * Mutation proof: same mutation as the test above (ignore `promptWidth`).
+     * The `fitted < preferred` and the fits-in-the-remainder assertions both
+     * failed, then passed once restored.
+     */
+    @Test
+    fun `a narrow landscape phone shrinks its choices to fit beside the prompt card`() {
+        val preferred = FlashCardMetrics.choiceSide(compact = true)
+        val padding = FlashCardMetrics.horizontalPadding(sideBySide = true, isExpandedPad = false)
+        val gap = FlashCardMetrics.sideBySideSpacing(isExpandedPad = false)
+        val promptWidth = requireNotNull(
+            FlashCardMetrics.promptCardWidth(compact = true, isExpandedPad = false, isLandscape = true),
+        )
+
+        val available = FlashCardMetrics.choicesAvailableWidth(560.dp, padding, promptWidth, gap)
+        val fitted = FlashCardMetrics.fittedChoiceSide(available, preferred, count = 3)
+
+        assertTrue("$available should not hold three ${preferred}s", fitted < preferred)
+        assertTrue("$fitted is under the child floor", fitted >= FlashCardMetrics.childMinimum)
+        assertTrue(
+            "$fitted x3 overflows $available",
+            fitted * 3 + FlashCardMetrics.spacing * 2 <= available,
+        )
+    }
+
+    /**
+     * …and past that, the floor wins and the row is *allowed* to overflow.
+     * A 480dp landscape phone leaves 190dp beside the card, which three tiles
+     * cannot share without going under 64dp — so they stay at 64dp and spill,
+     * exactly as `fittedChoiceSide`'s own doc says. Asserted rather than left
+     * implicit, because "it overflows here" is a deliberate choice
+     * (`CLAUDE.md` rule 1 outranks fitting) and not a bug someone should
+     * later "fix" by shrinking the tile.
+     */
+    @Test
+    fun `past the floor the choices overflow rather than shrink further`() {
+        val preferred = FlashCardMetrics.choiceSide(compact = true)
+        val padding = FlashCardMetrics.horizontalPadding(sideBySide = true, isExpandedPad = false)
+        val gap = FlashCardMetrics.sideBySideSpacing(isExpandedPad = false)
+
+        val available = FlashCardMetrics.choicesAvailableWidth(480.dp, padding, promptWidth = 236.dp, rowSpacing = gap)
+        val fitted = FlashCardMetrics.fittedChoiceSide(available, preferred, count = 3)
+
+        assertEquals(FlashCardMetrics.childMinimum, fitted)
+        assertTrue(
+            "the floor case is expected to overflow; if it fits, this fixture is no longer the floor case",
+            fitted * 3 + FlashCardMetrics.spacing * 2 > available,
+        )
+    }
+
+    /** A roomy tablet in landscape still has space for the preferred size
+     * after the 360dp prompt card — the subtraction must not over-shrink. */
+    @Test
+    fun `an expanded tablet in landscape keeps the preferred size after the subtraction`() {
+        val preferred = FlashCardMetrics.choiceSide(compact = false, isExpandedPad = true)
+        val padding = FlashCardMetrics.horizontalPadding(sideBySide = true, isExpandedPad = true)
+        val gap = FlashCardMetrics.sideBySideSpacing(isExpandedPad = true)
+        val promptWidth = requireNotNull(
+            FlashCardMetrics.promptCardWidth(compact = false, isExpandedPad = true, isLandscape = true),
+        )
+
+        val available = FlashCardMetrics.choicesAvailableWidth(1366.dp, padding, promptWidth, gap)
+        assertEquals(preferred, FlashCardMetrics.fittedChoiceSide(available, preferred, count = 3))
+    }
+
+    /**
+     * The layout branch and the width subtraction must agree about which
+     * layout is which: every side-by-side case has a fixed prompt width to
+     * subtract, and every stacked one has none.
+     *
+     * Mutation proof: temporarily made `promptCardWidth` return `null` for the
+     * compact case. This test failed on the compact-landscape row, then
+     * passed once restored.
+     */
+    @Test
+    fun `every side-by-side layout has a prompt width to subtract, and no stacked one does`() {
+        // compact, isExpandedPad, isLandscape
+        val cases = listOf(
+            Triple(true, false, true), // phone landscape
+            Triple(false, true, true), // tablet landscape
+            Triple(false, false, false), // phone upright
+            Triple(false, true, false), // tablet upright
+            Triple(false, false, true), // tall phone landscape (not "compact")
+        )
+        for ((compact, isExpandedPad, isLandscape) in cases) {
+            val sideBySide = FlashCardMetrics.isSideBySide(compact, isExpandedPad, isLandscape)
+            val promptWidth = FlashCardMetrics.promptCardWidth(compact, isExpandedPad, isLandscape)
+            assertEquals(
+                "compact=$compact pad=$isExpandedPad landscape=$isLandscape",
+                sideBySide,
+                promptWidth != null,
+            )
+        }
+    }
+
+    /** A width too small for anything hands the fitting rule zero rather than
+     * a negative number, and the floor still holds. */
+    @Test
+    fun `an impossibly narrow window still floors at the child minimum`() {
+        val available = FlashCardMetrics.choicesAvailableWidth(
+            totalWidth = 200.dp,
+            horizontalPadding = FlashCardMetrics.horizontalPadding(sideBySide = true, isExpandedPad = false),
+            promptWidth = 236.dp,
+            rowSpacing = FlashCardMetrics.sideBySideSpacing(isExpandedPad = false),
+        )
+        assertEquals(0.dp, available)
+        assertEquals(
+            FlashCardMetrics.childMinimum,
+            FlashCardMetrics.fittedChoiceSide(available, FlashCardMetrics.choiceSide(compact = true), count = 3),
+        )
+    }
+
     /** The replay button is child-facing — the control a two-year-old reaches
      * for when he did not catch the word — so it takes the 64dp floor, not
      * the 44dp parent-chrome one. */
