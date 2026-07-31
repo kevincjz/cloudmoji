@@ -11,6 +11,7 @@ import app.cloudmoji.android.model.CountViewModel
 import app.cloudmoji.android.model.CountingGrammar
 import app.cloudmoji.android.model.CoroutineMascotScheduler
 import app.cloudmoji.android.model.CoroutineWordsScheduler
+import app.cloudmoji.android.model.FlashCardsViewModel
 import app.cloudmoji.android.model.MascotMoodMachine
 import app.cloudmoji.android.model.Settings
 import app.cloudmoji.android.model.WordsViewModel
@@ -188,6 +189,35 @@ class CloudmojiApplication : Application() {
             milestones = emptySet(),
             celebrationDelayMillis = COUNT_CELEBRATION_DELAY_MS,
             celebrationHoldMillis = COUNT_CELEBRATION_HOLD_MS,
+        )
+    }
+
+    /** Flash Cards' own round/celebration state — see that class's doc.
+     * Application-scoped for the same rotation-survival reason as
+     * [countViewModel]; `CloudmojiApp`'s `onOpen` is what clears it back to
+     * "no round yet" on every *fresh* entry from the launcher, which is what
+     * makes the screen deal a new question rather than resume a stale one. */
+    val flashCardsViewModel: FlashCardsViewModel by lazy { FlashCardsViewModel() }
+
+    /**
+     * A **third** [MascotMoodMachine], for the same reason [countMoodMachine]
+     * is a second one: a Flash Cards celebration is not a cumulative
+     * tap-count milestone (hence `emptySet()`), and it has its own timing.
+     *
+     * Both legs differ from Count's. iOS `FlashCardsView.tap` sets
+     * `.beaming` **synchronously** on a correct answer — there is no
+     * anticipation pause, because the child has just been told he was right
+     * and the pause would read as hesitation — so the first leg is zero.
+     * The hold is `FlashCardsView.advanceDelay`, the same 1400ms after which
+     * iOS's own `advanceTask` puts the mood back to `.happy` and deals the
+     * next round, so the beam ends exactly as the next question arrives.
+     */
+    val flashCardsMoodMachine: MascotMoodMachine by lazy {
+        MascotMoodMachine(
+            scheduler = CoroutineMascotScheduler(appScope),
+            milestones = emptySet(),
+            celebrationDelayMillis = 0,
+            celebrationHoldMillis = FlashCardsViewModel.ADVANCE_DELAY_MS,
         )
     }
 

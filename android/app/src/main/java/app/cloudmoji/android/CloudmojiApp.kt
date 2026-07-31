@@ -23,11 +23,13 @@ import app.cloudmoji.android.model.Language
 import app.cloudmoji.android.model.MiniApp
 import app.cloudmoji.android.model.Settings
 import app.cloudmoji.android.model.narrowedCountables
+import app.cloudmoji.android.model.narrowedEmojis
 import app.cloudmoji.android.platform.SpeechController
 import app.cloudmoji.android.platform.StubEntitlementStore
 import app.cloudmoji.android.ui.MiniAppPlaceholder
 import app.cloudmoji.android.ui.common.AdaptiveShell
 import app.cloudmoji.android.ui.count.CountScreen
+import app.cloudmoji.android.ui.flashcards.FlashCardsScreen
 import app.cloudmoji.android.ui.launcher.LauncherScreen
 import app.cloudmoji.android.ui.music.MusicScreen
 import app.cloudmoji.android.ui.parents.GateAttempt
@@ -138,6 +140,12 @@ fun CloudmojiApp() {
     val countables = remember(application.repository, settings.enabledCategories) {
         narrowedCountables(application.repository, settings.enabledCategories)
     }
+    // Flash Cards' own pool, narrowed the same way — iOS `AppModel.emojis(in:)`
+    // with a `nil` category, which is exactly what `FlashCardsView.nextRound()`
+    // asks for.
+    val flashCardsPool = remember(application.repository, settings.enabledCategories) {
+        narrowedEmojis(application.repository, settings.enabledCategories)
+    }
     val onCycleLanguage: () -> Unit = {
         val next = Language.next(after = effectiveLanguage, enabled = availableLanguages.map { it.id })
         scope.launch { application.settingsRepository.setLanguage(next) }
@@ -152,10 +160,24 @@ fun CloudmojiApp() {
     // `rememberSaveable` above without ever calling back through here, so a
     // rotation mid-round never re-triggers this reset.
     val onOpenApp: (MiniApp) -> Unit = { app ->
-        if (app == MiniApp.Count) {
-            application.speechController.cancelAll()
-            application.countMoodMachine.reset()
-            application.countViewModel.startRound(countables, CountRound.firstTarget(settings.countRange))
+        when (app) {
+            MiniApp.Count -> {
+                application.speechController.cancelAll()
+                application.countMoodMachine.reset()
+                application.countViewModel.startRound(countables, CountRound.firstTarget(settings.countRange))
+            }
+
+            // Cleared rather than started: `FlashCardsScreen`'s own first
+            // effect deals the round and speaks it, which is where the
+            // language and the "say the word out loud" half of a fresh round
+            // live. See `FlashCardsViewModel.reset`.
+            MiniApp.FlashCards -> {
+                application.speechController.cancelAll()
+                application.flashCardsMoodMachine.reset()
+                application.flashCardsViewModel.reset()
+            }
+
+            else -> Unit
         }
         route = app.route
     }
@@ -263,6 +285,18 @@ fun CloudmojiApp() {
                                 onCycleLanguage = onCycleLanguage,
                                 onHome = { route = LauncherRoute },
                                 onParent = openParentDoor,
+                            )
+
+                            MiniApp.FlashCards -> FlashCardsScreen(
+                                pool = flashCardsPool,
+                                language = effectiveLanguage,
+                                muted = settings.muted,
+                                speechController = application.speechController,
+                                hapticFeedback = application.hapticFeedback,
+                                moodMachine = application.flashCardsMoodMachine,
+                                viewModel = application.flashCardsViewModel,
+                                onHome = { route = LauncherRoute },
+                                onUnmute = { scope.launch { application.settingsRepository.setMuted(false) } },
                             )
 
                             MiniApp.Music -> MusicScreen(
