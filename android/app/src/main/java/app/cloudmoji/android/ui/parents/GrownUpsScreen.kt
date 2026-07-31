@@ -532,7 +532,10 @@ private fun StepperButton(symbol: String, enabled: Boolean, testTag: String, onC
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
-            .size(36.dp)
+            // Was 36dp — under the 44dp parent-chrome floor `CLAUDE.md` rule 1
+            // carves out. [RowHeight] is the same 44dp every other row on this
+            // screen already uses.
+            .size(RowHeight)
             .pressScale(interactionSource, 0.88f)
             .clip(CircleShape)
             .background(Surface, CircleShape)

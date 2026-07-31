@@ -9,10 +9,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import app.cloudmoji.android.data.EmojiRepository
 import app.cloudmoji.android.data.SettingsRepository
 import app.cloudmoji.android.model.AppAccessPolicy
@@ -27,13 +29,43 @@ import app.cloudmoji.android.ui.MiniAppPlaceholder
 import app.cloudmoji.android.ui.common.AdaptiveShell
 import app.cloudmoji.android.ui.count.CountScreen
 import app.cloudmoji.android.ui.launcher.LauncherScreen
+import app.cloudmoji.android.ui.parents.GateAttempt
 import app.cloudmoji.android.ui.parents.GrownUpsHost
 import app.cloudmoji.android.ui.parents.ParentalGate
 import app.cloudmoji.android.ui.words.WordsScreen
 import kotlinx.coroutines.launch
 
-private const val LauncherRoute = "launcher"
-private const val ParentRoute = "parents"
+internal const val LauncherRoute = "launcher"
+internal const val ParentRoute = "parents"
+
+/**
+ * Coerces a `route` value read back from saved-instance state so a restored
+ * [ParentRoute] can never land the app straight in the Grown-ups area with
+ * no arithmetic in front of it.
+ *
+ * `rememberSaveable`'s restore path fires identically for a config-change
+ * recreation (same process, e.g. a rotation) and for Android killing the
+ * process in the background and recreating the Activity from the same saved
+ * `Bundle` when the task is reopened — `Activity.onCreate` receives a
+ * non-null `savedInstanceState` either way, and Compose has no cheaper way
+ * to tell them apart at this call site. iOS has no equivalent bug: its
+ * `@State` sheet flag lives only in memory and dies with the process, so a
+ * cold launch there always starts at the launcher. Every other restored
+ * value passes through unchanged — a restored mini-app route is fine, since
+ * none of them carry parent-only controls, settings, or outbound links.
+ */
+internal fun sanitizeRestoredRoute(raw: String): String =
+    if (raw == ParentRoute) LauncherRoute else raw
+
+/** Applies [sanitizeRestoredRoute] at restore time, in place of the implicit
+ * `autoSaver()` a bare `rememberSaveable { mutableStateOf(...) }` would use
+ * for a `String`. `save` is the identity — nothing about *writing* the
+ * current route to the bundle needs to change; only a value coming back
+ * *out* of a bundle can ever produce the bypass this guards against. */
+private val RouteSaver: Saver<String, String> = Saver(
+    save = { it },
+    restore = { sanitizeRestoredRoute(it) },
+)
 
 /** Shown on the gate overlay, whichever of the three doorways below opened
  * it — Settings is the only parent request this app has, so there is only
@@ -74,13 +106,17 @@ private const val GateExplanation =
 fun CloudmojiApp() {
     val context = LocalContext.current
     val application = remember(context) { context.applicationContext as CloudmojiApplication }
-    var route by rememberSaveable { mutableStateOf(LauncherRoute) }
+    var route by rememberSaveable(stateSaver = RouteSaver) { mutableStateOf(LauncherRoute) }
 
     // The gate's own state. `gateIndex` only ever advances by one, on every
     // close — pass or cancel alike, mirroring iOS `RootContent`'s
     // `gateIndex += 1` fired from both `onPass` and `onCancel` — so the
     // *next* time a parent opens the gate they see the next question in the
     // rotation, never a repeat of the one they just answered or dismissed.
+    // Kept as a plain `Int` (rather than a persisted `GateAttempt`) so it can
+    // keep using the ordinary default Saver; [closeGate] below still drives
+    // the advance through `GateAttempt.next()` rather than a second,
+    // duplicated `+ 1`.
     var isGateShowing by rememberSaveable { mutableStateOf(false) }
     var gateIndex by rememberSaveable { mutableStateOf(0) }
 
@@ -131,6 +167,18 @@ fun CloudmojiApp() {
         isGateShowing = true
     }
 
+    // Closes the gate and advances the rotation — the one production call
+    // site for `GateAttempt.next()`, which `GateAttemptTest` already proves
+    // resets `entry`/`wasWrong` and advances the index by exactly one.
+    // Wrapping `gateIndex` in a throwaway `GateAttempt` here is cheaper than
+    // this file re-deriving its own "+ 1" formula a third time — `onPass`,
+    // `onCancel`, and the `BackHandler` below all shared that duplicated
+    // literal before this.
+    fun closeGate() {
+        isGateShowing = false
+        gateIndex = GateAttempt(index = gateIndex).next().index
+    }
+
     BackHandler(enabled = route != LauncherRoute) {
         route = LauncherRoute
     }
@@ -138,13 +186,20 @@ fun CloudmojiApp() {
     // registered callback and fires first while the gate is showing — even
     // when `route` is already a mini-app, back closes the gate rather than
     // leaving for the launcher underneath it.
-    BackHandler(enabled = isGateShowing) {
-        isGateShowing = false
-        gateIndex += 1
-    }
+    BackHandler(enabled = isGateShowing) { closeGate() }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        AdaptiveShell {
+        AdaptiveShell(
+            // While the gate is up, the screen underneath (the launcher, or
+            // whatever mini-app the gear was tapped from) is removed from the
+            // accessibility tree entirely, mirroring iOS's
+            // `.accessibilityElement(children: .contain)` on the gate itself.
+            // Without this, TalkBack could still swipe past the scrim — which
+            // blocks touch but not accessibility focus — and reach launcher
+            // tiles or a mini-app's controls while the gate is meant to be
+            // the only thing on screen.
+            modifier = if (isGateShowing) Modifier.clearAndSetSemantics {} else Modifier,
+        ) {
             when {
                 route == LauncherRoute -> LauncherScreen(
                     apps = accessPolicy.visibleMiniApps(),
@@ -232,14 +287,10 @@ fun CloudmojiApp() {
                 challengeIndex = gateIndex,
                 action = GateExplanation,
                 onPass = {
-                    isGateShowing = false
-                    gateIndex += 1
+                    closeGate()
                     route = ParentRoute
                 },
-                onCancel = {
-                    isGateShowing = false
-                    gateIndex += 1
-                },
+                onCancel = ::closeGate,
             )
         }
     }

@@ -114,4 +114,53 @@ class ParentalGateSmokeTest {
         composeRule.onNodeWithTag("settings-done").performClick()
         composeRule.onNodeWithTag("launcher").assertIsDisplayed()
     }
+
+    /**
+     * The regression test for the reviewer-caught gate bypass: restored
+     * saved-instance state must never land on the Grown-ups panel with no
+     * gate in front of it. `ActivityScenario.recreate()` drives the exact
+     * `onSaveInstanceState` → new `Activity` → `onCreate(Bundle)` cycle
+     * Android runs for a config change *and* for a killed-process relaunch —
+     * Compose's `rememberSaveable` cannot tell the two apart, which is why
+     * `sanitizeRestoredRoute` coerces unconditionally rather than trying to.
+     * `RouteSanitizationTest` proves the coercion function itself; this is
+     * the one test that proves the real `rememberSaveable(stateSaver =
+     * RouteSaver)` wiring in `CloudmojiApp.kt` actually calls it.
+     */
+    @Test
+    fun aRecreateWhileOnTheSettingsPanelReturnsToTheLauncherNotSettings() {
+        composeRule.onNodeWithTag("launcher-parent").performClick()
+        composeRule.onNodeWithTag("gate-input").performTextInput(
+            GateChallenge.at(0).answer.toString(),
+        )
+        composeRule.onNodeWithTag("gate-submit").performClick()
+        composeRule.onNodeWithTag("settings-panel").assertIsDisplayed()
+
+        composeRule.activityRule.scenario.recreate()
+
+        composeRule.onNodeWithTag("launcher").assertIsDisplayed()
+        composeRule.onNodeWithTag("settings-panel").assertDoesNotExist()
+        composeRule.onNodeWithTag("parental-gate").assertDoesNotExist()
+    }
+
+    /** The `GrownUpsHost`-level half of the same fix: a recreate while a
+     * sub-screen (About, with its outbound mail/browser intents) is open
+     * must not restore straight into it either — it must land on the
+     * launcher, same as above, not even on the Grown-ups panel. */
+    @Test
+    fun aRecreateWhileOnAboutReturnsToTheLauncherNotAbout() {
+        composeRule.onNodeWithTag("launcher-parent").performClick()
+        composeRule.onNodeWithTag("gate-input").performTextInput(
+            GateChallenge.at(0).answer.toString(),
+        )
+        composeRule.onNodeWithTag("gate-submit").performClick()
+        composeRule.onNodeWithTag("settings-about-row").performClick()
+        composeRule.onNodeWithTag("about-panel").assertIsDisplayed()
+
+        composeRule.activityRule.scenario.recreate()
+
+        composeRule.onNodeWithTag("launcher").assertIsDisplayed()
+        composeRule.onNodeWithTag("about-panel").assertDoesNotExist()
+        composeRule.onNodeWithTag("settings-panel").assertDoesNotExist()
+    }
 }

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -16,10 +17,34 @@ import app.cloudmoji.android.model.Language
 import app.cloudmoji.android.model.LanguageMeta
 import app.cloudmoji.android.model.Settings
 
-private const val DestinationPanel = "panel"
-private const val DestinationAbout = "about"
-private const val DestinationFullCloudmoji = "full"
-private const val DestinationTutorial = "tutorial"
+internal const val DestinationPanel = "panel"
+internal const val DestinationAbout = "about"
+internal const val DestinationFullCloudmoji = "full"
+internal const val DestinationTutorial = "tutorial"
+
+/**
+ * Coerces a `destination` value read back from saved-instance state to
+ * [DestinationPanel] unless it was already there — belt-and-braces alongside
+ * `CloudmojiApp.kt`'s `sanitizeRestoredRoute`, which is the primary defence
+ * (a restored [app.cloudmoji.android.ParentRoute] is itself coerced back to
+ * the launcher, so this composable would not normally even be reached with
+ * restored state). It stays a second, independent check rather than relying
+ * on that alone: `rememberSaveable`'s `SaveableStateRegistry` can still hand
+ * this composable a value saved under this exact slot the first time it is
+ * *ever* composed after a restore — even if that first composition happens
+ * later, after a legitimate fresh gate pass — and a fresh entry into the
+ * Grown-ups area should always land on the panel, never skip straight to
+ * [AboutScreen]'s outbound mail/browser intents.
+ */
+internal fun sanitizeRestoredDestination(raw: String): String =
+    if (raw == DestinationPanel) raw else DestinationPanel
+
+/** Applies [sanitizeRestoredDestination] at restore time — see
+ * `CloudmojiApp.kt`'s `RouteSaver` for why `save` stays the identity. */
+private val DestinationSaver: Saver<String, String> = Saver(
+    save = { it },
+    restore = { sanitizeRestoredDestination(it) },
+)
 
 /**
  * The whole Grown-ups area behind the gate: the panel itself, plus the three
@@ -55,7 +80,7 @@ fun GrownUpsHost(
     onHome: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var destination by rememberSaveable { mutableStateOf(DestinationPanel) }
+    var destination by rememberSaveable(stateSaver = DestinationSaver) { mutableStateOf(DestinationPanel) }
 
     BackHandler(enabled = destination != DestinationPanel) {
         destination = DestinationPanel
