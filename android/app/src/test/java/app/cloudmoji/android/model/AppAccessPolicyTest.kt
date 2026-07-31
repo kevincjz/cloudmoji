@@ -30,5 +30,34 @@ class AppAccessPolicyTest {
         assertTrue(MiniApp.Photos in apps)
         assertEquals(6, apps.size)
     }
+
+    @Test
+    fun `locked access resolves the effective language to English regardless of the preferred language`() {
+        val policy = AppAccessPolicy(hasFullAccess = false)
+        assertEquals(Language.English, policy.effectiveLanguage(preferred = Language.Japanese))
+        assertEquals(Language.English, policy.effectiveLanguage(preferred = Language.English))
+    }
+
+    @Test
+    fun `unlocked access keeps the preferred language`() {
+        val policy = AppAccessPolicy(hasFullAccess = true)
+        assertEquals(Language.Japanese, policy.effectiveLanguage(preferred = Language.Japanese))
+    }
+
+    @Test
+    fun `locked access narrows allowed languages to English regardless of the enabled set`() {
+        val policy = AppAccessPolicy(hasFullAccess = false)
+        assertEquals(
+            setOf(Language.English),
+            policy.allowedLanguages(enabled = Language.entries.toSet()),
+        )
+    }
+
+    @Test
+    fun `unlocked access returns the enabled set unchanged`() {
+        val policy = AppAccessPolicy(hasFullAccess = true)
+        val enabled = setOf(Language.English, Language.Chinese)
+        assertEquals(enabled, policy.allowedLanguages(enabled = enabled))
+    }
 }
 
