@@ -33,6 +33,12 @@ interface AudioFocusSystem {
  * transition (request) and the 1→0 transition (abandon); that pairing
  * invariant holds whatever order clients start and stop in, and however many
  * are active at once.
+ *
+ * **Threading: not thread-safe** — [activeClients] is a plain, unsynchronized
+ * `MutableSet`. Every caller must arrive on one confined thread, the same
+ * contract `SpeechController`'s doc describes: [AndroidSpeechEngine] is the
+ * only caller today, and it upholds this by routing its TTS callbacks
+ * through a [CallbackPoster] before ever touching this class.
  */
 class AudioFocusOwner(private val system: AudioFocusSystem) {
     private val activeClients = mutableSetOf<AudioFocusClient>()

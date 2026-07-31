@@ -63,10 +63,32 @@ class CoroutineSpeechWatchdogScheduler(private val scope: CoroutineScope) : Spee
  * Pure JVM: [engine] and [scheduler] are the only two seams to the platform,
  * both interfaces, so this class and every rule it encodes — cancellation,
  * the watchdog, mute — are host-testable with fakes.
+ *
+ * **Threading: not thread-safe, by design.** [generation], the per-sequence
+ * `index`, and [watchdogHandle] are plain, unsynchronized fields — every
+ * public call (`speak`/`speakSequence`/`cancelAll`), and every callback that
+ * flows back in through [engine]'s `onFinish`, must arrive on one confined
+ * thread (normally the app's main/UI thread). This is the same assumption
+ * iOS gets for free from `SpeechController` being `@MainActor`-isolated at
+ * compile time; Kotlin has no equivalent, so the confinement is a runtime
+ * contract instead. [AndroidSpeechEngine] is the piece responsible for
+ * upholding it in production — `TextToSpeech`'s async callbacks can arrive
+ * off-thread, and it routes every one of them through an injected
+ * [CallbackPoster] before they ever reach this class. This class does no
+ * posting or locking of its own; it trusts the engine to have already
+ * delivered the callback on the right thread.
  */
 class SpeechController(
     private val resolver: VoiceResolver,
     private val engine: SpeechEngine,
+    /**
+     * No default value, unlike [isMuted] below: which [CoroutineScope]/
+     * dispatcher backs a real [CoroutineSpeechWatchdogScheduler] is a
+     * composition-root decision (and, per this class's Threading section,
+     * a thread-confinement-relevant one), so it is made explicitly by
+     * whichever task wires the production app together rather than
+     * silently by a default argument here.
+     */
     private val scheduler: SpeechWatchdogScheduler,
     /**
      * Interface point for Task 3's `Settings.muted`: read fresh on every call

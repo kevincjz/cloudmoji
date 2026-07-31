@@ -36,8 +36,18 @@ private class AndroidVoice(val voice: android.speech.tts.Voice) : VoiceDescribin
  * and throws when exercised outside a real Android runtime (no Robolectric
  * in this project), so this class has no JVM unit test coverage — see the
  * Task 4 report for what IS covered (the rate/pitch scale constants above,
- * and every queueing/cancellation/mute rule in [SpeechController] and
- * [VoiceResolver], both exercised against fakes).
+ * [CallbackPoster]'s own contract, and every queueing/cancellation/mute rule
+ * in [SpeechController] and [VoiceResolver], all exercised against fakes).
+ *
+ * **Threading**: `TextToSpeech`'s init callback and its
+ * `UtteranceProgressListener` can arrive off the calling thread (a
+ * documented TTS gotcha — they commonly land on a binder thread). Every
+ * such callback is routed through [poster] before touching [isReady],
+ * [pendingFinish], the voice cache, or [focusOwner] — see [CallbackPoster]'s
+ * doc for why. `speak`/`stop`/`voices` themselves are not wrapped: they are
+ * ordinary synchronous calls this app only ever makes from the
+ * already-confined thread (matching [SpeechController]'s own threading
+ * contract), so there is nothing to hop for.
  */
 class AndroidSpeechEngine(
     context: Context,
@@ -46,6 +56,11 @@ class AndroidSpeechEngine(
      * focus handling entirely — useful for a preview or a build that has not
      * wired one up yet. */
     private val focusOwner: AudioFocusOwner? = null,
+    /** See this class's Threading section. Defaults to the real
+     * main-thread-confining implementation; a test would substitute
+     * [InlineCallbackPoster] — though as noted above, nothing here is
+     * actually host-tested today. */
+    private val poster: CallbackPoster = AndroidMainThreadPoster(),
 ) : SpeechEngine {
     /** Set once `TextToSpeech`'s async init handshake completes. `speak`
      * declines to forward to the engine before this is true and immediately
@@ -55,6 +70,17 @@ class AndroidSpeechEngine(
      * stranded mascot mood either. */
     private var isReady = false
     private var pendingFinish: (() -> Unit)? = null
+
+    /**
+     * `null` means "not cached yet". Deliberately **not** populated by a
+     * [voices] call that lands before [isReady] is true: `TextToSpeech.voices`
+     * reads empty/null pre-init, and caching that would poison voice
+     * resolution for the engine's entire life — every later [voices] call
+     * (one per utterance, from [SpeechController.emit]) would keep returning
+     * the empty list forever, even after the engine finishes initializing.
+     * [invalidateVoiceCache] also runs automatically the moment init
+     * succeeds, as a second line of defense against exactly that.
+     */
     private var cachedVoices: List<VoiceDescribing>? = null
 
     /** Test/debug seam: how many times the system voice list was actually
@@ -63,22 +89,34 @@ class AndroidSpeechEngine(
         private set
 
     private val tts: TextToSpeech = TextToSpeech(context.applicationContext) { status ->
-        isReady = status == TextToSpeech.SUCCESS
+        poster.post {
+            isReady = status == TextToSpeech.SUCCESS
+            // Belt-and-suspenders alongside `voices()`'s own not-ready guard:
+            // guarantees a clean cache the instant the engine becomes usable,
+            // regardless of what (if anything) happened before.
+            if (isReady) invalidateVoiceCache()
+        }
     }
 
     init {
         tts.setOnUtteranceProgressListener(
             object : UtteranceProgressListener() {
                 override fun onStart(utteranceId: String?) {
-                    focusOwner?.request(AudioFocusClient.SPEECH)
+                    poster.post { focusOwner?.request(AudioFocusClient.SPEECH) }
                 }
 
-                override fun onDone(utteranceId: String?) = finish()
+                override fun onDone(utteranceId: String?) {
+                    poster.post { finish() }
+                }
 
                 @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
-                override fun onError(utteranceId: String?) = finish()
+                override fun onError(utteranceId: String?) {
+                    poster.post { finish() }
+                }
 
-                override fun onError(utteranceId: String?, errorCode: Int) = finish()
+                override fun onError(utteranceId: String?, errorCode: Int) {
+                    poster.post { finish() }
+                }
             },
         )
     }
@@ -98,7 +136,9 @@ class AndroidSpeechEngine(
         cachedVoices?.let { return it }
         voiceLookupCount += 1
         val fresh = (tts.voices ?: emptySet()).map { AndroidVoice(it) }
-        cachedVoices = fresh
+        // Only cache once the engine is actually initialized -- see
+        // `cachedVoices`'s doc for why a pre-init result must never stick.
+        if (isReady) cachedVoices = fresh
         return fresh
     }
 

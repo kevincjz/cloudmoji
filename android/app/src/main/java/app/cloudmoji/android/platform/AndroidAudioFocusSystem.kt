@@ -17,7 +17,22 @@ import android.media.AudioManager
  * why [AudioFocusOwner]'s reference-counting/pairing logic lives in a
  * separate, platform-neutral class that is.
  */
-class AndroidAudioFocusSystem(context: Context) : AudioFocusSystem {
+class AndroidAudioFocusSystem(
+    context: Context,
+    /**
+     * Called when the platform notifies this app that focus changed after
+     * having been granted — most importantly [AudioManager.AUDIOFOCUS_LOSS]
+     * (someone else needs it and is not giving it back) and the transient
+     * variants. Defaults to a no-op: deciding to stop speech or tones on a
+     * loss is a product policy for whichever caller first needs it (e.g.
+     * Task 10's tone playback), not something this thin platform binding
+     * should invent on its own. `AudioFocusRequest.Builder.build()` requires
+     * a listener to be set at all — omitting one throws
+     * `IllegalStateException` at construction, which is why this parameter
+     * exists rather than being left out entirely.
+     */
+    private val onFocusChange: (Int) -> Unit = {},
+) : AudioFocusSystem {
     private val audioManager =
         context.applicationContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
@@ -29,6 +44,7 @@ class AndroidAudioFocusSystem(context: Context) : AudioFocusSystem {
                 .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                 .build(),
         )
+        .setOnAudioFocusChangeListener { focusChange -> onFocusChange(focusChange) }
         .build()
 
     override fun requestTransientDuckFocus(): Boolean =
