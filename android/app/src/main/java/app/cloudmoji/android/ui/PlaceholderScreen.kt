@@ -55,17 +55,6 @@ fun MiniAppPlaceholder(
 }
 
 @Composable
-fun ParentPlaceholder(onHome: () -> Unit) {
-    PlaceholderShell(
-        icon = "🔒",
-        title = "For Grown-ups",
-        message = "The arithmetic parental gate and settings arrive before any parent controls or purchase UI.",
-        onHome = onHome,
-        screenTag = "parent-placeholder",
-    )
-}
-
-@Composable
 private fun PlaceholderShell(
     icon: String,
     title: String,

@@ -21,6 +21,14 @@ val Lavender = Color(0xFFC4B5FD)
 val HeaderPlate = Color(0xD10C0B21)
 val TextPrimary = Color.White
 val TextSecondary = Color.White.copy(alpha = 0.60f)
+
+/** One tier dimmer than [TextSecondary] — footnote-weight copy in the
+ * Grown-ups area (the gate's Cancel button, About's fine print). Continues
+ * this file's own Primary(1.0)/Secondary(0.60) progression rather than the
+ * web/iOS token names, which assign 0.6 and 0.4 the other way around; see
+ * `docs/design/DESIGN_SYSTEM.md`'s `--text-tertiary`/`--text-secondary` for
+ * that source numbering. */
+val TextTertiary = Color.White.copy(alpha = 0.40f)
 val Surface = Color.White.copy(alpha = 0.04f)
 val SurfaceBorder = Color.White.copy(alpha = 0.12f)
 

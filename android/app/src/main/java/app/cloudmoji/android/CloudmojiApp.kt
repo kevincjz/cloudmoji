@@ -1,6 +1,8 @@
 package app.cloudmoji.android
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -9,6 +11,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import app.cloudmoji.android.data.EmojiRepository
 import app.cloudmoji.android.data.SettingsRepository
@@ -21,15 +24,24 @@ import app.cloudmoji.android.model.narrowedCountables
 import app.cloudmoji.android.platform.SpeechController
 import app.cloudmoji.android.platform.StubEntitlementStore
 import app.cloudmoji.android.ui.MiniAppPlaceholder
-import app.cloudmoji.android.ui.ParentPlaceholder
 import app.cloudmoji.android.ui.common.AdaptiveShell
 import app.cloudmoji.android.ui.count.CountScreen
 import app.cloudmoji.android.ui.launcher.LauncherScreen
+import app.cloudmoji.android.ui.parents.GrownUpsHost
+import app.cloudmoji.android.ui.parents.ParentalGate
 import app.cloudmoji.android.ui.words.WordsScreen
 import kotlinx.coroutines.launch
 
 private const val LauncherRoute = "launcher"
 private const val ParentRoute = "parents"
+
+/** Shown on the gate overlay, whichever of the three doorways below opened
+ * it — Settings is the only parent request this app has, so there is only
+ * one explanation, unlike iOS's `RootContent.ParentRequest` (which also
+ * covers its Full Cloudmoji discovery tile and two camera-permission doors,
+ * neither of which exist here yet). */
+private const val GateExplanation =
+    "Settings let you choose Cloudmoji's sound, languages, categories and learning range."
 
 /**
  * The app's one composition root: the launcher/mini-app/parent-door route
@@ -46,12 +58,31 @@ private const val ParentRoute = "parents"
  * derived values ([effectiveLanguage]/`availableLanguages`) through
  * [AppAccessPolicy], and hand already-filtered state down: a screen never
  * decides what it is allowed to show or hear.
+ *
+ * **The parental gate** ([ParentalGate]) is a full-screen overlay drawn
+ * *after* [AdaptiveShell] in the same [Box], so it sits over the launcher
+ * tiles and whatever mini-app is currently active — the same reason iOS
+ * draws it as a body-level `.overlay` on `RootContent` rather than a sheet
+ * scoped to one screen: a gate a child can tap around underneath is not a
+ * gate. [openParentDoor] is the one function every "Grown-ups"/gear control
+ * in the app is wired to (the launcher header, and each mini-app's
+ * [app.cloudmoji.android.ui.common.ModeHeader]) — gating it once here gates
+ * every route to [ParentRoute] at once, since none of those callers can
+ * reach `route = ParentRoute` any other way.
  */
 @Composable
 fun CloudmojiApp() {
     val context = LocalContext.current
     val application = remember(context) { context.applicationContext as CloudmojiApplication }
     var route by rememberSaveable { mutableStateOf(LauncherRoute) }
+
+    // The gate's own state. `gateIndex` only ever advances by one, on every
+    // close — pass or cancel alike, mirroring iOS `RootContent`'s
+    // `gateIndex += 1` fired from both `onPass` and `onCancel` — so the
+    // *next* time a parent opens the gate they see the next question in the
+    // rotation, never a repeat of the one they just answered or dismissed.
+    var isGateShowing by rememberSaveable { mutableStateOf(false) }
+    var gateIndex by rememberSaveable { mutableStateOf(0) }
 
     val settings by application.settingsRepository.settings.collectAsState(initial = Settings.default())
     val isUnlocked by application.entitlementStore.isUnlocked.collectAsState()
@@ -92,74 +123,124 @@ fun CloudmojiApp() {
         route = app.route
     }
 
+    // The one way any "Grown-ups"/gear control reaches the gate — see this
+    // function's own doc. A child mid-word tapping the gear is not a reason
+    // to keep talking over the arithmetic question.
+    val openParentDoor: () -> Unit = {
+        application.speechController.cancelAll()
+        isGateShowing = true
+    }
+
     BackHandler(enabled = route != LauncherRoute) {
         route = LauncherRoute
     }
+    // Composed after the [BackHandler] above, so it is the more-recently
+    // registered callback and fires first while the gate is showing — even
+    // when `route` is already a mini-app, back closes the gate rather than
+    // leaving for the launcher underneath it.
+    BackHandler(enabled = isGateShowing) {
+        isGateShowing = false
+        gateIndex += 1
+    }
 
-    AdaptiveShell {
-        when {
-            route == LauncherRoute -> LauncherScreen(
-                apps = accessPolicy.visibleMiniApps(),
-                language = effectiveLanguage,
-                onOpen = onOpenApp,
-                onParent = { route = ParentRoute },
-            )
+    Box(modifier = Modifier.fillMaxSize()) {
+        AdaptiveShell {
+            when {
+                route == LauncherRoute -> LauncherScreen(
+                    apps = accessPolicy.visibleMiniApps(),
+                    language = effectiveLanguage,
+                    onOpen = onOpenApp,
+                    onParent = openParentDoor,
+                )
 
-            route == ParentRoute -> ParentPlaceholder(
-                onHome = { route = LauncherRoute },
-            )
+                route == ParentRoute -> GrownUpsHost(
+                    settings = settings,
+                    accessPolicy = accessPolicy,
+                    allLanguages = application.repository.languages,
+                    availableLanguages = availableLanguages,
+                    categories = application.repository.categories.filter { it.category != null },
+                    effectiveLanguage = effectiveLanguage,
+                    isUnlocked = isUnlocked,
+                    onSetMuted = { muted -> scope.launch { application.settingsRepository.setMuted(muted) } },
+                    onSetEnabledLanguages = { languages ->
+                        scope.launch { application.settingsRepository.setEnabledLanguages(languages) }
+                    },
+                    onSetLanguage = { language -> scope.launch { application.settingsRepository.setLanguage(language) } },
+                    onSetEnabledCategories = { categories ->
+                        scope.launch { application.settingsRepository.setEnabledCategories(categories) }
+                    },
+                    onSetCountRange = { range -> scope.launch { application.settingsRepository.setCountRange(range) } },
+                    onHome = { route = LauncherRoute },
+                )
 
-            else -> {
-                val app = MiniApp.fromRoute(route)
-                if (app != null && accessPolicy.canUse(app)) {
-                    when (app) {
-                        MiniApp.Words -> WordsScreen(
-                            repository = application.repository,
-                            enabledCategories = settings.enabledCategories,
+                else -> {
+                    val app = MiniApp.fromRoute(route)
+                    if (app != null && accessPolicy.canUse(app)) {
+                        when (app) {
+                            MiniApp.Words -> WordsScreen(
+                                repository = application.repository,
+                                enabledCategories = settings.enabledCategories,
+                                language = effectiveLanguage,
+                                muted = settings.muted,
+                                availableLanguages = availableLanguages,
+                                speechController = application.speechController,
+                                mascotMoodMachine = application.mascotMoodMachine,
+                                wordsViewModel = application.wordsViewModel,
+                                onSetMuted = { muted -> scope.launch { application.settingsRepository.setMuted(muted) } },
+                                onCycleLanguage = onCycleLanguage,
+                                onHome = { route = LauncherRoute },
+                                onParent = openParentDoor,
+                            )
+
+                            MiniApp.Count -> CountScreen(
+                                countables = countables,
+                                countRange = settings.countRange,
+                                language = effectiveLanguage,
+                                muted = settings.muted,
+                                availableLanguages = availableLanguages,
+                                grammar = application.countingGrammar,
+                                speechController = application.speechController,
+                                hapticFeedback = application.hapticFeedback,
+                                moodMachine = application.countMoodMachine,
+                                viewModel = application.countViewModel,
+                                onSetMuted = { muted -> scope.launch { application.settingsRepository.setMuted(muted) } },
+                                onCycleLanguage = onCycleLanguage,
+                                onHome = { route = LauncherRoute },
+                                onParent = openParentDoor,
+                            )
+
+                            else -> MiniAppPlaceholder(
+                                app = app,
+                                language = effectiveLanguage,
+                                onHome = { route = LauncherRoute },
+                            )
+                        }
+                    } else {
+                        LauncherScreen(
+                            apps = accessPolicy.visibleMiniApps(),
                             language = effectiveLanguage,
-                            muted = settings.muted,
-                            availableLanguages = availableLanguages,
-                            speechController = application.speechController,
-                            mascotMoodMachine = application.mascotMoodMachine,
-                            wordsViewModel = application.wordsViewModel,
-                            onSetMuted = { muted -> scope.launch { application.settingsRepository.setMuted(muted) } },
-                            onCycleLanguage = onCycleLanguage,
-                            onHome = { route = LauncherRoute },
-                            onParent = { route = ParentRoute },
-                        )
-
-                        MiniApp.Count -> CountScreen(
-                            countables = countables,
-                            countRange = settings.countRange,
-                            language = effectiveLanguage,
-                            muted = settings.muted,
-                            availableLanguages = availableLanguages,
-                            grammar = application.countingGrammar,
-                            speechController = application.speechController,
-                            hapticFeedback = application.hapticFeedback,
-                            moodMachine = application.countMoodMachine,
-                            viewModel = application.countViewModel,
-                            onSetMuted = { muted -> scope.launch { application.settingsRepository.setMuted(muted) } },
-                            onCycleLanguage = onCycleLanguage,
-                            onHome = { route = LauncherRoute },
-                            onParent = { route = ParentRoute },
-                        )
-
-                        else -> MiniAppPlaceholder(
-                            app = app,
-                            language = effectiveLanguage,
-                            onHome = { route = LauncherRoute },
+                            onOpen = onOpenApp,
+                            onParent = openParentDoor,
                         )
                     }
-                } else {
-                    LauncherScreen(
-                        apps = accessPolicy.visibleMiniApps(),
-                        language = effectiveLanguage,
-                        onOpen = onOpenApp,
-                        onParent = { route = ParentRoute },
-                    )
                 }
             }
+        }
+
+        if (isGateShowing) {
+            ParentalGate(
+                challengeIndex = gateIndex,
+                action = GateExplanation,
+                onPass = {
+                    isGateShowing = false
+                    gateIndex += 1
+                    route = ParentRoute
+                },
+                onCancel = {
+                    isGateShowing = false
+                    gateIndex += 1
+                },
+            )
         }
     }
 }
