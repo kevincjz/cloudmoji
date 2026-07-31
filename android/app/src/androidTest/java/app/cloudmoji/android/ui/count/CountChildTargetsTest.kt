@@ -31,25 +31,11 @@ class CountChildTargetsTest {
     @get:Rule
     val composeRule = createComposeRule()
 
-    /**
-     * `CountTileMetrics.side()` is a step function of the round size, not a
-     * single constant — this asserts the *rule*, not one rendered instance,
-     * across every round size the parent's count range can ever produce
-     * ([app.cloudmoji.android.model.Settings.countBounds] is `2..10`), both
-     * orientations.
-     */
-    @Test
-    fun countTileSideNeverDropsBelowTheChildTargetFloor() {
-        for (count in 2..10) {
-            for (compact in listOf(false, true)) {
-                val side = CountTileMetrics.side(count, compact)
-                assert(side >= CountTileMetrics.childMinimum) {
-                    "CountTileMetrics.side(count=$count, compact=$compact) is $side, " +
-                        "under the ${CountTileMetrics.childMinimum} floor"
-                }
-            }
-        }
-    }
+    // `CountTileMetrics.side()`'s own floor rule (every round size, both
+    // orientations, both `isExpandedPad` settings) is pure `Dp` arithmetic —
+    // no Compose runtime needed — so it lives in the JVM test source set
+    // instead of here: `app/src/test/java/.../ui/count/CountTileMetricsTest.kt`.
+    // It actually executes in this environment, unlike everything below.
 
     @Test
     fun anUncountedTileMeetsTheChildTargetFloorAndReachesOnTap() {
@@ -103,6 +89,7 @@ class CountChildTargetsTest {
                 caption = "Shuffle",
                 identifier = "count-shuffle",
                 tint = Teal,
+                isExpandedPad = false,
                 action = { tapped = true },
             )
         }
@@ -113,6 +100,29 @@ class CountChildTargetsTest {
             .performClick()
 
         assert(tapped) { "tapping Shuffle must reach its action" }
+    }
+
+    @Test
+    fun countControlOnExpandedPadMeetsTheLargerFloorAndReachesItsAction() {
+        // iOS `CountControl`'s own `layout.isExpandedPad` branch: 78dp, not 64dp.
+        var tapped = false
+        composeRule.setContent {
+            CountControl(
+                glyph = "🔄",
+                caption = "Shuffle",
+                identifier = "count-shuffle",
+                tint = Teal,
+                isExpandedPad = true,
+                action = { tapped = true },
+            )
+        }
+
+        composeRule.onNodeWithTag("count-shuffle")
+            .assertHeightIsAtLeast(78.dp)
+            .assertHasClickAction()
+            .performClick()
+
+        assert(tapped) { "tapping Shuffle must reach its action on an expanded pad too" }
     }
 
     @Test

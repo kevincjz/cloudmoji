@@ -301,6 +301,7 @@ fun CountScreen(
                 round = round,
                 lastCounted = lastCounted,
                 isCompact = layout.isCompactPhone,
+                isExpandedPad = layout.isExpandedPad,
                 onTap = ::onTapTile,
                 modifier = Modifier.weight(1f).fillMaxSize(),
             )
@@ -308,6 +309,7 @@ fun CountScreen(
                 isComplete = round?.isComplete == true,
                 canReplay = phrase.isNotEmpty() && !muted,
                 language = language,
+                isExpandedPad = layout.isExpandedPad,
                 onShuffle = onShuffle,
                 onReplay = onReplay,
                 onNext = onNext,
@@ -317,23 +319,31 @@ fun CountScreen(
 }
 
 /**
- * The tiles, sized and columned to the round. Not lazy for the same reason
- * as iOS: a round is at most ten tiles, and a lazy container would realise
- * them out of order and risk breaking the badges' paint order.
+ * The tiles, sized and columned to the round, and scaled for
+ * [isExpandedPad] the same way iOS `CountView.grid` does (1.30× tile
+ * side/glyph and the grid's own max width, 1.18× spacing — `columns` itself
+ * is left unscaled, since it is a count, not a size).
+ *
+ * `LazyVerticalGrid`, unlike iOS's non-lazy `Grid` — a round is at most ten
+ * tiles either way, so laziness buys nothing here, but nothing needs it not
+ * to be lazy either: badge paint order (a counted/bouncing tile drawing over
+ * its neighbours) is handled by `CountTile`'s own `zIndex`, not by list
+ * realisation order.
  */
 @Composable
 private fun CountGrid(
     round: CountRound?,
     lastCounted: Int?,
     isCompact: Boolean,
+    isExpandedPad: Boolean,
     onTap: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (round == null) return
     val columns = CountTileMetrics.columns(round.target, isCompact)
-    val side = CountTileMetrics.side(round.target, isCompact)
-    val glyph = CountTileMetrics.glyphSize(round.target, isCompact)
-    val spacing = CountTileMetrics.gridSpacing(round.target, isCompact)
+    val side = CountTileMetrics.side(round.target, isCompact, isExpandedPad)
+    val glyph = CountTileMetrics.glyphSize(round.target, isCompact, isExpandedPad)
+    val spacing = CountTileMetrics.gridSpacing(round.target, isCompact, isExpandedPad)
 
     // The outer `Box` takes the full space [modifier] hands in (the weighted
     // remainder of the column) and centres its child on both axes; the grid
@@ -353,7 +363,7 @@ private fun CountGrid(
                 bottom = 6.dp,
             ),
             modifier = Modifier
-                .widthIn(max = CountTileMetrics.maxGridWidth(isCompact))
+                .widthIn(max = CountTileMetrics.maxGridWidth(isCompact, isExpandedPad))
                 .padding(horizontal = if (isCompact) 12.dp else 20.dp)
                 .testTag("count-grid"),
         ) {
@@ -377,10 +387,14 @@ private fun CountControls(
     isComplete: Boolean,
     canReplay: Boolean,
     language: Language,
+    isExpandedPad: Boolean,
     onShuffle: () -> Unit,
     onReplay: () -> Unit,
     onNext: () -> Unit,
 ) {
+    // 12dp between the controls themselves is unscaled — iOS's `controls`
+    // HStack spacing is a flat `12` regardless of `isExpandedPad`; only each
+    // `CountControl`'s own internal sizing scales, matching `CountView.swift`.
     Row(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier
@@ -393,6 +407,7 @@ private fun CountControls(
             caption = CountUiText.shuffle(language),
             identifier = "count-shuffle",
             tint = Amber,
+            isExpandedPad = isExpandedPad,
             action = onShuffle,
         )
         if (canReplay) {
@@ -401,6 +416,7 @@ private fun CountControls(
                 caption = CountUiText.replay(language),
                 identifier = "count-replay",
                 tint = Teal,
+                isExpandedPad = isExpandedPad,
                 action = onReplay,
             )
         }
@@ -410,6 +426,7 @@ private fun CountControls(
                 caption = CountUiText.next(language),
                 identifier = "count-next",
                 tint = Teal,
+                isExpandedPad = isExpandedPad,
                 action = onNext,
             )
         }
@@ -418,11 +435,15 @@ private fun CountControls(
 
 /**
  * Shuffle, Replay and Next. Child-facing, so 64dp — a two-year-old presses
- * these far more often than a parent does. Ported from iOS `CountControl`.
+ * these far more often than a parent does — 78dp for [isExpandedPad], along
+ * with every other number here, matching iOS `CountControl`'s own
+ * `layout.isExpandedPad` branches literally (`CountView.swift`): 9dp/6dp
+ * internal spacing, 24sp/18sp glyph, 18sp/14sp caption, 30dp/22dp horizontal
+ * padding.
  *
  * `internal`, not `private` — like `CountTile`/`CountReadout` in their own
- * files, this is what lets `CountChildTargetsTest` measure the 64dp
- * touch-target floor directly instead of standing up the whole screen's
+ * files, this is what lets `CountChildTargetsTest` measure the 64dp/78dp
+ * touch-target floors directly instead of standing up the whole screen's
  * dependency graph (`CountViewModel`, `MascotMoodMachine`, `SpeechController`,
  * ...) just to reach it.
  */
@@ -432,6 +453,7 @@ internal fun CountControl(
     caption: String,
     identifier: String,
     tint: androidx.compose.ui.graphics.Color,
+    isExpandedPad: Boolean,
     action: () -> Unit,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -439,9 +461,9 @@ internal fun CountControl(
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(if (isExpandedPad) 9.dp else 6.dp),
         modifier = Modifier
-            .heightIn(min = 64.dp)
+            .heightIn(min = if (isExpandedPad) 78.dp else 64.dp)
             .pressScale(interactionSource, 0.88f)
             .clip(shape)
             .background(tint.copy(alpha = 0.15f), shape)
@@ -452,15 +474,15 @@ internal fun CountControl(
                 contentDescription = caption
             }
             .testTag(identifier)
-            .padding(horizontal = 22.dp),
+            .padding(horizontal = if (isExpandedPad) 30.dp else 22.dp),
     ) {
-        Text(text = glyph, fontSize = 18.sp)
+        Text(text = glyph, fontSize = if (isExpandedPad) 24.sp else 18.sp)
         Text(
             text = caption,
             color = tint,
             fontFamily = CloudmojiBodyFont,
             fontWeight = FontWeight.Black,
-            fontSize = 14.sp,
+            fontSize = if (isExpandedPad) 18.sp else 14.sp,
             maxLines = 1,
         )
     }

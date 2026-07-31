@@ -56,18 +56,35 @@ object CountTileMetrics {
      * not required. */
     val childMinimum: Dp = 64.dp
 
-    fun side(count: Int, compact: Boolean): Dp = when {
-        compact -> if (count <= 5) 72.dp else 64.dp
-        count <= 3 -> 96.dp
-        count <= 6 -> 82.dp
-        else -> 72.dp
+    /**
+     * iOS `CountView.grid`'s own scale factors for `layout.isExpandedPad`
+     * (`CountView.swift`'s `grid`/`countingArea`): a tablet gets tablet-sized
+     * tiles and spacing, not phone-sized ones adrift in more empty space.
+     * Applied to [side]/[glyphSize]/[maxGridWidth] (1.30×) and [gridSpacing]
+     * (1.18×) — [columns] is deliberately unscaled, matching iOS, since it is
+     * a column *count*, not a size.
+     */
+    const val expandedPadSideScale: Float = 1.30f
+    const val expandedPadSpacingScale: Float = 1.18f
+
+    fun side(count: Int, compact: Boolean, isExpandedPad: Boolean = false): Dp {
+        val base = when {
+            compact -> if (count <= 5) 72.dp else 64.dp
+            count <= 3 -> 96.dp
+            count <= 6 -> 82.dp
+            else -> 72.dp
+        }
+        return if (isExpandedPad) base * expandedPadSideScale else base
     }
 
-    fun glyphSize(count: Int, compact: Boolean): TextUnit = when {
-        compact -> if (count <= 5) 44.sp else 36.sp
-        count <= 3 -> 64.sp
-        count <= 6 -> 54.sp
-        else -> 46.sp
+    fun glyphSize(count: Int, compact: Boolean, isExpandedPad: Boolean = false): TextUnit {
+        val base = when {
+            compact -> if (count <= 5) 44.sp else 36.sp
+            count <= 3 -> 64.sp
+            count <= 6 -> 54.sp
+            else -> 46.sp
+        }
+        return if (isExpandedPad) base * expandedPadSideScale else base
     }
 
     /** Three across upright, five sideways — and never more columns than
@@ -77,15 +94,21 @@ object CountTileMetrics {
 
     /** Roomier for the small rounds, which have the space for it. Never
      * under the 8dp floor between two things a child taps. */
-    fun gridSpacing(count: Int, compact: Boolean): Dp = when {
-        compact -> 10.dp
-        count <= 4 -> 16.dp
-        else -> 12.dp
+    fun gridSpacing(count: Int, compact: Boolean, isExpandedPad: Boolean = false): Dp {
+        val base = when {
+            compact -> 10.dp
+            count <= 4 -> 16.dp
+            else -> 12.dp
+        }
+        return if (isExpandedPad) base * expandedPadSpacingScale else base
     }
 
     /** `max-width: 360` upright, `520` sideways — stops a round of two
      * spreading across a tablet. */
-    fun maxGridWidth(compact: Boolean): Dp = if (compact) 520.dp else 360.dp
+    fun maxGridWidth(compact: Boolean, isExpandedPad: Boolean = false): Dp {
+        val base = if (compact) 520.dp else 360.dp
+        return if (isExpandedPad) base * expandedPadSideScale else base
+    }
 
     val cornerRadius: Dp = 22.dp
 
