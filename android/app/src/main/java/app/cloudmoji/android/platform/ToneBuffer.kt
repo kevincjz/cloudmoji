@@ -1,7 +1,9 @@
 package app.cloudmoji.android.platform
 
+import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.exp
+import kotlin.math.sin
 
 /**
  * One note, rendered to samples. Ported from iOS `ToneBuffer.swift`.
@@ -112,5 +114,83 @@ object ToneBuffer {
         if (t < 0) return 0f
         if (t < attack) return (t / attack).toFloat()
         return exp(-decay * (t - attack)).toFloat()
+    }
+}
+
+/**
+ * A quiet, deterministic wash for Sleepy Cloud. Ported from iOS
+ * `SleepNoiseBuffer` (`ToneBuffer.swift`).
+ *
+ * This is deliberately synthesized rather than downloaded: there is no
+ * recording to license, no network dependency, and no personalisation or
+ * tracking. Two low-pass stages turn deterministic white noise into a soft
+ * rain/ocean texture. The ends fade to silence, so the looping buffer
+ * cannot click at its seam — see [SleepNoiseBufferTest].
+ *
+ * Kept beside [ToneBuffer] in the same file, mirroring the iOS original's
+ * own layout (`ToneBuffer.swift` holds both types): the two are the pure-JVM
+ * arithmetic half of this app's synthesized audio, separate from
+ * [AndroidToneEngine], which is the half that actually touches
+ * `android.media.AudioTrack` and is not host-testable for exactly that
+ * reason.
+ */
+object SleepNoiseBuffer {
+    const val duration: Double = 10.0
+    const val peak: Float = 0.16f
+    const val edgeFade: Double = 0.75
+
+    /**
+     * The waveform, as mono float samples in -1...1, meant to be looped.
+     *
+     * The generator is a fixed-seed linear congruential generator (an `LCG`,
+     * the same "deterministic pseudo-random" trick `UInt64`-seeded on iOS),
+     * not `kotlin.random.Random`: a fixed seed is what makes the ambience
+     * stable between launches and tests, and Kotlin's own `Random` carries
+     * no cross-platform seeding guarantee `ToneBuffer`'s determinism
+     * requirement could rely on the way this hand-rolled generator's exact
+     * bit arithmetic can.
+     */
+    fun samples(
+        sampleRate: Double = ToneBuffer.sampleRate,
+        duration: Double = SleepNoiseBuffer.duration,
+    ): FloatArray {
+        if (sampleRate <= 0 || duration <= 0) return FloatArray(0)
+
+        val count = (sampleRate * duration).toInt()
+        if (count <= 1) return FloatArray(0)
+
+        // The high bits of this LCG have the useful distribution. Kotlin's
+        // unsigned arithmetic wraps silently on overflow, the same as
+        // Swift's `&*`/`&+` this is ported from — no explicit wraparound
+        // operator is needed here the way Swift's is.
+        var seed: ULong = 0xC10D_5EED_2026uL
+        var soft = 0.0
+        var deep = 0.0
+        val texture = DoubleArray(count)
+
+        for (index in 0 until count) {
+            seed = seed * 6_364_136_223_846_793_005uL + 1uL
+            val unit = ((seed shr 40) and 0xFF_FFFFuL).toDouble() / 0xFF_FFFF.toDouble()
+            val white = unit * 2 - 1
+
+            soft = soft * 0.94 + white * 0.06
+            deep = deep * 0.992 + white * 0.008
+            texture[index] = soft * 0.82 + deep * 0.48
+        }
+
+        val mean = texture.sum() / texture.size
+        val out = FloatArray(count)
+        for (index in 0 until count) {
+            val t = index / sampleRate
+            // One slow swell per buffer. Because it is periodic, the
+            // ambience breathes without an abrupt volume change when the
+            // loop restarts.
+            val swell = 0.76 + 0.16 * sin((2 * PI * t / duration) - (PI / 2))
+            val edge = minOf(1.0, minOf(t / edgeFade, (duration - t) / edgeFade))
+            val centred = (texture[index] - mean) * 2.6
+            val clamped = centred.coerceIn(-1.0, 1.0)
+            out[index] = (clamped * swell * maxOf(0.0, edge)).toFloat() * peak
+        }
+        return out
     }
 }

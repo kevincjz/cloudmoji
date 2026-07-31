@@ -14,6 +14,7 @@ import app.cloudmoji.android.model.CoroutineWordsScheduler
 import app.cloudmoji.android.model.FlashCardsViewModel
 import app.cloudmoji.android.model.MascotMoodMachine
 import app.cloudmoji.android.model.Settings
+import app.cloudmoji.android.model.SleepySessionState
 import app.cloudmoji.android.model.WordsViewModel
 import app.cloudmoji.android.platform.AndroidAudioFocusSystem
 import app.cloudmoji.android.platform.AndroidHapticFeedback
@@ -236,6 +237,23 @@ class CloudmojiApplication : Application() {
     val animalsMoodMachine: MascotMoodMachine by lazy {
         MascotMoodMachine(scheduler = CoroutineMascotScheduler(appScope), milestones = emptySet())
     }
+
+    /**
+     * Sleepy Cloud's own wind-down session — which duration is running, how
+     * far through it is, and whether the cloud has fallen asleep.
+     * Application-scoped for the same rotation-survival reason as
+     * [countViewModel]/[flashCardsViewModel], and here the stakes are higher
+     * than either: a rotation mid-session would otherwise throw away the
+     * start instant and drop a child back at the picker halfway through a
+     * ten-minute wind-down.
+     *
+     * `CloudmojiApp`'s `onOpen` resets it on every *fresh* entry from the
+     * launcher, so opening Sleepy Cloud always begins at the picker rather
+     * than resuming whatever the last visit left running — leaving the
+     * mini-app is how a parent ends a session early, and an entry that
+     * silently resumed it would make that impossible.
+     */
+    val sleepySessionState: SleepySessionState by lazy { SleepySessionState() }
 
     /** The taps and rewards a child feels — see [HapticFeedback]'s own doc.
      * Words mode does not wire this in yet (Task 6 shipped without it); Count

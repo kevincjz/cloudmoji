@@ -23,4 +23,14 @@ interface ToneEngineDriving {
     /** Plays pad [index] from the pre-built set. Out-of-range, and any call
      * before [start] has actually built anything, does nothing. */
     fun playTone(index: Int)
+
+    /** Starts (or restarts, from the beginning) the looping bedtime ambience
+     * used by Sleepy Cloud. Idempotent while already playing — see
+     * [AndroidToneEngine]'s own doc for why a restart rewinds rather than
+     * layering a second copy. Mirrors iOS `ToneEngineDriving.playSleepNoise()`. */
+    fun playSleepNoise()
+
+    /** Stops the ambience, if it is playing. Does not affect [isRunning] or
+     * the pad tracks — mirrors iOS `ToneEngineDriving.stopSleepNoise()`. */
+    fun stopSleepNoise()
 }

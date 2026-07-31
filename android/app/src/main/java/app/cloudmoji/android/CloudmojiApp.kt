@@ -38,6 +38,7 @@ import app.cloudmoji.android.ui.music.MusicScreen
 import app.cloudmoji.android.ui.parents.GateAttempt
 import app.cloudmoji.android.ui.parents.GrownUpsHost
 import app.cloudmoji.android.ui.parents.ParentalGate
+import app.cloudmoji.android.ui.sleepy.SleepyCloudScreen
 import app.cloudmoji.android.ui.words.WordsScreen
 import kotlinx.coroutines.launch
 
@@ -198,6 +199,18 @@ fun CloudmojiApp() {
                 application.animalsMoodMachine.reset()
             }
 
+            // Sleepy Cloud opens at the picker, always — see
+            // `CloudmojiApplication.sleepySessionState`'s own doc for why a
+            // fresh entry must not resume the last visit's session. Speech
+            // is cancelled for a stronger reason here than anywhere else:
+            // this mini-app never speaks at all, and a word still finishing
+            // from Words mode over a wind-down scene is the opposite of what
+            // the screen is for.
+            MiniApp.Sleepy -> {
+                application.speechController.cancelAll()
+                application.sleepySessionState.reset()
+            }
+
             else -> Unit
         }
         route = app.route
@@ -336,6 +349,16 @@ fun CloudmojiApp() {
                                 speechController = application.speechController,
                                 hapticFeedback = application.hapticFeedback,
                                 moodMachine = application.animalsMoodMachine,
+                                onHome = { route = LauncherRoute },
+                                onUnmute = { scope.launch { application.settingsRepository.setMuted(false) } },
+                            )
+
+                            MiniApp.Sleepy -> SleepyCloudScreen(
+                                session = application.sleepySessionState,
+                                language = effectiveLanguage,
+                                muted = settings.muted,
+                                toneDirector = application.toneDirector,
+                                hapticFeedback = application.hapticFeedback,
                                 onHome = { route = LauncherRoute },
                                 onUnmute = { scope.launch { application.settingsRepository.setMuted(false) } },
                             )

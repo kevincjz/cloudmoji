@@ -1,19 +1,34 @@
 package app.cloudmoji.android.platform
 
 /**
- * Arbitrates Music mode's tone playback against [AudioFocusOwner] and
- * [ToneEngineDriving] — the Android analogue of iOS `AudioDirector`
- * (`AudioDirector.swift`), scoped to instrument tones specifically. Android
+ * Arbitrates Music mode's tone playback — and, since Task 13, Sleepy Cloud's
+ * bedtime ambience — against [AudioFocusOwner] and [ToneEngineDriving]: the
+ * Android analogue of iOS `AudioDirector` (`AudioDirector.swift`). Android
  * already centralises audio-focus arbitration in [AudioFocusOwner] (Task 4),
  * shared by [AudioFocusClient.SPEECH] and [AudioFocusClient.TONE] alike, so
  * this class does not need iOS's `AudioClient` enum of every mini-app that
- * can hold the engine — Music is the one caller today, and later mini-apps
- * that make sound of their own kind would get their own small director the
- * same way, still sharing the one [AudioFocusOwner].
+ * can hold the engine — [attach]/[detach] alone (below) already answer "is
+ * *some* mini-app currently holding the shared engine", and Music and Sleepy
+ * Cloud can never both be that mini-app at once, since this app only ever
+ * has one route mounted at a time.
+ *
+ * **One shared director and engine, not one per audio-producing mini-app** —
+ * this class's own doc used to say the opposite ("later mini-apps... would
+ * get their own small director"), before Sleepy Cloud actually arrived and
+ * needed one. Reusing this exact class instead is the more faithful port:
+ * iOS's own real `ToneEngine` (`AudioDirector.swift`) attaches the eight pad
+ * players *and* the sleep player to the very same `AVAudioEngine` graph in
+ * one `build()`, arbitrated by one `AudioDirector` — see
+ * [AndroidToneEngine]'s own doc for how [playSleepNoise] reaches the same
+ * shared graph on this platform.
  *
  * [attach]/[detach] bracket a visit to the Music screen — `MusicScreen.kt`'s
  * own `DisposableEffect`, mirroring iOS `InstrumentPadView`'s
- * `.onAppear`/`.onDisappear`. [detach] both stops the engine and gives
+ * `.onAppear`/`.onDisappear` — or, for Sleepy Cloud, a *running session*
+ * specifically (not the whole screen visit, since the picker holds no
+ * engine at all) — see `SleepyCloudScreen.kt`'s own `resume`/`pause`,
+ * mirroring iOS `SleepyCloudView.startSleepAudio`/`stopSleepAudio`'s own
+ * narrower scope. [detach] both stops the engine and gives
  * [AudioFocusClient.TONE] back, belt and braces: a tone still ringing over
  * the launcher is the kind of thing a parent notices and cannot explain, the
  * same reasoning iOS's own doc gives for calling `detach()` from two places.
@@ -68,6 +83,34 @@ class ToneDirector(
         if (!focusOwner.request(AudioFocusClient.TONE)) return
         restartIfStalled()
         engine.playTone(index)
+    }
+
+    /**
+     * Starts (or restarts, from the beginning) Sleepy Cloud's bedtime
+     * ambience. Gated on [isAttached] exactly like [playTone] — Sleepy Cloud
+     * shares this director and the engine underneath it with Music (see this
+     * class's own doc for why one shared engine, not a parallel director,
+     * mirrors iOS's real `ToneEngine`, which attaches pad players *and* the
+     * sleep player to the one graph) — so a stray call from a screen that is
+     * not currently attached must not spin the engine up or ask the
+     * platform for focus, the same reasoning [playTone]'s own doc gives.
+     * Mirrors iOS `AudioDirector.playSleepNoise()`.
+     */
+    fun playSleepNoise() {
+        if (!isAttached) return
+        if (!focusOwner.request(AudioFocusClient.TONE)) return
+        restartIfStalled()
+        engine.playSleepNoise()
+    }
+
+    /** Stops the ambience without giving up [isAttached] — a mute toggle
+     * mid-session silences the loop, but Sleepy Cloud is still the screen
+     * holding the engine, so the very next unmute can bring it straight
+     * back via [playSleepNoise] without re-attaching. Mirrors iOS
+     * `AudioDirector.stopSleepNoise()`. */
+    fun stopSleepNoise() {
+        if (!isAttached) return
+        engine.stopSleepNoise()
     }
 
     /**

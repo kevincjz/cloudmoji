@@ -21,6 +21,10 @@ class ToneDirectorTest {
         var stops = 0
             private set
         val tones = mutableListOf<Int>()
+        var sleepStarts = 0
+            private set
+        var sleepStops = 0
+            private set
 
         override fun start() {
             starts += 1
@@ -34,6 +38,14 @@ class ToneDirectorTest {
 
         override fun playTone(index: Int) {
             tones += index
+        }
+
+        override fun playSleepNoise() {
+            sleepStarts += 1
+        }
+
+        override fun stopSleepNoise() {
+            sleepStops += 1
         }
     }
 
@@ -174,5 +186,59 @@ class ToneDirectorTest {
 
         assertTrue(fixture.director.isAttached)
         assertEquals(1, fixture.engine.stops)
+    }
+
+    /**
+     * Sleepy Cloud's own calls, gated exactly like [ToneDirector.playTone]:
+     * nothing starts, and no focus is requested, for a screen that has not
+     * attached.
+     *
+     * Mutation proof: temporarily removed the `if (!isAttached) return`
+     * guard from `ToneDirector.playSleepNoise()`. This test failed
+     * (`engine.sleepStarts` was 1, not 0) before the guard was restored.
+     */
+    @Test
+    fun `playSleepNoise and stopSleepNoise are silent while not attached`() {
+        val fixture = Fixture()
+
+        fixture.director.playSleepNoise()
+        fixture.director.stopSleepNoise()
+
+        assertEquals(0, fixture.engine.sleepStarts)
+        assertEquals(0, fixture.engine.sleepStops)
+        assertEquals(0, fixture.system.requestCount)
+    }
+
+    /**
+     * Once attached, [ToneDirector.playSleepNoise] requests focus and reaches
+     * the engine; [ToneDirector.stopSleepNoise] reaches it too, without
+     * detaching — a mute toggle mid-session silences the loop but Sleepy
+     * Cloud is still the screen holding the engine.
+     */
+    @Test
+    fun `playSleepNoise and stopSleepNoise reach the engine once attached`() {
+        val fixture = Fixture()
+        fixture.director.attach()
+
+        fixture.director.playSleepNoise()
+        assertEquals(1, fixture.engine.sleepStarts)
+        assertEquals(1, fixture.system.requestCount)
+
+        fixture.director.stopSleepNoise()
+        assertEquals(1, fixture.engine.sleepStops)
+        assertTrue(fixture.director.isAttached)
+    }
+
+    /** A denied focus request silences the ambience just like a denied pad
+     * tap — no crash, no ambience, matching this project's "no failure
+     * states" rule. */
+    @Test
+    fun `a denied focus request keeps the ambience silent`() {
+        val fixture = Fixture(granted = false)
+        fixture.director.attach()
+
+        fixture.director.playSleepNoise()
+
+        assertEquals(0, fixture.engine.sleepStarts)
     }
 }
