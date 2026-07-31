@@ -13,6 +13,10 @@
     "typecheck": "tsc -b --noEmit",
     "generate:ios": "tsx tools/generate-ios-data/cli.ts",
     "verify:ios": "npm run generate:ios && git diff --exit-code ios/CloudmojiCore/Sources/CloudmojiCore/Resources/EmojiData.json",
+    "generate:android": "tsx tools/generate-android-data/cli.ts",
+    "verify:android": "npm run generate:android && git diff --exit-code android/app/src/main/assets/EmojiData.json",
+    "generate:native": "npm run generate:ios && npm run generate:android",
+    "verify:native": "npm run generate:native && git diff --exit-code ios/CloudmojiCore/Sources/CloudmojiCore/Resources/EmojiData.json android/app/src/main/assets/EmojiData.json",
     "og:image": "node tools/og-image/generate.mjs"
   },
   "dependencies": {
