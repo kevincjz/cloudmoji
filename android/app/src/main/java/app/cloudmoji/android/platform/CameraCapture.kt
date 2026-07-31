@@ -43,6 +43,59 @@ private const val JPEG_QUALITY = 92
 private const val TAG = "CameraCapture"
 
 /**
+ * The longest edge a stored photograph keeps.
+ *
+ * **This is a memory bound, not a quality preference.** A modern phone's
+ * twelve-megapixel capture is about 48MB once decoded, and [uprightJpeg] holds
+ * two bitmaps at once while it rotates — near 100MB at the peak, on the one
+ * control a toddler hammers, on hardware that may only have a gigabyte to
+ * spend. At 2048 the same peak is under 25MB, and the picture is still larger
+ * than any screen it will be shown on, before or after a parent exports it.
+ */
+const val MAX_STORED_EDGE_PIXELS = 2_048
+
+/**
+ * The `BitmapFactory` `inSampleSize` that decodes a
+ * [sourceWidth]×[sourceHeight] JPEG as small as possible **without** its
+ * longest edge falling below [minPixels].
+ *
+ * This is the *thumbnail* rounding, and the direction matters: a grid cell
+ * drawn from a bitmap smaller than itself is visibly soft, so the last
+ * halving that would go under the draw size is the one not taken. See
+ * [jpegSampleSizeNoLargerThan] for the opposite intent, which is a genuinely
+ * different function rather than the same one read carelessly.
+ *
+ * Powers of two only — `BitmapFactory` rounds anything else down anyway — and
+ * never below 1, which is what an image already smaller than the target needs.
+ */
+fun jpegSampleSizeNoSmallerThan(sourceWidth: Int, sourceHeight: Int, minPixels: Int): Int {
+    if (minPixels <= 0) return 1
+    val longest = maxOf(sourceWidth, sourceHeight)
+    var sample = 1
+    while (longest / (sample * 2) >= minPixels) sample *= 2
+    return sample
+}
+
+/**
+ * The `BitmapFactory` `inSampleSize` that brings a
+ * [sourceWidth]×[sourceHeight] JPEG's longest edge to **at or below**
+ * [maxPixels].
+ *
+ * The *cap* rounding, used by [uprightJpeg]: [MAX_STORED_EDGE_PIXELS] is a
+ * memory bound, and a bound that can be exceeded is not one. Halving once more
+ * than strictly necessary costs a slightly smaller photograph;
+ * [jpegSampleSizeNoSmallerThan]'s rounding here would leave a 4032-pixel
+ * capture decoded at 4032 and the bound doing nothing at all.
+ */
+fun jpegSampleSizeNoLargerThan(sourceWidth: Int, sourceHeight: Int, maxPixels: Int): Int {
+    if (maxPixels <= 0) return 1
+    val longest = maxOf(sourceWidth, sourceHeight)
+    var sample = 1
+    while (longest / sample > maxPixels) sample *= 2
+    return sample
+}
+
+/**
  * Turns a freshly captured JPEG into the bytes that get written to disk:
  * rotated upright, and carrying no metadata whatsoever.
  *
@@ -63,12 +116,25 @@ private const val TAG = "CameraCapture"
  * after an export, and anything the parent later shares it with. An EXIF
  * orientation tag is honoured by some of those and ignored by others.
  *
+ * The decode is bounded by [maxEdgePixels] — see [MAX_STORED_EDGE_PIXELS] for
+ * why that bound exists at all.
+ *
  * Returns the original bytes unchanged if they will not decode, which is the
  * honest failure: a picture that cannot be read is better handed on as it
  * arrived than replaced with nothing.
  */
-fun uprightJpeg(bytes: ByteArray, rotationDegrees: Int, quality: Int = JPEG_QUALITY): ByteArray {
-    val source = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return bytes
+fun uprightJpeg(
+    bytes: ByteArray,
+    rotationDegrees: Int,
+    quality: Int = JPEG_QUALITY,
+    maxEdgePixels: Int = MAX_STORED_EDGE_PIXELS,
+): ByteArray {
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+    val options = BitmapFactory.Options().apply {
+        inSampleSize = jpegSampleSizeNoLargerThan(bounds.outWidth, bounds.outHeight, maxEdgePixels)
+    }
+    val source = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options) ?: return bytes
     val normalized = ((rotationDegrees % 360) + 360) % 360
     val upright = if (normalized == 0) {
         source

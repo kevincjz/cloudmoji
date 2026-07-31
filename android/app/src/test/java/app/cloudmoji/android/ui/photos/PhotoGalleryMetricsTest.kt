@@ -88,34 +88,25 @@ class PhotoGalleryMetricsTest {
      * a 92dp square is about 48MB of bitmap; a gallery a child has filled for
      * a month then scrolls like treacle and eventually takes the process out.
      *
-     * Mutation: return a constant 1 from `thumbnailSampleSize`. The first two
-     * assertions fail.
+     * The arithmetic itself — both roundings, the powers of two, the
+     * degenerate inputs — is covered by `JpegSampleSizeTest`. What is checked
+     * here is the wiring: that the gallery asks for the *floor* rounding, so a
+     * thumbnail is never decoded smaller than the cell it is drawn into and
+     * visibly soft.
+     *
+     * Mutation: delegate to `jpegSampleSizeNoLargerThan` instead. This fails.
      */
     @Test
-    fun aLargePhotographIsDecodedDownToTheDrawSize() {
-        assertEquals(16, PhotoGalleryMetrics.thumbnailSampleSize(4_032, 3_024, 252))
-        assertEquals(8, PhotoGalleryMetrics.thumbnailSampleSize(4_032, 3_024, 504))
-        // Already smaller than the target: decode it as it is.
-        assertEquals(1, PhotoGalleryMetrics.thumbnailSampleSize(200, 150, 252))
-    }
+    fun theGalleryUsesTheRoundingThatNeverGoesUnderTheDrawSize() {
+        val sample = PhotoGalleryMetrics.thumbnailSampleSize(4_032, 3_024, 252)
 
-    /** Powers of two only — `BitmapFactory` rounds anything else down anyway,
-     * so a non-power result would be a silently ignored calculation. */
-    @Test
-    fun theSampleSizeIsAlwaysAPowerOfTwo() {
-        for (longest in listOf(100, 640, 1_000, 2_048, 4_032, 8_000)) {
-            for (target in listOf(1, 56, 92, 156, 1_400)) {
-                val sample = PhotoGalleryMetrics.thumbnailSampleSize(longest, longest / 2, target)
-                assertTrue("sample $sample is not a power of two", sample > 0 && (sample and (sample - 1)) == 0)
-            }
-        }
-    }
+        assertEquals(16, sample)
+        assertTrue("a thumbnail decoded under its own draw size is a blurry one", 4_032 / sample >= 252)
 
-    /** A degenerate target must not spin forever or divide by zero — this is
-     * called from a draw pass. */
-    @Test
-    fun aZeroTargetIsTolerated() {
-        assertEquals(1, PhotoGalleryMetrics.thumbnailSampleSize(4_032, 3_024, 0))
-        assertEquals(1, PhotoGalleryMetrics.thumbnailSampleSize(0, 0, 92))
+        // The discriminating case. Halving a 4032-pixel photograph once gives
+        // 2016, which is *under* a 2048 draw — so the floor rounding declines
+        // to halve at all, and the cap rounding would. Any other pair of
+        // numbers here would pass under either.
+        assertEquals(1, PhotoGalleryMetrics.thumbnailSampleSize(4_032, 3_024, 2_048))
     }
 }

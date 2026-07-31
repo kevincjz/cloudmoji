@@ -2,6 +2,7 @@ package app.cloudmoji.android.ui.photos
 
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import app.cloudmoji.android.platform.jpegSampleSizeNoSmallerThan
 
 /**
  * Every number the Photos gallery and its camera are drawn from. Mirrors iOS
@@ -58,28 +59,19 @@ object PhotoGalleryMetrics {
         if (isExpandedPad) padCameraSide else cameraSide
 
     /**
-     * The `BitmapFactory` `inSampleSize` for decoding a
-     * [sourceWidth]×[sourceHeight] photograph whose longest edge should end up
-     * no larger than [maxPixels].
+     * The gallery's decode budget — how far down a stored photograph is
+     * decoded for a [maxPixels]-longest-edge draw.
      *
-     * Lives here rather than in [PhotoThumbnails] for one blunt reason: that
-     * object holds an `android.util.LruCache`, which a JVM unit test cannot
-     * even construct, so a decode budget defined next to it could not be
-     * tested by anything that runs in this environment. It is arithmetic, it
-     * decides how much memory a child's gallery costs, and it belongs
-     * somewhere a test can reach.
-     *
-     * Powers of two only — `BitmapFactory` rounds anything else down anyway —
-     * and never below 1, which is what a photograph already smaller than the
-     * target needs.
+     * Named here, next to the sizes it is called with, but implemented by
+     * [jpegSampleSizeNoSmallerThan] — the *floor* rounding, not the cap one
+     * the capture path uses: a grid cell drawn from a bitmap smaller than
+     * itself is visibly soft, so [minPixels] is a size not to go under. It is
+     * *not* defined in [PhotoThumbnails], where it is actually used, because
+     * that object holds an `android.util.LruCache` and so cannot be loaded by
+     * a JVM unit test at all.
      */
-    fun thumbnailSampleSize(sourceWidth: Int, sourceHeight: Int, maxPixels: Int): Int {
-        if (maxPixels <= 0) return 1
-        val longest = maxOf(sourceWidth, sourceHeight)
-        var sample = 1
-        while (longest / (sample * 2) >= maxPixels) sample *= 2
-        return sample
-    }
+    fun thumbnailSampleSize(sourceWidth: Int, sourceHeight: Int, minPixels: Int): Int =
+        jpegSampleSizeNoSmallerThan(sourceWidth, sourceHeight, minPixels)
 
     private val TILTS = listOf(-2.5f, 1.8f, -1.0f, 2.2f)
 }
