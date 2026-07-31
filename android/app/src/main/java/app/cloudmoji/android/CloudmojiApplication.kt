@@ -221,6 +221,22 @@ class CloudmojiApplication : Application() {
         )
     }
 
+    /**
+     * A **fourth** [MascotMoodMachine], own-instance for the same reason
+     * [countMoodMachine]/[flashCardsMoodMachine] are: iOS `AnimalSoundsView`
+     * keeps its own `@State private var mood`, entirely separate from
+     * `WordsView`'s tap tally, and never calls `celebrate()` anywhere in that
+     * file — there is no milestone beam on this screen at all.
+     * `milestones = emptySet()` mirrors that: this instance's own tap count
+     * (kept only for parity with every other screen) never auto-celebrates,
+     * and nothing on `AnimalsScreen` calls `celebrateNow()` either, so the
+     * celebration timings are simply the class defaults — irrelevant, since
+     * they are never reached.
+     */
+    val animalsMoodMachine: MascotMoodMachine by lazy {
+        MascotMoodMachine(scheduler = CoroutineMascotScheduler(appScope), milestones = emptySet())
+    }
+
     /** The taps and rewards a child feels — see [HapticFeedback]'s own doc.
      * Words mode does not wire this in yet (Task 6 shipped without it); Count
      * does, per that interface's own "a finished round in Count mode" line. */

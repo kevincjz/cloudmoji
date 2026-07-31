@@ -18,6 +18,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import app.cloudmoji.android.data.EmojiRepository
 import app.cloudmoji.android.data.SettingsRepository
 import app.cloudmoji.android.model.AppAccessPolicy
+import app.cloudmoji.android.model.Category
 import app.cloudmoji.android.model.CountRound
 import app.cloudmoji.android.model.Language
 import app.cloudmoji.android.model.MiniApp
@@ -27,6 +28,8 @@ import app.cloudmoji.android.model.narrowedEmojis
 import app.cloudmoji.android.platform.SpeechController
 import app.cloudmoji.android.platform.StubEntitlementStore
 import app.cloudmoji.android.ui.MiniAppPlaceholder
+import app.cloudmoji.android.ui.animals.AnimalsScreen
+import app.cloudmoji.android.ui.animals.narrowedAnimals
 import app.cloudmoji.android.ui.common.AdaptiveShell
 import app.cloudmoji.android.ui.count.CountScreen
 import app.cloudmoji.android.ui.flashcards.FlashCardsScreen
@@ -146,6 +149,16 @@ fun CloudmojiApp() {
     val flashCardsPool = remember(application.repository, settings.enabledCategories) {
         narrowedEmojis(application.repository, settings.enabledCategories)
     }
+    // Animals' own pool, narrowed to *only* the animals category — unlike
+    // `flashCardsPool` above, an empty result here is not backfilled from the
+    // rest of the catalogue; it is `AnimalsScreen`'s own "switched off" cue.
+    val animalsPool = remember(application.repository, settings.enabledCategories) {
+        narrowedAnimals(application.repository, settings.enabledCategories)
+    }
+    // The launcher tile follows the same setting: `AppAccessPolicy.visibleMiniApps`'s
+    // own doc explains why hiding the tile (rather than opening onto an empty
+    // grid) is the "no failure states" answer here.
+    val animalsEnabled = Category.Animals in settings.enabledCategories
     val onCycleLanguage: () -> Unit = {
         val next = Language.next(after = effectiveLanguage, enabled = availableLanguages.map { it.id })
         scope.launch { application.settingsRepository.setLanguage(next) }
@@ -175,6 +188,14 @@ fun CloudmojiApp() {
                 application.speechController.cancelAll()
                 application.flashCardsMoodMachine.reset()
                 application.flashCardsViewModel.reset()
+            }
+
+            // `AnimalsScreen` keeps no round or typed row of its own to
+            // clear — only its mood, so a milestone-free mascot never opens
+            // mid-hold from whatever the last visit left it doing.
+            MiniApp.Animals -> {
+                application.speechController.cancelAll()
+                application.animalsMoodMachine.reset()
             }
 
             else -> Unit
@@ -225,7 +246,7 @@ fun CloudmojiApp() {
         ) {
             when {
                 route == LauncherRoute -> LauncherScreen(
-                    apps = accessPolicy.visibleMiniApps(),
+                    apps = accessPolicy.visibleMiniApps(animalsEnabled = animalsEnabled),
                     language = effectiveLanguage,
                     onOpen = onOpenApp,
                     onParent = openParentDoor,
@@ -307,6 +328,18 @@ fun CloudmojiApp() {
                                 onUnmute = { scope.launch { application.settingsRepository.setMuted(false) } },
                             )
 
+                            MiniApp.Animals -> AnimalsScreen(
+                                pool = animalsPool,
+                                repository = application.repository,
+                                language = effectiveLanguage,
+                                muted = settings.muted,
+                                speechController = application.speechController,
+                                hapticFeedback = application.hapticFeedback,
+                                moodMachine = application.animalsMoodMachine,
+                                onHome = { route = LauncherRoute },
+                                onUnmute = { scope.launch { application.settingsRepository.setMuted(false) } },
+                            )
+
                             else -> MiniAppPlaceholder(
                                 app = app,
                                 language = effectiveLanguage,
@@ -315,7 +348,7 @@ fun CloudmojiApp() {
                         }
                     } else {
                         LauncherScreen(
-                            apps = accessPolicy.visibleMiniApps(),
+                            apps = accessPolicy.visibleMiniApps(animalsEnabled = animalsEnabled),
                             language = effectiveLanguage,
                             onOpen = onOpenApp,
                             onParent = openParentDoor,
