@@ -17,12 +17,17 @@ import app.cloudmoji.android.model.WordsViewModel
 import app.cloudmoji.android.platform.AndroidAudioFocusSystem
 import app.cloudmoji.android.platform.AndroidHapticFeedback
 import app.cloudmoji.android.platform.AndroidSpeechEngine
+import app.cloudmoji.android.platform.AndroidToneEngine
+import app.cloudmoji.android.platform.AudioFocusClient
+import app.cloudmoji.android.platform.AudioFocusLossAction
 import app.cloudmoji.android.platform.AudioFocusOwner
 import app.cloudmoji.android.platform.CoroutineSpeechWatchdogScheduler
 import app.cloudmoji.android.platform.HapticFeedback
 import app.cloudmoji.android.platform.SpeechController
 import app.cloudmoji.android.platform.StubEntitlementStore
+import app.cloudmoji.android.platform.ToneDirector
 import app.cloudmoji.android.platform.VoiceResolver
+import app.cloudmoji.android.platform.audioFocusLossAction
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -96,12 +101,52 @@ class CloudmojiApplication : Application() {
      * in `CloudmojiApp` before this class existed. */
     private var latestSettings: Settings = Settings.default()
 
+    /**
+     * The one shared audio-focus owner. Task 4's own doc: "the platform only
+     * ever sees one request" — [AudioFocusClient.SPEECH] ([speechController]/
+     * `AndroidSpeechEngine`) and [AudioFocusClient.TONE] ([toneDirector])
+     * must share this single [AudioFocusOwner] rather than each building its
+     * own, or two independent owners would each ask the platform for focus
+     * on their own and the reference-counting invariant would mean nothing.
+     *
+     * [onAudioFocusChange] is this app's one [AudioFocusLossAction] policy
+     * handler — see that file's own doc for why Android needs one at all,
+     * where iOS's `AudioDirector` does not.
+     */
+    val audioFocusOwner: AudioFocusOwner by lazy {
+        AudioFocusOwner(AndroidAudioFocusSystem(this, onFocusChange = ::onAudioFocusChange))
+    }
+
     val speechController: SpeechController by lazy {
         val resolver = VoiceResolver(repository.languages)
-        val focusOwner = AudioFocusOwner(AndroidAudioFocusSystem(this))
-        val engine = AndroidSpeechEngine(this, focusOwner)
+        val engine = AndroidSpeechEngine(this, audioFocusOwner)
         val watchdog = CoroutineSpeechWatchdogScheduler(appScope)
         SpeechController(resolver, engine, watchdog, isMuted = { latestSettings.muted })
+    }
+
+    /**
+     * Music mode's own tone playback, arbitrated through [audioFocusOwner] —
+     * see [ToneDirector]'s own doc. [AndroidToneEngine] pre-builds all eight
+     * pads' tracks once, on the first [ToneDirector.attach] (i.e. the first
+     * time Music is actually opened), not here at construction: most
+     * sessions never open Music, and building eight `AudioTrack`s is work
+     * for nothing if they do not.
+     */
+    val toneDirector: ToneDirector by lazy { ToneDirector(audioFocusOwner, AndroidToneEngine()) }
+
+    /**
+     * [audioFocusOwner]'s [AndroidAudioFocusSystem] callback. See
+     * [AudioFocusLossAction] for the full policy this only applies:
+     * [AudioFocusLossAction.STOP] silences whatever is currently playing and
+     * re-syncs [audioFocusOwner]'s own bookkeeping with the fact that the
+     * platform has already taken focus away, so the next tap or word asks
+     * fresh instead of believing focus is still held.
+     */
+    private fun onAudioFocusChange(focusChange: Int) {
+        if (audioFocusLossAction(focusChange) != AudioFocusLossAction.STOP) return
+        speechController.cancelAll()
+        toneDirector.silence()
+        audioFocusOwner.releaseAll()
     }
 
     /** Words mode's own state — see the class doc's trade-off note. */

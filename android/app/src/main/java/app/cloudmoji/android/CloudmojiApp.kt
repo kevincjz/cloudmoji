@@ -29,6 +29,7 @@ import app.cloudmoji.android.ui.MiniAppPlaceholder
 import app.cloudmoji.android.ui.common.AdaptiveShell
 import app.cloudmoji.android.ui.count.CountScreen
 import app.cloudmoji.android.ui.launcher.LauncherScreen
+import app.cloudmoji.android.ui.music.MusicScreen
 import app.cloudmoji.android.ui.parents.GateAttempt
 import app.cloudmoji.android.ui.parents.GrownUpsHost
 import app.cloudmoji.android.ui.parents.ParentalGate
@@ -262,6 +263,13 @@ fun CloudmojiApp() {
                                 onCycleLanguage = onCycleLanguage,
                                 onHome = { route = LauncherRoute },
                                 onParent = openParentDoor,
+                            )
+
+                            MiniApp.Music -> MusicScreen(
+                                muted = settings.muted,
+                                toneDirector = application.toneDirector,
+                                hapticFeedback = application.hapticFeedback,
+                                onHome = { route = LauncherRoute },
                             )
 
                             else -> MiniAppPlaceholder(

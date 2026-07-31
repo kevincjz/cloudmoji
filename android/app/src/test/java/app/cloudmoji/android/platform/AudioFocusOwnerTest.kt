@@ -134,4 +134,55 @@ class AudioFocusOwnerTest {
         owner.release(AudioFocusClient.SPEECH)
         assertEquals(0, system.abandonCount)
     }
+
+    /**
+     * [AudioFocusOwner.releaseAll] — the audio-focus-loss handler's own
+     * recovery tool (see `AudioFocusLossPolicy.kt`): the platform has
+     * already taken focus away by the time this is called, so it must not
+     * ask [AudioFocusSystem.abandonFocus] to give back something it already
+     * took for itself.
+     *
+     * Mutation proof: temporarily changed `releaseAll` to call
+     * `system.abandonFocus()` after clearing the set. This test failed
+     * (`abandonCount` was 1, not 0) before the extra call was removed.
+     */
+    @Test
+    fun `releaseAll clears every client without telling the platform to abandon`() {
+        val system = FakeAudioFocusSystem()
+        val owner = AudioFocusOwner(system)
+        owner.request(AudioFocusClient.SPEECH)
+        owner.request(AudioFocusClient.TONE)
+
+        owner.releaseAll()
+
+        assertFalse(owner.isHeld)
+        assertEquals(
+            "the platform already took focus away; releaseAll must not ask it to abandon again",
+            0,
+            system.abandonCount,
+        )
+    }
+
+    @Test
+    fun `after releaseAll, a fresh request asks the platform again`() {
+        val system = FakeAudioFocusSystem()
+        val owner = AudioFocusOwner(system)
+        owner.request(AudioFocusClient.SPEECH)
+        owner.releaseAll()
+
+        assertTrue(owner.request(AudioFocusClient.TONE))
+
+        assertEquals(2, system.requestCount)
+    }
+
+    @Test
+    fun `releaseAll on an already-idle owner is a no-op`() {
+        val system = FakeAudioFocusSystem()
+        val owner = AudioFocusOwner(system)
+
+        owner.releaseAll()
+
+        assertFalse(owner.isHeld)
+        assertEquals(0, system.abandonCount)
+    }
 }

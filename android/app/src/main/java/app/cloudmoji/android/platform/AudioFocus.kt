@@ -67,4 +67,21 @@ class AudioFocusOwner(private val system: AudioFocusSystem) {
         activeClients -= client
         if (activeClients.isEmpty()) system.abandonFocus()
     }
+
+    /**
+     * Forcibly clears every active client's hold on focus, without telling
+     * [system] to abandon it. The one caller is
+     * [app.cloudmoji.android.CloudmojiApplication]'s
+     * [app.cloudmoji.android.platform.audioFocusLossAction] handling
+     * ([AudioFocusLossAction.STOP]): by the time that notification arrives,
+     * the platform has *already* taken focus away, so calling
+     * [AudioFocusSystem.abandonFocus] again would be asking it to give back
+     * something it took for itself, not something Cloudmoji is giving up.
+     * This just re-syncs this class's own bookkeeping with that reality, so
+     * the next [request] asks the platform fresh instead of believing focus
+     * is still held when it is not.
+     */
+    fun releaseAll() {
+        activeClients.clear()
+    }
 }

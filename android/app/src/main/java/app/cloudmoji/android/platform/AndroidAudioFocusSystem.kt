@@ -23,15 +23,30 @@ class AndroidAudioFocusSystem(
      * Called when the platform notifies this app that focus changed after
      * having been granted — most importantly [AudioManager.AUDIOFOCUS_LOSS]
      * (someone else needs it and is not giving it back) and the transient
-     * variants. Defaults to a no-op: deciding to stop speech or tones on a
-     * loss is a product policy for whichever caller first needs it (e.g.
-     * Task 10's tone playback), not something this thin platform binding
-     * should invent on its own. `AudioFocusRequest.Builder.build()` requires
-     * a listener to be set at all — omitting one throws
+     * variants. Defaults to a no-op for callers with nothing to react to
+     * (previews, tests); [app.cloudmoji.android.CloudmojiApplication] wires
+     * the production policy — see [audioFocusLossAction] for what to do with
+     * each focus-change constant, decided as Task 10's own "ledgered
+     * decision" this parameter's doc used to defer. `AudioFocusRequest.Builder.build()`
+     * requires a listener to be set at all — omitting one throws
      * `IllegalStateException` at construction, which is why this parameter
      * exists rather than being left out entirely.
      */
     private val onFocusChange: (Int) -> Unit = {},
+    /**
+     * `AudioManager`'s own docs do not guarantee which thread delivers
+     * `OnAudioFocusChangeListener` callbacks on every OEM/API level, and
+     * everything downstream of [onFocusChange] in production —
+     * [AudioFocusOwner]'s unsynchronized active-client set,
+     * [SpeechController]'s generation counter, [ToneDirector]'s
+     * `isAttached` — assumes single-threaded access, the same contract
+     * [AndroidSpeechEngine] upholds for `TextToSpeech`'s own callbacks.
+     * Routing through a [CallbackPoster] here reproduces that guarantee
+     * rather than trusting undocumented behaviour. Defaults to the real
+     * main-thread-confining implementation; a test would supply
+     * [InlineCallbackPoster].
+     */
+    private val poster: CallbackPoster = AndroidMainThreadPoster(),
 ) : AudioFocusSystem {
     private val audioManager =
         context.applicationContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
@@ -44,7 +59,7 @@ class AndroidAudioFocusSystem(
                 .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                 .build(),
         )
-        .setOnAudioFocusChangeListener { focusChange -> onFocusChange(focusChange) }
+        .setOnAudioFocusChangeListener { focusChange -> poster.post { onFocusChange(focusChange) } }
         .build()
 
     override fun requestTransientDuckFocus(): Boolean =
