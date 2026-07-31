@@ -270,6 +270,7 @@ fun CloudmojiApp() {
                                 toneDirector = application.toneDirector,
                                 hapticFeedback = application.hapticFeedback,
                                 onHome = { route = LauncherRoute },
+                                onUnmute = { scope.launch { application.settingsRepository.setMuted(false) } },
                             )
 
                             else -> MiniAppPlaceholder(

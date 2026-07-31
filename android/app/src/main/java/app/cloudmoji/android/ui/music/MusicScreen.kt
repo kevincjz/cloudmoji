@@ -40,6 +40,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.cloudmoji.android.model.MiniApp
 import app.cloudmoji.android.platform.HapticFeedback
 import app.cloudmoji.android.platform.ToneBuffer
 import app.cloudmoji.android.platform.ToneDirector
@@ -134,9 +135,15 @@ object InstrumentPadMetrics {
  * No [app.cloudmoji.android.ui.common.ModeHeader] here, matching iOS
  * `InstrumentPadView` exactly: no mascot, no language control, no mute
  * toggle of its own — just the pads and [MiniAppScaffold]'s cloud home
- * button. (iOS also paints a themed backdrop behind the pads and shows a
- * small sound-recovery button here when the phone is muted elsewhere;
- * neither is ported — out of this task's scope, see the Task 10 report.)
+ * button. Since this screen has no mute control of its own, muting the
+ * phone from another screen would otherwise be a silent dead end here — no
+ * failure states, `CLAUDE.md` rule 4 — so [MiniAppScaffold] is handed
+ * [MiniApp.Music]'s `showsSoundRecovery` flag, [muted], and [onUnmute],
+ * which together draw the same recovery button iOS's `HostedMiniApp` shows
+ * for `.instrument` (`MiniApp.swift`'s `showsSoundRecovery`,
+ * `ContentView.swift`'s `SoundRecoveryButton`). (iOS also paints a themed
+ * backdrop behind the pads; that part is not ported — out of this task's
+ * scope, see the Task 10 report and its fix addendum.)
  */
 @Composable
 fun MusicScreen(
@@ -144,6 +151,7 @@ fun MusicScreen(
     toneDirector: ToneDirector,
     hapticFeedback: HapticFeedback,
     onHome: () -> Unit,
+    onUnmute: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val layout = LocalCloudmojiLayout.current
@@ -170,6 +178,9 @@ fun MusicScreen(
         onHome = onHome,
         homeAccent = Coral,
         screenTag = "music-screen",
+        showsSoundRecovery = MiniApp.Music.showsSoundRecovery,
+        muted = muted,
+        onUnmute = onUnmute,
         modifier = modifier,
     ) {
         BoxWithConstraints(

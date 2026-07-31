@@ -94,6 +94,30 @@ enum class MiniApp(
     fun label(language: Language): String =
         labels[language] ?: labels.getValue(Language.English)
 
+    /**
+     * Whether this mini-app needs a child-reachable way back to sound when
+     * the phone is muted. Mirrors iOS `MiniApp.showsSoundRecovery`
+     * (`Views/Launcher/MiniApp.swift`) exactly, case for case: [Words] and
+     * [Count] already carry their own header mute control
+     * ([app.cloudmoji.android.ui.common.ModeHeader]'s mute button), and
+     * [Photos] is not audio-driven at all, so all three stay `false`. Every
+     * other mini-app has no mute control of its own — [Music]'s
+     * `MusicScreen` has no header at all, matching iOS `InstrumentPadView` —
+     * so muting elsewhere and opening one of them would otherwise be a dead
+     * end: taps still register (haptic, press animation) but never make a
+     * sound, with no way back except the gated Grown-ups panel. That is
+     * exactly the "no failure states" rule (`CLAUDE.md` rule 4) this flag
+     * exists to satisfy — [app.cloudmoji.android.ui.common.MiniAppScaffold]
+     * is where it is actually consumed, the Android analogue of iOS
+     * `HostedMiniApp`'s `if app.showsSoundRecovery && model.settings.muted`
+     * overlay.
+     */
+    val showsSoundRecovery: Boolean
+        get() = when (this) {
+            FlashCards, Music, Animals, Sleepy -> true
+            Words, Count, Photos -> false
+        }
+
     companion object {
         fun fromRoute(route: String): MiniApp? = entries.firstOrNull { it.route == route }
     }
