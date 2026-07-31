@@ -26,7 +26,9 @@ class LauncherSmokeTest {
     @Test
     fun cloudHomeReturnsFromWordsToLauncher() {
         composeRule.onNodeWithTag("launcher-tile-words").performClick()
-        composeRule.onNodeWithTag("mini-app-words").assertExists()
+        // Task 6 replaced the Words placeholder with the real WordsScreen —
+        // see `MiniAppScaffold`'s `screenTag`.
+        composeRule.onNodeWithTag("words-screen").assertExists()
         composeRule.onNodeWithTag("cloud-home").performClick()
         composeRule.onNodeWithTag("launcher").assertExists()
     }
