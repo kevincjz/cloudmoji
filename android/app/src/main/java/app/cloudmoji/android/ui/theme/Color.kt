@@ -19,3 +19,14 @@ val TextSecondary = Color.White.copy(alpha = 0.60f)
 val Surface = Color.White.copy(alpha = 0.04f)
 val SurfaceBorder = Color.White.copy(alpha = 0.12f)
 
+// Mascot — mirrors iOS Theme.swift's "MARK: - Mascot" section and
+// src/components/CloudMascot.tsx's inline fills exactly, so a change on
+// either side is a readable diff against this file.
+val CloudWhite = Color.White
+val CloudHighlight = Color(0xFFF8FCFF)
+val CloudShadow = Color(0xFFE8EEF4)
+val MascotEyes = Color(0xFF2D3436)
+val MouthStroke = Color(0xFFE55555)
+val Blush = Color(0xFFFFB5B5)
+val BlushBeaming = Color(0xFFFF9E9E)
+
