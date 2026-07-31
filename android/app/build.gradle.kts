@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -37,6 +38,15 @@ android {
         buildConfig = true
     }
 
+    sourceSets {
+        // JVM unit tests read the real generated catalogue straight off the
+        // classpath instead of a duplicated fixture copy, so there is exactly
+        // one EmojiData.json in the repo to drift.
+        getByName("test") {
+            resources.srcDir("src/main/assets")
+        }
+    }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -47,6 +57,7 @@ android {
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
+    implementation(libs.kotlinx.serialization.json)
 
     val composeBom = platform(libs.androidx.compose.bom)
     implementation(composeBom)

@@ -6,5 +6,10 @@ enum class Language(val code: String) {
     Malay("ms"),
     Japanese("ja"),
     Tagalog("tl"),
+    ;
+
+    companion object {
+        fun fromCode(code: String): Language? = entries.firstOrNull { it.code == code }
+    }
 }
 
