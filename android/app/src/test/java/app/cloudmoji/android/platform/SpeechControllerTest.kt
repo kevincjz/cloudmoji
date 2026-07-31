@@ -27,6 +27,8 @@ class SpeechControllerTest {
         val spoken = mutableListOf<Spoken>()
         var stopCount = 0
             private set
+        var shutdownCount = 0
+            private set
         private var onFinish: (() -> Unit)? = null
 
         /** The finish callback belonging to whatever was in flight the
@@ -44,6 +46,12 @@ class SpeechControllerTest {
 
         override fun stop() {
             stopCount += 1
+            lateFinish = onFinish
+            onFinish = null
+        }
+
+        override fun shutdown() {
+            shutdownCount += 1
             lateFinish = onFinish
             onFinish = null
         }
@@ -412,5 +420,43 @@ class SpeechControllerTest {
             engine.spoken.map { it.text },
         )
         assertFalse(controller.isSpeaking.value)
+    }
+
+    // MARK: - Shutdown (the release path `AndroidSpeechEngine`/`CloudmojiApplication` need)
+
+    @Test
+    fun `shutdown cancels whatever is playing before releasing the engine`() {
+        val (controller, engine, _) = makeController()
+        controller.speak("apple", Language.English) // itself calls cancelAll() once, per `speak`'s own contract
+        val stopCountBeforeShutdown = engine.stopCount
+
+        controller.shutdown()
+
+        assertFalse("a shutdown mid-utterance must leave isSpeaking false", controller.isSpeaking.value)
+        assertEquals(
+            "shutdown's own cancelAll must still call stop()",
+            stopCountBeforeShutdown + 1,
+            engine.stopCount,
+        )
+        assertEquals(1, engine.shutdownCount)
+    }
+
+    @Test
+    fun `a late finish callback after shutdown cannot report completion`() {
+        val (controller, engine, _) = makeController()
+        var finished = false
+        controller.speak("apple", Language.English) { finished = true }
+
+        controller.shutdown()
+        engine.finishLate()
+
+        assertFalse("shutdown is a cancellation like any other — a late callback must not resurrect it", finished)
+    }
+
+    @Test
+    fun `shutdown on an idle controller still reaches the engine`() {
+        val (controller, engine, _) = makeController()
+        controller.shutdown()
+        assertEquals(1, engine.shutdownCount)
     }
 }

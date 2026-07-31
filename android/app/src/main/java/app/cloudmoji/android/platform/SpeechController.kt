@@ -146,6 +146,18 @@ class SpeechController(
     }
 
     /**
+     * Ends this controller's engine for good — see [SpeechEngine.shutdown].
+     * Cancels whatever is in flight first (the same as [cancelAll]), so a
+     * shutdown mid-utterance does not leave a dangling watchdog behind.
+     * This controller must not be used again afterward — there is no way
+     * back from a shut-down [SpeechEngine].
+     */
+    fun shutdown() {
+        cancelAll()
+        engine.shutdown()
+    }
+
+    /**
      * Speaks one word. [onFinish] runs when the engine reports completion,
      * and is dropped if the utterance is cancelled first — the mascot uses
      * it to return from speaking to happy.

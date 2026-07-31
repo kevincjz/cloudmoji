@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -203,7 +204,7 @@ private fun LanguageToggle(
         contentAlignment = Alignment.Center,
         modifier = Modifier
             .width(width)
-            .size(height)
+            .height(height)
             .pressScale(interactionSource, ModeHeaderMetrics.pressedScale)
             .clip(shape)
             .background(Surface, shape)
@@ -222,7 +223,11 @@ private fun LanguageToggle(
             )
             .semantics {
                 contentDescription = "$voiceOverLabel. $voiceOverValue. $voiceOverHint"
-                if (!isEnabled) role = Role.Button
+                // Always a button — the disabled state is that it does not
+                // respond to a tap, not that it stops being one, the same
+                // distinction iOS's `.disabled(!isEnabled)` (rather than
+                // removing the button trait) draws.
+                role = Role.Button
             }
             .testTag("lang-picker"),
     ) {

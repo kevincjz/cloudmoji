@@ -101,7 +101,12 @@ fun TypingRow(
 ) {
     val listState = rememberLazyListState()
 
-    LaunchedEffect(typed.size) {
+    // Keyed on the newest item's own identity, not `typed.size`: past the
+    // 50-cap (`WordsViewModel.MAX_TYPED`) the size is pinned, so a
+    // size-keyed effect would never restart and the emoji a child just
+    // mashed past the cap would land off-screen — contradicting the "scrolls
+    // to the newest emoji on every tap" promise below.
+    LaunchedEffect(typed.lastOrNull()?.id) {
         if (typed.isNotEmpty()) listState.animateScrollToItem(typed.size - 1)
     }
 
@@ -176,7 +181,13 @@ fun TypingRow(
     }
 }
 
-/** One typed emoji. Tapping it speaks the word again. */
+/** One typed emoji. Tapping it speaks the word again.
+ *
+ * The `testTag` is per-item (`item.id`, the same identity `LazyRow`'s own
+ * `key` uses) rather than a single shared `"typed-emoji"` string: the same
+ * glyph can be typed more than once, and a shared tag would make
+ * `onNodeWithTag` match an arbitrary one of several on-screen nodes instead
+ * of the specific one a test means to act on. */
 @Composable
 private fun TypedEmojiButton(item: TypedEmoji, onTap: () -> Unit) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -190,7 +201,7 @@ private fun TypedEmojiButton(item: TypedEmoji, onTap: () -> Unit) {
                 role = Role.Button
                 contentDescription = item.word
             }
-            .testTag("typed-emoji"),
+            .testTag("typed-emoji-${item.id}"),
     ) {
         Text(text = item.emoji, fontSize = TypingRowMetrics.typedGlyphSize)
     }

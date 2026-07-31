@@ -1,7 +1,5 @@
 package app.cloudmoji.android
 
-import androidx.compose.ui.test.assertDoesNotExist
-import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
@@ -16,11 +14,18 @@ class LauncherSmokeTest {
     val composeRule = createAndroidComposeRule<MainActivity>()
 
     @Test
-    fun lockedLauncherShowsFreeAppsAndNoPremiumApps() {
+    fun unlockedLauncherShowsEveryMiniApp() {
+        // `StubEntitlementStore` defaults to unlocked — see its own doc for
+        // why (no Play Billing product exists yet, so a locked default would
+        // hide five finished mini-apps behind a button that cannot do
+        // anything). The locked-vs-unlocked *filtering rule* itself
+        // (`AppAccessPolicy.visibleMiniApps`) is covered without a device by
+        // `AppAccessPolicyTest`; this is a smoke check that the real app
+        // wiring produces what that default actually promises.
         composeRule.onNodeWithTag("launcher").assertExists()
         composeRule.onNodeWithTag("launcher-tile-words").assertExists()
         composeRule.onNodeWithTag("launcher-tile-count").assertExists()
-        composeRule.onNodeWithTag("launcher-tile-photos").assertDoesNotExist()
+        composeRule.onNodeWithTag("launcher-tile-photos").assertExists()
     }
 
     @Test

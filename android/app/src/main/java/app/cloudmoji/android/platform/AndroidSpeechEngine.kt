@@ -185,4 +185,12 @@ class AndroidSpeechEngine(
         focusOwner?.release(AudioFocusClient.SPEECH)
         tts.stop()
     }
+
+    override fun shutdown() {
+        // Same ordering as `stop()`, and for the same reason — a delegate
+        // callback can still be in flight when this is called.
+        pendingFinish = null
+        focusOwner?.release(AudioFocusClient.SPEECH)
+        tts.shutdown()
+    }
 }

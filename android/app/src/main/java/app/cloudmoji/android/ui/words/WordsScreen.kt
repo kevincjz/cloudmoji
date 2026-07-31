@@ -14,7 +14,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -22,8 +21,6 @@ import androidx.compose.ui.unit.dp
 import app.cloudmoji.android.data.EmojiRepository
 import app.cloudmoji.android.model.Category
 import app.cloudmoji.android.model.CategoryTab
-import app.cloudmoji.android.model.CoroutineMascotScheduler
-import app.cloudmoji.android.model.CoroutineWordsScheduler
 import app.cloudmoji.android.model.EmojiEntry
 import app.cloudmoji.android.model.Language
 import app.cloudmoji.android.model.LanguageMeta
@@ -48,11 +45,17 @@ import app.cloudmoji.android.ui.common.SideRail
  * Every piece of policy-filtered state ([enabledCategories], [language],
  * [muted], [availableLanguages]) arrives already resolved — this screen makes
  * no accessibility or settings decision of its own, per the Task 6 brief.
- * [repository] and [speechController] are constructed once at the app shell
- * and shared with every future mini-app; [WordsViewModel] and the mascot's
- * [MascotMoodMachine] are owned here instead — screen-scoped, so leaving
- * Words mid-utterance discards the speaking face (and the typed row) along
- * with the rest of this screen, mirroring iOS's `@State`-scoped `WordsView`.
+ * [repository], [speechController], [mascotMoodMachine] and [wordsViewModel]
+ * are all built exactly once for the whole process, in
+ * [app.cloudmoji.android.CloudmojiApplication], and handed in here rather
+ * than constructed with `remember {}` — a `remember` scoped to this
+ * composable does not survive the Activity recreation Android performs on
+ * every rotation (`AndroidManifest.xml` declares no `android:configChanges`),
+ * so building the mascot/typing-row state that way silently reset it, and
+ * rebuilding [SpeechController]'s engine that way leaked the previous
+ * `TextToSpeech` connection. See that class's doc for the full reasoning,
+ * including the trade-off this accepts (mood/typed-row now also survive
+ * leaving Words for the launcher and coming back, not just rotation).
  */
 @Composable
 fun WordsScreen(
@@ -62,6 +65,8 @@ fun WordsScreen(
     muted: Boolean,
     availableLanguages: List<LanguageMeta>,
     speechController: SpeechController,
+    mascotMoodMachine: MascotMoodMachine,
+    wordsViewModel: WordsViewModel,
     onSetMuted: (Boolean) -> Unit,
     onCycleLanguage: () -> Unit,
     onHome: () -> Unit,
@@ -69,10 +74,6 @@ fun WordsScreen(
     modifier: Modifier = Modifier,
 ) {
     val layout = LocalCloudmojiLayout.current
-    val scope = rememberCoroutineScope()
-
-    val mascotMoodMachine = remember { MascotMoodMachine(CoroutineMascotScheduler(scope)) }
-    val wordsViewModel = remember { WordsViewModel(CoroutineWordsScheduler(scope)) }
 
     val mood by mascotMoodMachine.mood.collectAsState()
     val typed by wordsViewModel.typed.collectAsState()

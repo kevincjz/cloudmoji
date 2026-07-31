@@ -30,4 +30,19 @@ interface SpeechEngine {
     fun voices(): List<VoiceDescribing>
     fun speak(utterance: SpeechUtterance)
     fun stop()
+
+    /**
+     * Releases the engine for good — the counterpart to whatever `speak`
+     * relies on being bound at construction ([AndroidSpeechEngine] holds a
+     * real `android.speech.tts.TextToSpeech` connection). Unlike [stop],
+     * which only halts the current utterance and leaves the engine ready for
+     * the next `speak`, this ends the engine's life: nothing may call
+     * `speak`/`voices`/`stop` on it again afterward.
+     *
+     * Added alongside [app.cloudmoji.android.CloudmojiApplication] — before
+     * that class existed, an [AndroidSpeechEngine] was rebuilt on every
+     * screen visit / configuration change with no way to release the
+     * previous one at all.
+     */
+    fun shutdown()
 }

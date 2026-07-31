@@ -1,7 +1,10 @@
 package app.cloudmoji.android.ui.words
 
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertHeightIsAtLeast
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -13,6 +16,7 @@ import app.cloudmoji.android.model.CategoryTab
 import app.cloudmoji.android.model.EmojiEntry
 import app.cloudmoji.android.model.Language
 import app.cloudmoji.android.model.TypedEmoji
+import app.cloudmoji.android.model.WordsViewModel
 import org.junit.Rule
 import org.junit.Test
 
@@ -23,13 +27,15 @@ import org.junit.Test
  * of `ios/Cloudmoji/CloudmojiUITests/WordsModeUITests.swift`.
  *
  * **Not runnable in this environment** — no emulator/device is available
- * here (`connectedAndroidTest` cannot run; see `conventions.md`). This class
- * has not been compiled or executed, unlike every JVM test in this task —
- * see `CloudMascotSemanticsTest.kt` for the same caveat applied to Task 5.
- * A pre-existing, unrelated compile error in `LauncherSmokeTest.kt` already
- * blocks `:app:compileDebugAndroidTestKotlin` (assigned to Task 9), so this
- * file could not even be verified to compile. Run it once a device is
- * available, before trusting it.
+ * here (`connectedAndroidTest` cannot run; see `conventions.md`). Unlike the
+ * first version of this file (Task 6), this class — and `LauncherSmokeTest.kt`
+ * — now **compile** (`./gradlew :app:compileDebugAndroidTestKotlin`
+ * verified green as part of this fix): deleting `LauncherSmokeTest.kt`'s two
+ * bogus `assertExists`/`assertDoesNotExist` top-level imports, found while
+ * fixing the review's third finding, turned out to be the whole pre-existing
+ * Task 9 blocker. Compiling is not running, though — none of these
+ * assertions have been executed against a real semantics tree. Run this
+ * once a device is available, before trusting it.
  */
 class WordsChildTargetsTest {
     @get:Rule
@@ -91,10 +97,42 @@ class WordsChildTargetsTest {
             )
         }
 
-        composeRule.onNodeWithTag("typed-emoji").assertWidthIsAtLeast(64.dp).assertHeightIsAtLeast(64.dp)
+        composeRule.onNodeWithTag("typed-emoji-0").assertWidthIsAtLeast(64.dp).assertHeightIsAtLeast(64.dp)
         composeRule.onNodeWithTag("replay-btn").assertWidthIsAtLeast(64.dp).assertHeightIsAtLeast(64.dp)
         composeRule.onNodeWithTag("delete-btn").assertWidthIsAtLeast(64.dp).assertHeightIsAtLeast(64.dp)
         composeRule.onNodeWithTag("clear-btn").assertWidthIsAtLeast(64.dp).assertHeightIsAtLeast(64.dp)
+    }
+
+    @Test
+    fun theRowScrollsToTheNewestEmojiEvenPastThe50Cap() {
+        // Regression coverage for the review finding on `TypingRow.kt`: the
+        // auto-scroll effect used to key on `typed.size`, which
+        // `WordsViewModel.tapEmoji`'s `takeLast(MAX_TYPED)` pins at 50 once
+        // the cap is reached — past that point the effect never restarted,
+        // and the emoji a child just tapped landed off-screen. It must now
+        // key on the newest item's own identity instead.
+        //
+        // A narrow fixed width forces the strip to actually scroll rather
+        // than fitting every glyph on screen at once, which would make this
+        // assertion trivially true regardless of the fix.
+        val typed = (0 until WordsViewModel.MAX_TYPED + 3).map { id ->
+            TypedEmoji(id = id.toLong(), emoji = "🍎", word = "apple $id")
+        }
+        composeRule.setContent {
+            TypingRow(
+                typed = typed,
+                muted = true, // no replay/delete/clear competing for the narrow width
+                language = Language.English,
+                onReplay = {},
+                onDelete = {},
+                onClear = {},
+                onTapTyped = {},
+                modifier = Modifier.width(240.dp),
+            )
+        }
+
+        val newestId = typed.last().id
+        composeRule.onNodeWithTag("typed-emoji-$newestId").assertIsDisplayed()
     }
 
     @Test
