@@ -60,18 +60,19 @@ import java.io.File
  * bubble/bounce/mascot timer or speech watchdog is never orphaned by a
  * rotation either.
  *
- * **Trade-off accepted deliberately**: [wordsViewModel]/[mascotMoodMachine]
- * now also survive *navigating away from Words and back* (to the launcher
- * and back in), not just rotation — a child's typed row and the mascot's
- * mood persist across a visit to another mini-app rather than resetting
- * fresh, unlike iOS's view-scoped `@State`. That is one consistent retention
- * mechanism instead of two (a rotation-surviving one for the platform stack,
- * plus a separate reset-on-navigate one for Words' own state) — a real
- * `androidx.lifecycle.ViewModel` (cleared on the *destination* leaving the
- * back stack, not on every config change) is the framework-provided way to
- * get both properties at once, but that dependency is not part of this
- * project yet and adding it is out of scope for this fix. See the Task 6
- * fix report for the reasoning in full.
+ * [wordsViewModel]/[mascotMoodMachine] are application-scoped for rotation
+ * survival only, the same reason as everything else in this class — not
+ * because a visit to Words is meant to leak into the next one. `CloudmojiApp`'s
+ * `onOpenApp` resets both explicitly (mood, cumulative tap tally, and the
+ * typed row) on every *fresh* entry to Words from the launcher, the same
+ * pattern [countViewModel]/[flashCardsViewModel]/[sleepySessionState] already
+ * use — restoring the iOS parity a rotation-only reset would otherwise leave
+ * behind: iOS's view-scoped `@State` is reborn at zero on every fresh
+ * `WordsView`, and a process-scoped tap tally that only ever climbs would
+ * otherwise pass 100 once and never reach another milestone for the rest of
+ * the process. A rotation mid-visit does not re-fire `onOpenApp` (`route`
+ * survives it via `rememberSaveable` without calling back through here), so
+ * the reset never fires mid-round the way a `remember {}`-scoped reset would.
  */
 class CloudmojiApplication : Application() {
 

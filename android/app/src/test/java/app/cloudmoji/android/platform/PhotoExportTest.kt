@@ -64,4 +64,34 @@ class PhotoExportTest {
     fun copiesLandInTheirOwnAlbum() {
         assertEquals("Cloudmoji", PhotoExport.ALBUM)
     }
+
+    /**
+     * Whole-branch review Finding 3: `export()`'s insert failure used to
+     * report [PhotoExport.Outcome.PermissionDenied] unconditionally, even on
+     * API 29+ where no permission is involved at all — showing a parent a
+     * wrong "allow in Android Settings" recovery, with an Open Settings
+     * button that switches nothing on, for what was actually a disk-full or
+     * MediaStore refusal. `export()` itself needs a real `ContentResolver`
+     * and is not covered here (same limitation `onlyPreScopedStorageVersionsNeedAPermission`'s
+     * own doc already notes for `needsLegacyStoragePermission`) — this pins
+     * the pure decision `export()` now delegates to instead.
+     *
+     * Mutation: change `insertFailureOutcome` back to always returning
+     * `PermissionDenied`. The API 29/34 assertions below fail.
+     */
+    @Test
+    fun anInsertFailureIsPermissionDeniedOnlyWhereAPermissionWasActuallyInvolved() {
+        assertEquals(
+            "API 26 still needs the legacy permission, so a refused insert there is genuinely a permission problem",
+            PhotoExport.Outcome.PermissionDenied,
+            PhotoExport.insertFailureOutcome(26),
+        )
+        assertEquals(PhotoExport.Outcome.PermissionDenied, PhotoExport.insertFailureOutcome(28))
+        assertEquals(
+            "API 29 needs no permission at all; an insert failure there is MediaStore refusing for some other reason",
+            PhotoExport.Outcome.Failed,
+            PhotoExport.insertFailureOutcome(29),
+        )
+        assertEquals(PhotoExport.Outcome.Failed, PhotoExport.insertFailureOutcome(34))
+    }
 }

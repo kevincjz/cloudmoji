@@ -530,4 +530,56 @@ class MascotMoodMachineTest {
             machine.mood.value,
         )
     }
+
+    // MARK: - reset zeroes the milestone tally (whole-branch review Finding 1)
+    //
+    // `CloudmojiApp`'s `onOpenApp` now calls `reset()` on Words' own instance
+    // — the one built with `DEFAULT_MILESTONES`, unlike Count's/Flash Cards'/
+    // Animals' `emptySet()` instances — on every fresh entry from the
+    // launcher. Before this fix, `reset()` cancelled timers and lowered the
+    // mood but never touched `tapCount`, so a process that had ever reached
+    // 100 cumulative taps could never celebrate again: `onTap`'s own check is
+    // `tapCount in milestones`, and a monotonically climbing counter no
+    // longer landing exactly on 10/25/50/100 stays permanently past all four.
+
+    @Test
+    fun `reset zeroes the tap tally so a milestone already spent this process can be reached again`() {
+        val (machine, _) = makeMachine()
+        repeat(100) { machine.onTap() } // exhausts every milestone this process will ever reach
+        assertEquals(100, machine.tapCount)
+
+        machine.reset() // what `onOpenApp` calls on every fresh entry to Words
+
+        assertEquals(
+            "a fresh entry must restart the tally, or every milestone past 100 is unreachable for the rest of the process",
+            0,
+            machine.tapCount,
+        )
+    }
+
+    @Test
+    fun `after reset, the 10th tap of a fresh visit celebrates again even though the 10th tap overall already did`() {
+        val (machine, scheduler) = makeMachine()
+        repeat(100) { machine.onTap() } // a full prior visit's worth of taps
+
+        machine.reset()
+
+        // `scheduledCount` is cumulative for the fake's whole lifetime (it
+        // never forgets an entry, even a cancelled one — see the class doc),
+        // so what matters here is the *delta* since reset, not the raw count.
+        val countAfterReset = scheduler.scheduledCount
+        repeat(9) { machine.onTap() }
+        assertEquals(
+            "no celebration should be armed before the 10th tap of the new visit",
+            countAfterReset + 9,
+            scheduler.scheduledCount,
+        )
+
+        machine.onTap() // the 10th tap since reset — must celebrate exactly like a fresh process's 10th tap does
+        assertEquals(
+            "the 10th tap of a fresh visit must arm both its excited-hold and a celebration, the same as the 10th tap of a brand-new process",
+            countAfterReset + 11,
+            scheduler.scheduledCount,
+        )
+    }
 }

@@ -53,9 +53,11 @@ import app.cloudmoji.android.ui.common.SideRail
  * every rotation (`AndroidManifest.xml` declares no `android:configChanges`),
  * so building the mascot/typing-row state that way silently reset it, and
  * rebuilding [SpeechController]'s engine that way leaked the previous
- * `TextToSpeech` connection. See that class's doc for the full reasoning,
- * including the trade-off this accepts (mood/typed-row now also survive
- * leaving Words for the launcher and coming back, not just rotation).
+ * `TextToSpeech` connection. See that class's doc for the full reasoning.
+ * Mood/tap-tally/typed-row still survive rotation, but a *fresh* entry to
+ * this screen from the launcher resets all three — `CloudmojiApp`'s
+ * `onOpenApp` does it, not this composable, so it happens exactly once per
+ * visit rather than on every recomposition.
  */
 @Composable
 fun WordsScreen(

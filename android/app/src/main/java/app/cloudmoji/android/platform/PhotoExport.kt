@@ -69,6 +69,21 @@ object PhotoExport {
     fun needsLegacyStoragePermission(sdkInt: Int): Boolean = sdkInt < Build.VERSION_CODES.Q
 
     /**
+     * What a MediaStore insert failure becomes, for a parent to be told
+     * about. Only a version that still needs the legacy storage permission
+     * ([needsLegacyStoragePermission]) can genuinely be a permission
+     * problem — API 29+ asks for none at all before adding this app's own
+     * images, so a `null`/refused insert there is MediaStore declining for
+     * some other reason (disk full, a malformed request), and reporting it as
+     * [Outcome.PermissionDenied] would show a parent an "allow in Android
+     * Settings" recovery with an Open Settings button that switches nothing
+     * on. Pure and passed the SDK level for the same host-testability reason
+     * as [needsLegacyStoragePermission] itself.
+     */
+    fun insertFailureOutcome(sdkInt: Int): Outcome =
+        if (needsLegacyStoragePermission(sdkInt)) Outcome.PermissionDenied else Outcome.Failed
+
+    /**
      * The name a copy appears under in the gallery.
      *
      * The on-disk name is `<millis>-<uuid>.jpg`, which is right for a folder
@@ -112,7 +127,7 @@ object PhotoExport {
 
             val uri = runCatching {
                 resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
-            }.getOrNull() ?: return@withContext Outcome.PermissionDenied
+            }.getOrNull() ?: return@withContext insertFailureOutcome(Build.VERSION.SDK_INT)
 
             val wrote = runCatching {
                 resolver.openOutputStream(uri)?.use { out -> photo.inputStream().use { it.copyTo(out) } } != null

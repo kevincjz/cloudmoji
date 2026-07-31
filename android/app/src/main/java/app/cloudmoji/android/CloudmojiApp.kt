@@ -176,14 +176,33 @@ fun CloudmojiApp() {
     }
 
     // Opens a mini-app. Count mode's own round is reset to a fresh one on
-    // every entry here — see `ui/count/CountScreen.kt`'s own doc for why
-    // that differs from Words' "persists across a visit to the launcher and
-    // back" trade-off. This closure fires only on a genuine navigation
-    // (a launcher tile tap); `route` itself survives rotation via
-    // `rememberSaveable` above without ever calling back through here, so a
-    // rotation mid-round never re-triggers this reset.
+    // every entry here, and Words' own mood/tap-tally/typed-row are reset
+    // right alongside it — every mini-app with process-scoped state resets it
+    // on a fresh entry now; see `CloudmojiApplication`'s own doc for why that
+    // state is application-scoped in the first place (rotation survival) even
+    // though this closure also resets it on navigation. This closure fires
+    // only on a genuine navigation (a launcher tile tap); `route` itself
+    // survives rotation via `rememberSaveable` above without ever calling
+    // back through here, so a rotation mid-round (or mid-visit to Words)
+    // never re-triggers this reset.
     val onOpenApp: (MiniApp) -> Unit = { app ->
         when (app) {
+            // Words keeps no round of its own, but it does keep the shared
+            // mascotMoodMachine's cumulative tap tally and the typed row —
+            // both process-scoped, per `CloudmojiApplication`'s own doc — so a
+            // fresh entry has to reset both explicitly, the same as every
+            // other branch here. Without this, `mascotMoodMachine.tapCount`
+            // only ever climbs: once it passes 100, none of the 10/25/50/100
+            // milestones can be reached again for the rest of the process, and
+            // the typed row from three visits ago would still be sitting there
+            // — unlike iOS, where `WordsView`'s `@State` typed row and tap
+            // count are reborn at zero on every fresh visit for free.
+            MiniApp.Words -> {
+                application.speechController.cancelAll()
+                application.mascotMoodMachine.reset()
+                application.wordsViewModel.clear()
+            }
+
             MiniApp.Count -> {
                 application.speechController.cancelAll()
                 application.countMoodMachine.reset()

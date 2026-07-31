@@ -119,22 +119,33 @@ fun jpegSampleSizeNoLargerThan(sourceWidth: Int, sourceHeight: Int, maxPixels: I
  * The decode is bounded by [maxEdgePixels] — see [MAX_STORED_EDGE_PIXELS] for
  * why that bound exists at all.
  *
- * Returns the original bytes unchanged if they will not decode, which is the
- * honest failure: a picture that cannot be read is better handed on as it
- * arrived than replaced with nothing.
+ * **Returns `null` if the bytes will not decode into a [Bitmap] at all —
+ * never [bytes] unchanged.** A capture that will not decode is dropped, not
+ * published: falling back to the original bytes would ship the sensor's own
+ * JPEG, EXIF block and all, which is exactly the metadata this function
+ * exists to strip. The caller ([toJpegBytes], and [CameraCapture.capture]'s
+ * `onResult` beyond it) already treats a `null` result as "no photograph this
+ * time" — the shutter still gave the child the flash and the buzz, and there
+ * is simply nothing new in the gallery, the same "no failure states"
+ * treatment an in-flight capture with no bound camera already gets.
+ *
+ * [decode] is the one seam in this function: `BitmapFactory` itself cannot be
+ * exercised in a JVM unit test (every call into it there throws "not mocked"
+ * rather than returning `null`), so the decode failure this function must
+ * handle — a real device handing back a genuinely undecodable JPEG — has no
+ * way to be simulated without one. Defaults to the real two-step
+ * `BitmapFactory` dance ([decodeSampledJpeg]); a test supplies a fake that
+ * returns `null` to prove the drop, not the original bytes, is what comes
+ * back.
  */
 fun uprightJpeg(
     bytes: ByteArray,
     rotationDegrees: Int,
     quality: Int = JPEG_QUALITY,
     maxEdgePixels: Int = MAX_STORED_EDGE_PIXELS,
-): ByteArray {
-    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-    BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
-    val options = BitmapFactory.Options().apply {
-        inSampleSize = jpegSampleSizeNoLargerThan(bounds.outWidth, bounds.outHeight, maxEdgePixels)
-    }
-    val source = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options) ?: return bytes
+    decode: (ByteArray, Int) -> Bitmap? = ::decodeSampledJpeg,
+): ByteArray? {
+    val source = decode(bytes, maxEdgePixels) ?: return null
     val normalized = ((rotationDegrees % 360) + 360) % 360
     val upright = if (normalized == 0) {
         source
@@ -154,6 +165,22 @@ fun uprightJpeg(
     if (upright !== source) upright.recycle()
     source.recycle()
     return out.toByteArray()
+}
+
+/**
+ * [uprightJpeg]'s real [Bitmap] decode: a bounds-only pass (to size
+ * [inSampleSize][BitmapFactory.Options.inSampleSize] via
+ * [jpegSampleSizeNoLargerThan] without decoding the full frame first), then
+ * the sampled decode itself. Returns `null` exactly when `BitmapFactory`
+ * does — a JPEG it cannot read, at all.
+ */
+private fun decodeSampledJpeg(bytes: ByteArray, maxEdgePixels: Int): Bitmap? {
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+    val options = BitmapFactory.Options().apply {
+        inSampleSize = jpegSampleSizeNoLargerThan(bounds.outWidth, bounds.outHeight, maxEdgePixels)
+    }
+    return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
 }
 
 /**
@@ -289,10 +316,12 @@ class CameraCapture(private val poster: CallbackPoster = AndroidMainThreadPoster
 }
 
 /** The captured frame's JPEG bytes, rotated upright and stripped — see
- * [uprightJpeg]. CameraX hands back a single-plane JPEG buffer for an
- * `ImageCapture` use case, which is what makes this one `get` rather than a
- * YUV conversion. */
-private fun ImageProxy.toJpegBytes(): ByteArray {
+ * [uprightJpeg]. `null` when the sensor's own JPEG will not decode, which
+ * [CameraCapture.capture]'s `onResult` already treats as "no photograph this
+ * time" — the same case a `runCatching` failure there produces. CameraX hands
+ * back a single-plane JPEG buffer for an `ImageCapture` use case, which is
+ * what makes this one `get` rather than a YUV conversion. */
+private fun ImageProxy.toJpegBytes(): ByteArray? {
     val buffer = planes[0].buffer
     val raw = ByteArray(buffer.remaining())
     buffer.get(raw)

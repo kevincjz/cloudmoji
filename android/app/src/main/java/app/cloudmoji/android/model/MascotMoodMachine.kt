@@ -228,10 +228,17 @@ class MascotMoodMachine(
      * longer exists) must not be protected by the same rule that keeps a
      * *live* one from being interrupted.
      *
-     * Words mode has no caller for this today — nothing there discards a
-     * live celebration — but Count does, on Shuffle, Next, a language
-     * change, a mute toggle, and leaving the screen, all of which can land
-     * mid-celebration.
+     * Count does, on Shuffle, Next, a language change, a mute toggle, and
+     * leaving the screen, all of which can land mid-celebration. Words *does*
+     * have a caller now too: `CloudmojiApp`'s `onOpenApp` calls this on every
+     * *fresh* entry to Words from the launcher — which is why [tapCount] is
+     * zeroed here as well, not just the mood. This instance, unlike Count's/
+     * Flash Cards'/Animals' own [MascotMoodMachine]s, keeps [milestones]
+     * non-empty; a tally left standing past a reset would still read past 100
+     * the next time a child opens Words, and none of 10/25/50/100 could ever
+     * be reached again for the rest of the process. iOS has no equivalent bug:
+     * `WordsView`'s `tapCount` is `@State`, scoped to the view and reborn at
+     * zero on every fresh visit.
      */
     fun reset() {
         excitedHoldHandle?.cancel()
@@ -241,6 +248,7 @@ class MascotMoodMachine(
         celebrationGeneration += 1
         excitedHoldActive = false
         isSpeaking = false
+        tapCount = 0
         moodState.value = MascotMood.Happy
     }
 
