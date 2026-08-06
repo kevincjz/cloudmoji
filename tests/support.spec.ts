@@ -25,4 +25,6 @@ test("support page exposes the designated private contact and safe guidance", as
     "href",
     "https://reportaproblem.apple.com",
   );
+  await expect(page.getByRole("heading", { name: "The play timer locked Cloudmoji" })).toBeVisible();
+  await expect(page.getByText(/Cloudmoji’s own app lock, not an iPhone or iPad lock/i)).toBeVisible();
 });
