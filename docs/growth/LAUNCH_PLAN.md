@@ -90,7 +90,7 @@ Key groups:
 | Item | Cost | Notes |
 |------|------|-------|
 | Apple Developer | $99/yr | Already have |
-| Google Play | $25 one-time | Already have |
+| Google Play | $25 one-time | Not yet — register before Android launch (see docs/product/ANDROID_MONETIZATION.md) |
 | Domain: cloudmoji.app | ~$15/yr | |
 | PostHog cloud | Free tier | |
 | Supabase | Free tier | |
