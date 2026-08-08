@@ -200,7 +200,7 @@ export const EMOJIS: EmojiEntry[] = [
   { emoji: "👦", cat: "people", en: "boy", zh: "小男孩", ms: "budak lelaki", ja: "おとこのこ", tl: "batang lalaki" },
   { emoji: "👧", cat: "people", en: "girl", zh: "小女孩", ms: "budak perempuan", ja: "おんなのこ", tl: "batang babae" },
   { emoji: "✋", cat: "people", en: "hand", zh: "手", ms: "tangan", ja: "おてて", tl: "kamay" },
-  { emoji: "🦷", cat: "people", en: "tooth", zh: "牙齿", ms: "gigi", ja: "ハ", tl: "ngipin" },
+  { emoji: "🦷", cat: "people", en: "tooth", zh: "牙齿", ms: "gigi", ja: "は", tl: "ngipin" },
   { emoji: "👅", cat: "people", en: "tongue", zh: "舌头", ms: "lidah", ja: "べろ", tl: "dila" },
 
   // Faces

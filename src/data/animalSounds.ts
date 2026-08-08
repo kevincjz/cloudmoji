@@ -33,7 +33,7 @@ export const ANIMAL_SOUNDS: Record<string, Record<Language, string>> = {
   "🐮": { en: "moo", zh: "哞哞", ms: "moo", ja: "モーモー", tl: "ungaa" },
   "🐄": { en: "moo", zh: "哞哞", ms: "moo", ja: "モーモー", tl: "ungaa" },
   "🐷": { en: "oink oink", zh: "哼哼", ms: "oink oink", ja: "ブーブー", tl: "oink oink" },
-  "🐔": { en: "cluck cluck", zh: "咯咯", ms: "kokok", ja: "コッコッ", tl: "kokak" },
+  "🐔": { en: "cluck cluck", zh: "咯咯", ms: "kokok", ja: "コッコッ", tl: "putak putak" },
   "🦆": { en: "quack quack", zh: "嘎嘎", ms: "kuek kuek", ja: "ガーガー", tl: "kwak kwak" },
   "🐑": { en: "baa baa", zh: "咩咩", ms: "mbek", ja: "メーメー", tl: "mee" },
   "🐴": { en: "neigh", zh: "咴咴", ms: "ringkik", ja: "ヒヒーン", tl: "halinghing" },
