@@ -44,16 +44,18 @@ launch timeline by weeks. Decide it before registering.
 
 - **Choose the account type deliberately:**
 
-  | | Personal | Organization (**recommended**) |
+  | | Personal (**chosen**) | Organization |
   |---|---|---|
   | Setup | Fastest | Needs a **D‑U‑N‑S number** (free, but can take up to ~2 weeks to issue) + org verification |
   | Pre-production testing gate | **Closed testing with ≥20 testers for ≥14 continuous days** before you may request production access (Google requirement for personal accounts registered after Nov 2023) | **Exempt** from the 20-tester gate |
   | Fit for a kids' app | Works | Reads as more credible; you already operate as a company (SproutLearn / Epitome) |
 
-  For a solo founder shipping a children's app, the **organization** account is
-  usually worth the D‑U‑N‑S wait: it removes the 20-tester/14-day gate and is a
-  better footing for the Families program. Start the D‑U‑N‑S request early — it
-  is the long pole.
+  **Decision (2026-08-09): a personal account.** That accepts the
+  **20-tester / 14-day closed-testing gate** above as a hard prerequisite for
+  production: line up ~20 testers and start the closed-testing clock at least
+  two weeks before the intended go-live date, and treat that clock — not the
+  code — as the Android launch's critical path. The organization alternative
+  was declined to avoid the D‑U‑N‑S wait.
 
 - **Complete identity verification** (government ID + address).
 
