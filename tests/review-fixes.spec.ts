@@ -130,6 +130,16 @@ test.describe("resilience", () => {
   });
 
   test("the typing row is capped at 50", async ({ page }) => {
+    const duplicateKeyWarnings: string[] = [];
+    page.on("console", (message) => {
+      if (
+        message.type() === "error"
+        && message.text().includes("same key")
+      ) {
+        duplicateKeyWarnings.push(message.text());
+      }
+    });
+
     await page.evaluate(() => {
       const g = document.querySelector('[data-testid="emoji-grid"]')!;
       const btns = [...g.querySelectorAll("button")].slice(0, 55);
@@ -137,6 +147,10 @@ test.describe("resilience", () => {
     });
     await page.waitForTimeout(500);
     await expect(page.getByTestId("typed-emoji")).toHaveCount(50);
+    expect(
+      duplicateKeyWarnings,
+      "rapid taps must not create duplicate React list keys",
+    ).toEqual([]);
   });
 });
 

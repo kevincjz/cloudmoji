@@ -71,7 +71,7 @@ export const COUNTABLES: Countable[] = [
   { emoji: "👦", en: "boy", zh: "个小男孩", ms: "orang budak lelaki", ja: "おとこのこ", tl: "batang lalaki" },
   { emoji: "👧", en: "girl", zh: "个小女孩", ms: "orang budak perempuan", ja: "おんなのこ", tl: "batang babae" },
   { emoji: "✋", en: "hand", zh: "只手", ms: "belah tangan", ja: "おてて", tl: "kamay" },
-  { emoji: "🦷", en: "tooth", enPlural: "teeth", zh: "颗牙齿", ms: "batang gigi", ja: "ハ", tl: "ngipin" },
+  { emoji: "🦷", en: "tooth", enPlural: "teeth", zh: "颗牙齿", ms: "batang gigi", ja: "は", tl: "ngipin" },
   { emoji: "👕", en: "shirt", zh: "件衣服", ms: "helai baju", ja: "シャツ", tl: "damit" },
   { emoji: "👗", en: "dress", zh: "条裙子", ms: "helai gaun", ja: "ワンピース", tl: "bestida" },
   { emoji: "🛏️", en: "bed", zh: "张床", ms: "buah katil", ja: "ベッド", tl: "kama" },

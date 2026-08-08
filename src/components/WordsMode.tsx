@@ -51,6 +51,11 @@ export function WordsMode({ lang, muted, compact, activeTab, onSelectTab, onLang
 
   const wordTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
   const beamingRef = useRef(false);
+  // Date.now() can repeat when a child taps quickly (and does routinely under
+  // automation), which gives React duplicate list keys. This counter only
+  // identifies entries within the current typing row, so a monotonic
+  // component-local value is both sufficient and deterministic.
+  const nextTypedIDRef = useRef(0);
 
   const safeMood = useCallback((m: MascotMood) => {
     if (beamingRef.current && m !== "beaming") return;
@@ -64,9 +69,13 @@ export function WordsMode({ lang, muted, compact, activeTab, onSelectTab, onLang
       initTTS();
       const word = getWord(item, lang);
 
-      setTyped((prev) =>
-        [...prev, { emoji: item.emoji, word, id: Date.now() }].slice(-MAX_TYPED),
-      );
+      setTyped((prev) => {
+        nextTypedIDRef.current += 1;
+        return [
+          ...prev,
+          { emoji: item.emoji, word, id: nextTypedIDRef.current },
+        ].slice(-MAX_TYPED);
+      });
       setShowWord({ emoji: item.emoji, word, id: Date.now() });
       // Keyed by glyph+category, not by index: an index is only meaningful
       // inside one section, and there are eight of them now.
