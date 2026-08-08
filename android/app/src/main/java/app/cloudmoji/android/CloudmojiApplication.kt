@@ -30,7 +30,8 @@ import app.cloudmoji.android.platform.CameraPermissionState
 import app.cloudmoji.android.platform.CoroutineSpeechWatchdogScheduler
 import app.cloudmoji.android.platform.HapticFeedback
 import app.cloudmoji.android.platform.SpeechController
-import app.cloudmoji.android.platform.StubEntitlementStore
+import app.cloudmoji.android.platform.EntitlementStore
+import app.cloudmoji.android.platform.resolveEntitlementStore
 import app.cloudmoji.android.platform.ToneDirector
 import app.cloudmoji.android.platform.VoiceResolver
 import app.cloudmoji.android.platform.audioFocusLossAction
@@ -100,7 +101,12 @@ class CloudmojiApplication : Application() {
 
     val settingsRepository: SettingsRepository by lazy { SettingsRepository(settingsDataStore) }
 
-    val entitlementStore: StubEntitlementStore by lazy { StubEntitlementStore() }
+    // Release must never resolve the unlocked stub — see EntitlementStoreFactory
+    // and ANDROID_MONETIZATION.md §3. Debug keeps the stub (every mini-app
+    // visible in development); a future BuildConfig flag can feed `allowStub`.
+    val entitlementStore: EntitlementStore by lazy {
+        resolveEntitlementStore(isDebug = BuildConfig.DEBUG, allowStub = true)
+    }
 
     /** Mirrors [settingsRepository]'s current value without needing a
      * `@Composable` context — [speechController]'s `isMuted` reads this
